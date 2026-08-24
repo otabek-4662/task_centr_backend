@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: taskcenter-db
+    environment:
+      POSTGRES_DB: taskcenter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: eclipse-temurin:17-jdk
+    container_name: taskcenter-backend
+    working_dir: /app
+    volumes:
+      - ./app.jar:/app/app.jar:ro
+    command: ["java", "-jar", "app.jar"]
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskcenter
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

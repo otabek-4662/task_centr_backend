@@ -1,0 +1,36 @@
+# Maven
+target/
+*.jar
+*.war
+*.ear
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Local config
+application-local.yml
+application-local.properties
+
+# Build
+*.war
+*.ear
+
+# Logs
+logs/
+*.log
+
+# Temporary
+*.tmp
+*.temp

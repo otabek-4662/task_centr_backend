@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskcenter
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+jwt:
+  secret: super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly
+  expiration: 604800000 # 7 days in milliseconds
+server:
+  forward-headers-strategy: framework
