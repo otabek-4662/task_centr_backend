@@ -11,6 +11,7 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-            .addServersItem(new Server().url("https://schematic-crewmate-repaint.ngrok-free.app"));
+            .addServersItem(new Server().url("http://localhost:8080").description("Local - localhost:8080"))
+            .addServersItem(new Server().url("https://schematic-crewmate-repaint.ngrok-free.app").description("Ngrok - production tunnel"));
     }
 }
