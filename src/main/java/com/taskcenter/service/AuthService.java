@@ -3,9 +3,13 @@ package com.taskcenter.service;
 import com.taskcenter.dto.AuthResponse;
 import com.taskcenter.dto.LoginRequest;
 import com.taskcenter.dto.RegisterRequest;
+import com.taskcenter.exception.ConflictException;
+import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.security.JwtTokenProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -29,14 +33,15 @@ public class AuthService {
         this.tokenProvider = tokenProvider;
     }
 
+    @CacheEvict(value = "users", key = "#request.name")
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email is already in use!");
+        if (userRepository.existsByName(request.getName())) {
+            throw new ConflictException("Bu nom allaqachon ishlatilmoqda: " + request.getName());
         }
 
         User user = User.builder()
                 .name(request.getName())
-                .email(request.getEmail())
+                .fullName(request.getName())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .build();
@@ -44,7 +49,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
@@ -54,12 +59,18 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        User user = getUserByName(request.getName());
 
         return new AuthResponse(jwt, AuthResponse.UserDto.fromEntity(user));
+    }
+    
+    @Cacheable(value = "users", key = "#name")
+    public User getUserByName(String name) {
+        return userRepository.findByName(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi: " + name));
     }
 }

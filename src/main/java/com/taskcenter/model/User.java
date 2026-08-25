@@ -2,15 +2,20 @@ package com.taskcenter.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
 @Entity
 @Table(name = "users")
+@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,11 +24,13 @@ import java.util.List;
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
+
+    @Column(name = "full_name")
+    private String fullName;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -36,6 +43,28 @@ public class User implements UserDetails {
     @Builder.Default
     private Role role = Role.USER;
 
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(name = "updated_by")
+    private String updatedBy;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) {
+            this.id = java.util.UUID.randomUUID().toString();
+        }
+        if (this.fullName == null) {
+            this.fullName = this.name;
+        }
+        if (this.email == null) {
+            this.email = "user_" + this.id + "@taskcenter.local";
+        }
+    }
+
     public enum Role {
         USER, ADMIN
     }
@@ -47,7 +76,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // using email as username
+        return name;
     }
 
     @Override

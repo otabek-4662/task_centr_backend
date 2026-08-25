@@ -2,9 +2,17 @@ package com.taskcenter.repository;
 
 import com.taskcenter.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByEmail(String email);
-    boolean existsByEmail(String email);
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+public interface UserRepository extends JpaRepository<User, String> {
+    Optional<User> findByName(String name);
+    boolean existsByName(String name);
+    
+    @Query("SELECT u FROM User u WHERE u.id IN :ids")
+    List<User> findByIdIn(@Param("ids") Set<String> ids);
 }

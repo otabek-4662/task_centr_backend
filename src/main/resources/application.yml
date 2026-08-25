@@ -1,21 +1,76 @@
 spring:
   application:
     name: backend
+  sql:
+    init:
+      mode: never
   datasource:
-    url: jdbc:postgresql://localhost:5432/taskcenter
-    username: postgres
-    password: password
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/taskcenter}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 10000
+      max-lifetime: 1800000
+      idle-timeout: 300000
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
+        show_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
 jwt:
-  secret: super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly
-  expiration: 604800000 # 7 days in milliseconds
+  secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
+  expiration: ${JWT_EXPIRATION:604800000} # 7 days in milliseconds
+
+ratelimit:
+  auth:
+    enabled: true
+  api:
+    enabled: true
+
 server:
+  port: ${PORT:8080}
   forward-headers-strategy: framework
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 1024
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    enable:
+      hikaricp: true
+      jvm: true
+      cache: true

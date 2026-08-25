@@ -1,0 +1,12 @@
+target
+.mvn/wrapper/maven-wrapper.jar
+.idea
+.git
+.gitignore
+README.md
+*.log
+pgdata
+pgdata_test
+backend.log
+backend_err.log
+swagger_auth_test*.ps1
