@@ -6,11 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BackendApplication {
 	public static void main(String[] args) {
-		// Render postgres:// ni jdbc:postgresql:// ga aylantirish (Render Blueprint uchun)
+		// Render postgres:// va postgresql:// ni jdbc:postgresql:// ga aylantirish
 		String url = System.getenv("SPRING_DATASOURCE_URL");
-		if (url != null && url.startsWith("postgres://")) {
+		if (url != null && url.startsWith("postgres")) {
 			try {
-				String withoutProtocol = url.substring("postgres://".length());
+				int protoEnd = url.indexOf("://");
+				String withoutProtocol = protoEnd >= 0 ? url.substring(protoEnd + 3) : url;
 				int atIndex = withoutProtocol.indexOf('@');
 				String hostPart = atIndex >= 0 ? withoutProtocol.substring(atIndex + 1) : withoutProtocol;
 				String jdbcUrl = "jdbc:postgresql://" + hostPart;
