@@ -1,0 +1,49 @@
+# Render Blueprint - task_center_backend
+# Dashboard -> New -> Blueprint -> Connect repo -> ushbu fayl avtomatik o'qiiladi
+# DB + Web Service birgalikda yaratiladi
+
+services:
+  - type: web
+    name: task-center-backend
+    env: docker
+    region: singapore
+    plan: free
+    branch: master
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /v3/api-docs
+    autoDeploy: false
+    envVars:
+      # Render avtomatik beradi: PORT=10000, Spring ${PORT:8080} bilan o'qiydi
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 604800000
+      # Database dan keladigan qiymatlar - quyidagi databases.taskcenter-db dan
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: taskcenter-db
+          property: connectionString
+        # Eslatma: Render connectionString = postgres://user:pass@host:5432/db
+        # Spring esa jdbc:postgresql:// kutadi. Agar /v3/api-docs 500 bersa,
+        # Render Dashboard -> task-center-backend -> Environment da
+        # SPRING_DATASOURCE_URL ni jdbc:postgresql://... ga qo'lda o'zgartir:
+        # postgres://postgres:xxx@dpg-xxx/taskcenter  -> jdbc:postgresql://dpg-xxx/taskcenter
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: taskcenter-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: taskcenter-db
+          property: password
+
+databases:
+  - name: taskcenter-db
+    plan: free
+    region: singapore
+    databaseName: taskcenter
+    user: postgres
+    # Free plan 90 kun, keyin o'chadi - demo uchun yetarli
+    # Doimiy kerak bo'lsa Neon/Supabase ga ko'chirish mumkin
