@@ -23,7 +23,6 @@ public class AuthResponse {
         private String name;
         private String fullName;
         private String email;
-        private String avatarUrl;
 
         public static UserDto fromEntity(User user) {
             return UserDto.builder()
@@ -31,7 +30,6 @@ public class AuthResponse {
                     .name(user.getName())
                     .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
                     .email(user.getEmail())
-                    .avatarUrl(user.getAvatarUrl())
                     .build();
         }
     }

@@ -11,7 +11,6 @@ public class UserDto {
     private String id;
     private String fullName;
     private String email;
-    private String avatarUrl;
     private Boolean isAdded;
 
     public static UserDto fromEntity(User user) {
@@ -19,7 +18,6 @@ public class UserDto {
                 .id(user.getId())
                 .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
                 .email(user.getEmail())
-                .avatarUrl(user.getAvatarUrl())
                 .build();
     }
 

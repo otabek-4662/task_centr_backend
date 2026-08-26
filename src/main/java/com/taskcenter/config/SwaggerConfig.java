@@ -22,7 +22,6 @@ public class SwaggerConfig {
                     new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
             .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
             .addServersItem(new Server().url("http://localhost:8080").description("Local - localhost:8080"))
-            .addServersItem(new Server().url(renderUrl).description("Render - production"))
-            .addServersItem(new Server().url("https://schematic-crewmate-repaint.ngrok-free.app").description("Ngrok - old tunnel"));
+            .addServersItem(new Server().url(renderUrl).description("Render - production"));
     }
 }

@@ -32,7 +32,6 @@ public class DataSeeder {
                     .fullName("elshod t")
                     .email("elshodweb@gmail.com")
                     .password(passwordEncoder.encode("password123"))
-                    .avatarUrl("https://lh3.googleusercontent.com/a/ACg8ocKgiox_7-61beugIFh8UFcACOa4frkuIOnGl89NmhkOTQkuwRM=s96-c")
                     .role(User.Role.USER)
                     .build();
             User mirxon = User.builder()
@@ -41,7 +40,6 @@ public class DataSeeder {
                     .fullName("Mirxonjon Ismanov")
                     .email("mirxonjonismanov152@gmail.com")
                     .password(passwordEncoder.encode("password123"))
-                    .avatarUrl("https://lh3.googleusercontent.com/a/ACg8ocIN06dDiMVzDL6eaNOgK-m-mVpUthrVAu--9lZXfgOABsUiFw=s96-c")
                     .role(User.Role.USER)
                     .build();
             User xusan = User.builder()
@@ -50,7 +48,6 @@ public class DataSeeder {
                     .fullName("Xusan Yusupov")
                     .email("xusanyusupov06@gmail.com")
                     .password(passwordEncoder.encode("password123"))
-                    .avatarUrl("https://lh3.googleusercontent.com/a/ACg8ocLCG838arJYaN7zrVkWgYQKDMjeXHRXY8va1jXMjueT36KKMg=s96-c")
                     .role(User.Role.USER)
                     .build();
             userRepository.save(elshod);
