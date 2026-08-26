@@ -6,11 +6,13 @@ import com.taskcenter.model.Task;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.LabelRepository;
 import com.taskcenter.repository.TaskRepository;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
