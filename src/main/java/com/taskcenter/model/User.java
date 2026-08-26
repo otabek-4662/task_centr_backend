@@ -19,11 +19,13 @@ import java.util.List;
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "full_name")
+    private String fullName;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -31,10 +33,23 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private Role role = Role.USER;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) {
+            this.id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+        }
+        if (this.fullName == null) {
+            this.fullName = this.name;
+        }
+    }
 
     public enum Role {
         USER, ADMIN

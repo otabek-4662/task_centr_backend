@@ -6,7 +6,7 @@ services:
   - type: web
     name: task-center-backend
     env: docker
-    region: singapore
+    region: ohio
     plan: free
     branch: master
     dockerfilePath: ./Dockerfile
@@ -15,7 +15,7 @@ services:
     envVars:
       # Render avtomatik beradi: PORT=10000, Spring ${PORT:8080} bilan o'qiydi
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
-        value: update
+        value: create
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
@@ -42,7 +42,7 @@ services:
 databases:
   - name: taskcenter-db
     plan: free
-    region: singapore
+    region: ohio
     databaseName: taskcenter
     user: postgres
     # Free plan 90 kun, keyin o'chadi - demo uchun yetarli
