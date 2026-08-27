@@ -1,5 +1,6 @@
 package com.taskcenter.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.taskcenter.model.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,7 @@ public class AuthResponse {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class UserDto {
         private String id;
         private String name;
@@ -29,7 +31,6 @@ public class AuthResponse {
                     .id(user.getId())
                     .name(user.getName())
                     .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
-                    .email(user.getEmail())
                     .build();
         }
     }
