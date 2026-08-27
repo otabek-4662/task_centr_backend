@@ -25,7 +25,7 @@ public class WorkspaceController {
 
     @GetMapping
     public ApiResponse<List<WorkspaceDto>> getWorkspaces(@AuthenticationPrincipal User currentUser) {
-        List<Workspace> workspaces = workspaceRepository.findAll();
+        List<Workspace> workspaces = workspaceRepository.findAllByOwnerId(currentUser.getId());
         return ApiResponse.success("ok", workspaces.stream().map(WorkspaceDto::fromEntity).collect(Collectors.toList()));
     }
 
