@@ -28,7 +28,8 @@ public class BoardController {
         this.taskRepository = taskRepository;
     }
 
-    // Columns without cards
+    // ========== COLUMNS ==========
+
     @GetMapping("/columns")
     public ApiResponse<List<ColumnDto>> getColumns(@RequestParam String workspaceId) {
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
@@ -36,13 +37,39 @@ public class BoardController {
         return ApiResponse.success("ok", dtos);
     }
 
-    // Backward compat: workspaceId path
     @GetMapping("/workspaces/{workspaceId}/columns")
     public ApiResponse<List<ColumnDto>> getColumnsByWorkspace(@PathVariable String workspaceId) {
         return getColumns(workspaceId);
     }
 
-    // Labels
+    @PostMapping("/columns")
+    public ApiResponse<ColumnDto> createColumn(@RequestBody ColumnCreateRequest req) {
+        BoardColumn col = BoardColumn.builder()
+                .workspaceId(req.getWorkspaceId())
+                .title(req.getTitle())
+                .order(req.getOrder() != null ? req.getOrder() : 0)
+                .build();
+        columnRepository.save(col);
+        return ApiResponse.success("Column yaratildi", ColumnDto.fromEntity(col));
+    }
+
+    @PutMapping("/columns/{id}")
+    public ApiResponse<ColumnDto> updateColumn(@PathVariable String id, @RequestBody ColumnCreateRequest req) {
+        BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column not found"));
+        col.setTitle(req.getTitle());
+        if (req.getOrder() != null) col.setOrder(req.getOrder());
+        columnRepository.save(col);
+        return ApiResponse.success("Column yangilandi", ColumnDto.fromEntity(col));
+    }
+
+    @DeleteMapping("/columns/{id}")
+    public ApiResponse<Void> deleteColumn(@PathVariable String id) {
+        columnRepository.deleteById(id);
+        return ApiResponse.success("Column o'chirildi", null);
+    }
+
+    // ========== LABELS ==========
+
     @GetMapping("/labels")
     public ApiResponse<List<LabelDto>> getLabels(@RequestParam String workspaceId) {
         return ApiResponse.success("ok", labelRepository.findByWorkspaceId(workspaceId).stream().map(LabelDto::fromEntity).collect(Collectors.toList()));
@@ -53,7 +80,8 @@ public class BoardController {
         return getLabels(workspaceId);
     }
 
-    // Board - columns with cards (frontend first snippet)
+    // ========== BOARD ==========
+
     @GetMapping("/board")
     public ApiResponse<List<ColumnWithCardsDto>> getBoard(@RequestParam String workspaceId) {
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
@@ -69,7 +97,8 @@ public class BoardController {
         return getBoard(workspaceId);
     }
 
-    // Items / tasks per column - 4 requests frontend does
+    // ========== ITEMS / TASKS ==========
+
     @GetMapping("/items")
     public ApiResponse<List<TaskDto>> getItems(@RequestParam(required = false) String columnId,
                                                @RequestParam(required = false) String workspaceId) {
@@ -102,9 +131,38 @@ public class BoardController {
         return ApiResponse.success("ok", TaskDto.fromEntity(task));
     }
 
+    @PostMapping("/items")
+    public ApiResponse<TaskDto> createItem(@RequestBody TaskCreateRequest req) {
+        Task task = Task.builder()
+                .workspaceId(req.getWorkspaceId())
+                .columnId(req.getColumnId())
+                .title(req.getTitle())
+                .description(req.getDescription())
+                .order(req.getOrder() != null ? req.getOrder() : 0)
+                .build();
+        taskRepository.save(task);
+        return ApiResponse.success("Task yaratildi", TaskDto.fromEntity(task));
+    }
+
+    @PutMapping("/items/{id}")
+    public ApiResponse<TaskDto> updateItem(@PathVariable String id, @RequestBody TaskUpdateRequest req) {
+        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
+        if (req.getTitle() != null) task.setTitle(req.getTitle());
+        if (req.getDescription() != null) task.setDescription(req.getDescription());
+        if (req.getColumnId() != null) task.setColumnId(req.getColumnId());
+        if (req.getOrder() != null) task.setOrder(req.getOrder());
+        taskRepository.save(task);
+        return ApiResponse.success("Task yangilandi", TaskDto.fromEntity(task));
+    }
+
+    @DeleteMapping("/items/{id}")
+    public ApiResponse<Void> deleteItem(@PathVariable String id) {
+        taskRepository.deleteById(id);
+        return ApiResponse.success("Task o'chirildi", null);
+    }
+
     @GetMapping("/workspaces/{workspaceId}/members")
     public ApiResponse<List<TaskDto>> getMembersWithTasks(@PathVariable String workspaceId) {
-        // For compat with "6a451... < memberslar va hamma columndagi tasklar" - return same as board?
         return getItems(null, workspaceId);
     }
 }

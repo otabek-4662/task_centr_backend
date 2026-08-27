@@ -57,7 +57,9 @@ public class DataSeeder {
             // Workspace
             Workspace ws = Workspace.builder()
                     .id(wsId)
-                    .name("Test Workspace")
+                    .title("Test Workspace")
+                    .bgColor("#1a1b41")
+                    .description("Test workspace description")
                     .ownerId(xusan.getId())
                     .build();
             workspaceRepository.save(ws);
