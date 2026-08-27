@@ -28,7 +28,7 @@ public class JwtTokenProvider {
         User userPrincipal = (User) authentication.getPrincipal();
 
         return Jwts.builder()
-                .setSubject(userPrincipal.getEmail())
+                .setSubject(userPrincipal.getName())
                 .claim("id", userPrincipal.getId())
                 .claim("role", userPrincipal.getRole().name())
                 .setIssuedAt(new Date())
@@ -37,7 +37,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String getUserEmailFromJWT(String token) {
+    public String getUserNameFromJWT(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()

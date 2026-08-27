@@ -30,14 +30,16 @@ public class AuthService {
     }
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email is already in use!");
+        if (userRepository.existsByName(request.getName())) {
+            throw new RuntimeException("Bu nom allaqachon ishlatilmoqda!");
         }
+
+        String dummyEmail = request.getName().toLowerCase().replaceAll("\\s+", "") + "@taskcenter.local";
 
         User user = User.builder()
                 .name(request.getName())
                 .fullName(request.getName())
-                .email(request.getEmail())
+                .email(dummyEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .build();
@@ -45,7 +47,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
@@ -55,11 +57,11 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        User user = userRepository.findByName(request.getName()).orElseThrow();
 
         return new AuthResponse(jwt, AuthResponse.UserDto.fromEntity(user));
     }

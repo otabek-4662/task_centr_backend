@@ -59,7 +59,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // using email as username
+        return name;
     }
 
     @Override
