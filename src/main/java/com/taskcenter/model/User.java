@@ -27,6 +27,9 @@ public class User implements UserDetails {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
     @Column(nullable = false)
     private String password;
 
@@ -42,6 +45,9 @@ public class User implements UserDetails {
         }
         if (this.fullName == null) {
             this.fullName = this.name;
+        }
+        if (this.email == null) {
+            this.email = this.name.toLowerCase().replaceAll("\\s+", "") + "@taskcenter.local";
         }
     }
 
