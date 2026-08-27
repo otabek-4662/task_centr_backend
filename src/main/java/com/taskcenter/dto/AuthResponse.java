@@ -24,7 +24,6 @@ public class AuthResponse {
         private String id;
         private String name;
         private String fullName;
-        private String email;
 
         public static UserDto fromEntity(User user) {
             return UserDto.builder()

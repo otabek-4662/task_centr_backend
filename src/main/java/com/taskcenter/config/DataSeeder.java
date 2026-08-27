@@ -25,28 +25,21 @@ public class DataSeeder {
                 return;
             }
 
-            // Users - 3 ta test user (Xusan bergan IDlar)
             User elshod = User.builder()
-                    .id("6a45f96233ff7819b28efd12")
-                    .name("elshod t")
-                    .fullName("elshod t")
-                    .email("elshodweb@gmail.com")
+                    .name("elshod")
+                    .fullName("Elshod T")
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
             User mirxon = User.builder()
-                    .id("6a46002d050c7f2596e14b2c")
-                    .name("Mirxonjon Ismanov")
+                    .name("mirxon")
                     .fullName("Mirxonjon Ismanov")
-                    .email("mirxonjonismanov152@gmail.com")
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
             User xusan = User.builder()
-                    .id("6a3e1a611da0ab1fe1eea9be")
-                    .name("Xusan Yusupov")
+                    .name("xusan")
                     .fullName("Xusan Yusupov")
-                    .email("xusanyusupov06@gmail.com")
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
@@ -54,7 +47,6 @@ public class DataSeeder {
             userRepository.save(mirxon);
             userRepository.save(xusan);
 
-            // Workspace
             Workspace ws = Workspace.builder()
                     .id(wsId)
                     .title("Test Workspace")
@@ -64,12 +56,10 @@ public class DataSeeder {
                     .build();
             workspaceRepository.save(ws);
 
-            // Workspace members
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(elshod.getId()).role("MEMBER").build());
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(mirxon.getId()).role("MEMBER").build());
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(xusan.getId()).role("OWNER").build());
 
-            // Columns - 4 ta
             BoardColumn todo = BoardColumn.builder().id("6a45163133ff7819b28ef90d").workspaceId(wsId).title("To Do").order(1).isDefault(true).build();
             BoardColumn inProgress = BoardColumn.builder().id("6a45163133ff7819b28ef90e").workspaceId(wsId).title("In Progress").order(2).isDefault(true).build();
             BoardColumn done = BoardColumn.builder().id("6a45163133ff7819b28ef90f").workspaceId(wsId).title("Done").order(3).isDefault(true).build();
@@ -79,7 +69,6 @@ public class DataSeeder {
             columnRepository.save(done);
             columnRepository.save(blocked);
 
-            // Labels - 4 ta
             Label frontend = Label.builder().id("6a45f89833ff7819b28efb4a").workspaceId(wsId).name("frontend").color("BLUE").build();
             Label backend = Label.builder().id("6a45f8ea33ff7819b28efc42").workspaceId(wsId).name("backend").color("BLACK").build();
             Label design = Label.builder().id("6a45f8f733ff7819b28efc63").workspaceId(wsId).name("design").color("PINK").build();
@@ -89,7 +78,6 @@ public class DataSeeder {
             labelRepository.save(design);
             labelRepository.save(management);
 
-            // Tasks - 4 ta column uchun tasklar
             Task wfm293 = Task.builder()
                     .id("6a4df77014e89613375ad6ff")
                     .publicId("WFM-293")

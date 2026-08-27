@@ -34,12 +34,9 @@ public class AuthService {
             throw new RuntimeException("Bu nom allaqachon ishlatilmoqda!");
         }
 
-        String dummyEmail = request.getName().toLowerCase().replaceAll("\\s+", "") + "@taskcenter.local";
-
         User user = User.builder()
                 .name(request.getName())
                 .fullName(request.getName())
-                .email(dummyEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .build();

@@ -28,7 +28,7 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @Operation(summary = "Register - token beradi", description = "Tokensiz ishlaydi. Body: {name, email, password}. Javob: AuthResponse.token (response.data.token) ni Copy -> Swagger Authorize 🔓 ga qo'ying. Misol email: test@test.uz")
+    @Operation(summary = "Register - token beradi", description = "Body: {name, password}. Token 7 kun amal qiladi.")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> registerUser(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
@@ -36,7 +36,7 @@ public class AuthController {
                 .body(ApiResponse.success("Muvaffaqiyatli ro'yxatdan o'tdingiz", response));
     }
 
-    @Operation(summary = "Login - token beradi", description = "Tokensiz ishlaydi. Body: {email: 'xusanyusupov06@gmail.com', password: 'password123'} -> javobdagi 'token' ni Copy -> Authorize 🔓 -> paste. Keyin qolgan GET/POST/DELETE lar ishlaydi.")
+    @Operation(summary = "Login - token beradi", description = "Body: {name, password}. Token ni Swagger Authorize 🔓 ga qo'ying.")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> authenticateUser(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);

@@ -3,13 +3,18 @@ package com.taskcenter.controller;
 import com.taskcenter.dto.*;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.User;
+import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.LabelRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.repository.UserRepository;
+import com.taskcenter.repository.WorkspaceMemberRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @SecurityRequirement(name = "bearerAuth")
@@ -21,11 +26,17 @@ public class BoardController {
     private final ColumnRepository columnRepository;
     private final LabelRepository labelRepository;
     private final TaskRepository taskRepository;
+    private final WorkspaceMemberRepository memberRepository;
+    private final UserRepository userRepository;
 
-    public BoardController(ColumnRepository columnRepository, LabelRepository labelRepository, TaskRepository taskRepository) {
+    public BoardController(ColumnRepository columnRepository, LabelRepository labelRepository,
+                           TaskRepository taskRepository, WorkspaceMemberRepository memberRepository,
+                           UserRepository userRepository) {
         this.columnRepository = columnRepository;
         this.labelRepository = labelRepository;
         this.taskRepository = taskRepository;
+        this.memberRepository = memberRepository;
+        this.userRepository = userRepository;
     }
 
     // ========== COLUMNS ==========
@@ -162,7 +173,12 @@ public class BoardController {
     }
 
     @GetMapping("/workspaces/{workspaceId}/members")
-    public ApiResponse<List<TaskDto>> getMembersWithTasks(@PathVariable String workspaceId) {
-        return getItems(null, workspaceId);
+    public ApiResponse<List<UserDto>> getMembers(@PathVariable String workspaceId) {
+        List<WorkspaceMember> members = memberRepository.findByWorkspaceId(workspaceId);
+        Set<String> memberIds = members.stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
+        List<UserDto> users = userRepository.findAllById(memberIds).stream()
+                .map(UserDto::fromEntity)
+                .collect(Collectors.toList());
+        return ApiResponse.success("ok", users);
     }
 }
