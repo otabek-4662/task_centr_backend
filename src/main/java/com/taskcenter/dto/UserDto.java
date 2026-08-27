@@ -1,5 +1,6 @@
 package com.taskcenter.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.taskcenter.model.User;
 import lombok.*;
 
@@ -7,6 +8,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
     private String id;
     private String fullName;
