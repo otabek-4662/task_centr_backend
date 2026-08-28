@@ -54,6 +54,10 @@ public class GlobalExceptionHandler {
         String message = ex.getMessage();
         if (message == null) message = "Ichki xatolik";
 
+        if (message.contains("allaqachon") || message.contains("mavjud") || message.contains("already")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(message));
+        }
         if (message.contains("not found") || message.contains("topilmadi") || message.contains("Not found")) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(message));
