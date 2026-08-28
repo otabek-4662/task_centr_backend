@@ -47,7 +47,7 @@ public class User implements UserDetails {
             this.fullName = this.name;
         }
         if (this.email == null) {
-            this.email = this.name.toLowerCase().replaceAll("\\s+", "") + "@taskcenter.local";
+            this.email = "user_" + this.id + "@taskcenter.local";
         }
     }
 

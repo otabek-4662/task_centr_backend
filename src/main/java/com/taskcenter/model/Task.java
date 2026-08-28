@@ -59,7 +59,7 @@ public class Task {
             this.id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24);
         }
         if (this.publicId == null) {
-            this.publicId = "WFM-" + (int)(Math.random() * 900 + 100);
+            this.publicId = "WFM-" + (System.nanoTime() % 9000 + 1000);
         }
     }
 }

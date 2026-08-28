@@ -75,6 +75,7 @@ public class BoardController {
 
     @DeleteMapping("/columns/{id}")
     public ApiResponse<Void> deleteColumn(@PathVariable String id) {
+        taskRepository.deleteByColumnId(id);
         columnRepository.deleteById(id);
         return ApiResponse.success("Column o'chirildi", null);
     }
