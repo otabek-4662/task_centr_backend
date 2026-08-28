@@ -28,7 +28,7 @@ public class Workspace {
     @Column(nullable = false)
     private String ownerId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")

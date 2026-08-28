@@ -4,6 +4,8 @@ spring:
   sql:
     init:
       mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/taskcenter}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
