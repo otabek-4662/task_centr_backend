@@ -11,12 +11,14 @@ import lombok.*;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
     private String id;
+    private String name;
     private String fullName;
     private Boolean isAdded;
 
     public static UserDto fromEntity(User user) {
         return UserDto.builder()
                 .id(user.getId())
+                .name(user.getName())
                 .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
                 .build();
     }
