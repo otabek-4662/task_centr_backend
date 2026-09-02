@@ -24,6 +24,45 @@ public class DataSeeder {
         return args -> {
             try (java.sql.Connection conn = dataSource.getConnection();
                  java.sql.Statement stmt = conn.createStatement()) {
+
+                var rs = stmt.executeQuery(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'workspaces' AND column_name = 'title')"
+                );
+                rs.next();
+                boolean hasTitle = rs.getBoolean(1);
+
+                if (!hasTitle) {
+                    System.out.println("SchemaFix: title column MISSING — rebuilding all tables...");
+
+                    String[] drops = {
+                        "DROP TABLE IF EXISTS task_assignees CASCADE",
+                        "DROP TABLE IF EXISTS task_labels CASCADE",
+                        "DROP TABLE IF EXISTS tasks CASCADE",
+                        "DROP TABLE IF EXISTS board_columns CASCADE",
+                        "DROP TABLE IF EXISTS workspace_members CASCADE",
+                        "DROP TABLE IF EXISTS labels CASCADE",
+                        "DROP TABLE IF EXISTS workspaces CASCADE",
+                        "DROP TABLE IF EXISTS users CASCADE"
+                    };
+                    for (String sql : drops) stmt.execute(sql);
+
+                    String[] creates = {
+                        "CREATE TABLE users (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, full_name VARCHAR(255), email VARCHAR(255) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL DEFAULT 'USER')",
+                        "CREATE TABLE workspaces (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255) NOT NULL, bg_color VARCHAR(255), description TEXT, owner_id VARCHAR(255) NOT NULL)",
+                        "CREATE TABLE board_columns (id VARCHAR(255) PRIMARY KEY, workspace_id VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, column_order INTEGER NOT NULL DEFAULT 0, is_default BOOLEAN NOT NULL DEFAULT FALSE)",
+                        "CREATE TABLE labels (id VARCHAR(255) PRIMARY KEY, workspace_id VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, color VARCHAR(255) NOT NULL)",
+                        "CREATE TABLE tasks (id VARCHAR(255) PRIMARY KEY, public_id VARCHAR(255) NOT NULL, workspace_id VARCHAR(255) NOT NULL, column_id VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, description TEXT, task_order INTEGER NOT NULL DEFAULT 0)",
+                        "CREATE TABLE task_labels (task_id VARCHAR(255) NOT NULL, label_id VARCHAR(255) NOT NULL, PRIMARY KEY (task_id, label_id))",
+                        "CREATE TABLE task_assignees (task_id VARCHAR(255) NOT NULL, user_id VARCHAR(255) NOT NULL, PRIMARY KEY (task_id, user_id))",
+                        "CREATE TABLE workspace_members (workspace_id VARCHAR(255) NOT NULL, user_id VARCHAR(255) NOT NULL, role VARCHAR(255) NOT NULL, PRIMARY KEY (workspace_id, user_id))"
+                    };
+                    for (String sql : creates) stmt.execute(sql);
+
+                    System.out.println("SchemaFix: ALL tables recreated successfully");
+                } else {
+                    System.out.println("SchemaFix: schema OK");
+                }
+
                 stmt.execute("DELETE FROM task_assignees WHERE task_id IN (SELECT id FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL))");
                 stmt.execute("DELETE FROM task_labels WHERE task_id IN (SELECT id FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL))");
                 stmt.execute("DELETE FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
@@ -31,9 +70,10 @@ public class DataSeeder {
                 stmt.execute("DELETE FROM workspace_members WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
                 stmt.execute("DELETE FROM labels WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
                 stmt.execute("DELETE FROM workspaces WHERE title IS NULL");
-                System.out.println("Cleanup: removed workspaces with null title");
+                System.out.println("Cleanup: done");
+
             } catch (Exception e) {
-                System.out.println("Cleanup skip: " + e.getMessage());
+                System.out.println("SchemaFix/Cleanup error: " + e.getMessage());
             }
 
             String wsId = "6a45163133ff7819b28ef909";
