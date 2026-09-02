@@ -53,8 +53,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataAccess(DataAccessException ex) {
+        String rootMsg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        System.err.println("DATA_ACCESS_ERROR: " + rootMsg);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Database xatolik — schema to'g'ri emas"));
+                .body(ApiResponse.error("Database xatolik: " + rootMsg));
     }
 
     @ExceptionHandler(RuntimeException.class)
