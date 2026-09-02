@@ -2,21 +2,13 @@ package com.taskcenter.config;
 
 import com.taskcenter.model.*;
 import com.taskcenter.repository.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
-
 @Configuration
 public class DataSeeder {
-
-    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     @Bean
     CommandLineRunner seedData(UserRepository userRepository,
@@ -25,20 +17,8 @@ public class DataSeeder {
                                LabelRepository labelRepository,
                                TaskRepository taskRepository,
                                WorkspaceMemberRepository memberRepository,
-                               PasswordEncoder passwordEncoder,
-                               DataSource dataSource) {
+                               PasswordEncoder passwordEncoder) {
         return args -> {
-            try (Connection conn = dataSource.getConnection();
-                 Statement stmt = conn.createStatement()) {
-                stmt.execute("ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS created_at TIMESTAMP");
-                stmt.execute("ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP");
-                stmt.execute("UPDATE workspaces SET created_at = NOW() WHERE created_at IS NULL");
-                stmt.execute("UPDATE workspaces SET updated_at = NOW() WHERE updated_at IS NULL");
-                log.info("DB Migration: workspaces timestamps OK");
-            } catch (Exception e) {
-                log.error("DB Migration failed: {}", e.getMessage());
-            }
-
             String wsId = "6a45163133ff7819b28ef909";
             if (workspaceRepository.existsById(wsId)) {
                 System.out.println("Seed data already exists, skip");
