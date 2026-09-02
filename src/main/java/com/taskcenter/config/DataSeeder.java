@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import javax.sql.DataSource;
+
 @Configuration
 public class DataSeeder {
 
@@ -17,8 +19,23 @@ public class DataSeeder {
                                LabelRepository labelRepository,
                                TaskRepository taskRepository,
                                WorkspaceMemberRepository memberRepository,
-                               PasswordEncoder passwordEncoder) {
+                               PasswordEncoder passwordEncoder,
+                               DataSource dataSource) {
         return args -> {
+            try (java.sql.Connection conn = dataSource.getConnection();
+                 java.sql.Statement stmt = conn.createStatement()) {
+                stmt.execute("DELETE FROM task_assignees WHERE task_id IN (SELECT id FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL))");
+                stmt.execute("DELETE FROM task_labels WHERE task_id IN (SELECT id FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL))");
+                stmt.execute("DELETE FROM tasks WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
+                stmt.execute("DELETE FROM board_columns WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
+                stmt.execute("DELETE FROM workspace_members WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
+                stmt.execute("DELETE FROM labels WHERE workspace_id IN (SELECT id FROM workspaces WHERE title IS NULL)");
+                stmt.execute("DELETE FROM workspaces WHERE title IS NULL");
+                System.out.println("Cleanup: removed workspaces with null title");
+            } catch (Exception e) {
+                System.out.println("Cleanup skip: " + e.getMessage());
+            }
+
             String wsId = "6a45163133ff7819b28ef909";
             if (workspaceRepository.existsById(wsId)) {
                 System.out.println("Seed data already exists, skip");
