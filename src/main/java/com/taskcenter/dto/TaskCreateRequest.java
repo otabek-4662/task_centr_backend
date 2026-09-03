@@ -6,8 +6,6 @@ import lombok.Data;
 @Data
 public class TaskCreateRequest {
     @NotBlank
-    private String workspaceId;
-    @NotBlank
     private String columnId;
     @NotBlank
     private String title;
