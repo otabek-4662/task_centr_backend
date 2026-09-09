@@ -5,14 +5,17 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
 public class SwaggerConfig {
 
     @Bean
-    public OpenAPI customOpenAPI() {
+    @Profile({"local", "dev", "test"})
+    public OpenAPI customOpenAPI(@Value("${spring.profiles.active:local}") String activeProfile) {
         String renderUrl = System.getenv("RENDER_EXTERNAL_URL");
         if (renderUrl == null || renderUrl.isBlank()) {
             renderUrl = "https://task-center-backend.onrender.com";
@@ -22,6 +25,6 @@ public class SwaggerConfig {
             .components(new Components().addSecuritySchemes("bearerAuth",
                     new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT").in(SecurityScheme.In.HEADER).name("Authorization").description("JWT from POST /api/auth/login -> response.data.token. Paste token only, Swagger adds 'Bearer ' prefix.")))
             .addServersItem(new Server().url("http://localhost:8080").description("Local - localhost:8080"))
-            .addServersItem(new Server().url(renderUrl).description("Render - production"));
+            .addServersItem(new Server().url("https://task-centr-backend.onrender.com").description("Render - production"));
     }
 }

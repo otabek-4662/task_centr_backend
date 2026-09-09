@@ -7,6 +7,9 @@ import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,18 +45,22 @@ public class UserController {
     }
 
     @GetMapping("/users")
-    public ApiResponse<List<UserDto>> getUsers(@RequestParam(required = false) String workspaceId,
-                                               @AuthenticationPrincipal User currentUser) {
-        List<User> allUsers = userRepository.findAll();
+    public ApiResponse<Page<UserDto>> getUsers(@RequestParam(required = false) String workspaceId,
+                                               @AuthenticationPrincipal User currentUser,
+                                               @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        Page<User> userPage;
         if (workspaceId == null || workspaceId.isBlank()) {
-            List<UserDto> dtos = allUsers.stream().map(UserDto::fromEntity).collect(Collectors.toList());
-            return ApiResponse.success("ok", dtos);
+            userPage = userRepository.findAll(pageable);
+        } else {
+            Set<String> memberIds = memberRepository.findByWorkspaceId(workspaceId)
+                    .stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
+            List<User> members = userRepository.findAllById(memberIds);
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), members.size());
+            List<User> pagedMembers = members.subList(start, end);
+            userPage = new org.springframework.data.domain.PageImpl<>(pagedMembers, pageable, members.size());
         }
-        Set<String> memberIds = memberRepository.findByWorkspaceId(workspaceId)
-                .stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
-        List<UserDto> dtos = allUsers.stream()
-                .map(u -> UserDto.fromEntity(u, memberIds.contains(u.getId())))
-                .collect(Collectors.toList());
-        return ApiResponse.success("ok", dtos);
+        Page<UserDto> dtoPage = userPage.map(UserDto::fromEntity);
+        return ApiResponse.success("ok", dtoPage);
     }
 }

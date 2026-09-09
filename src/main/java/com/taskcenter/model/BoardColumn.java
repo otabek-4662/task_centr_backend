@@ -30,6 +30,10 @@ public class BoardColumn {
     @Builder.Default
     private Boolean isDefault = false;
 
+    @OneToMany(mappedBy = "columnId", fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.Set<Task> tasks = new java.util.HashSet<>();
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

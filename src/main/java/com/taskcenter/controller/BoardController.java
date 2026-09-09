@@ -141,9 +141,11 @@ public class BoardController {
 
     @GetMapping("/workspaces/{workspaceId}/board")
     public ApiResponse<List<ColumnWithCardsDto>> getBoard(@PathVariable String workspaceId) {
-        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        List<BoardColumn> cols = columnRepository.findByWorkspaceIdWithTasks(workspaceId);
         List<ColumnWithCardsDto> result = cols.stream().map(c -> {
-            List<Task> tasks = taskRepository.findByColumnIdOrderByOrderAsc(c.getId());
+            List<Task> tasks = c.getTasks().stream()
+                    .sorted(java.util.Comparator.comparing(Task::getOrder))
+                    .collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, tasks);
         }).collect(Collectors.toList());
         return ApiResponse.success("ok", result);

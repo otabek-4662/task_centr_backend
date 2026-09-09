@@ -24,8 +24,8 @@ public class WorkspaceDto {
                 .bgColor(w.getBgColor())
                 .description(w.getDescription())
                 .ownerId(w.getOwnerId())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(w.getCreatedAt())
+                .updatedAt(w.getUpdatedAt())
                 .build();
     }
 }
