@@ -50,8 +50,8 @@ public class JwtTokenProvider {
         try {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(authToken);
             return true;
-        } catch (JwtException ex) {
-            // Invalid token
+        } catch (JwtException | IllegalArgumentException ex) {
+            // Invalid, malformed or empty token
             return false;
         }
     }

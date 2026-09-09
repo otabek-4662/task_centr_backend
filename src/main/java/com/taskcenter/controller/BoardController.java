@@ -12,6 +12,7 @@ import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,7 +52,7 @@ public class BoardController {
 
     @PostMapping("/workspaces/{workspaceId}/columns")
     public ApiResponse<ColumnDto> createColumn(@PathVariable String workspaceId,
-                                               @RequestBody ColumnCreateRequest req) {
+                                               @Valid @RequestBody ColumnCreateRequest req) {
         Integer order = req.getOrder();
         if (order == null || order <= 0) {
             order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;
@@ -166,7 +167,7 @@ public class BoardController {
 
     @PostMapping("/workspaces/{workspaceId}/tasks")
     public ApiResponse<TaskDto> createTask(@PathVariable String workspaceId,
-                                           @RequestBody TaskCreateRequest req) {
+                                           @Valid @RequestBody TaskCreateRequest req) {
         Integer order = req.getOrder();
         if (order == null || order <= 0) {
             order = taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1;

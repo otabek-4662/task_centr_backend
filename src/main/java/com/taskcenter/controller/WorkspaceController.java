@@ -5,6 +5,7 @@ import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.repository.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,7 +49,7 @@ public class WorkspaceController {
     }
 
     @PostMapping
-    public ApiResponse<WorkspaceDto> createWorkspace(@RequestBody WorkspaceCreateRequest req,
+    public ApiResponse<WorkspaceDto> createWorkspace(@Valid @RequestBody WorkspaceCreateRequest req,
                                                      @AuthenticationPrincipal User currentUser) {
         Workspace ws = Workspace.builder()
                 .title(req.getTitle())
