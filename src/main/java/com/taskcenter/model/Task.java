@@ -6,7 +6,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "tasks")
+@Table(name = "tasks", indexes = {
+    @Index(name = "idx_tasks_workspace_order", columnList = "workspace_id, task_order"),
+    @Index(name = "idx_tasks_column_order", columnList = "column_id, task_order"),
+    @Index(name = "idx_tasks_public_id", columnList = "public_id", unique = true)
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,7 +21,7 @@ public class Task {
     @Id
     private String id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String publicId;
 
     @Column(nullable = false)
@@ -56,7 +60,7 @@ public class Task {
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
-            this.id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+            this.id = java.util.UUID.randomUUID().toString();
         }
         if (this.publicId == null) {
             this.publicId = "WFM-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();

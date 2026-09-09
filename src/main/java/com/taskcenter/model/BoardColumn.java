@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "board_columns")
+@Table(name = "board_columns", indexes = {
+    @Index(name = "idx_board_columns_workspace_order", columnList = "workspace_id, column_order")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,7 +33,7 @@ public class BoardColumn {
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
-            this.id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+            this.id = java.util.UUID.randomUUID().toString();
         }
     }
 }

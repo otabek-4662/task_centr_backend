@@ -27,7 +27,7 @@ public class Label {
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
-            this.id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 24);
+            this.id = java.util.UUID.randomUUID().toString();
         }
     }
 }
