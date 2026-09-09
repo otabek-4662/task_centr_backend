@@ -52,10 +52,14 @@ public class BoardController {
     @PostMapping("/workspaces/{workspaceId}/columns")
     public ApiResponse<ColumnDto> createColumn(@PathVariable String workspaceId,
                                                @RequestBody ColumnCreateRequest req) {
+        Integer order = req.getOrder();
+        if (order == null || order <= 0) {
+            order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;
+        }
         BoardColumn col = BoardColumn.builder()
                 .workspaceId(workspaceId)
                 .title(req.getTitle())
-                .order(req.getOrder() != null ? req.getOrder() : 0)
+                .order(order)
                 .build();
         columnRepository.save(col);
         return ApiResponse.success("Column yaratildi", ColumnDto.fromEntity(col));
@@ -66,10 +70,35 @@ public class BoardController {
                                                @PathVariable String id,
                                                @RequestBody ColumnCreateRequest req) {
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column not found"));
-        col.setTitle(req.getTitle());
+        if (req.getTitle() != null) col.setTitle(req.getTitle());
         if (req.getOrder() != null) col.setOrder(req.getOrder());
         columnRepository.save(col);
         return ApiResponse.success("Column yangilandi", ColumnDto.fromEntity(col));
+    }
+
+    @PatchMapping("/workspaces/{workspaceId}/columns/{id}")
+    public ApiResponse<ColumnDto> patchColumn(@PathVariable String workspaceId,
+                                              @PathVariable String id,
+                                              @RequestBody ColumnPatchRequest req) {
+        BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column topilmadi"));
+        if (!workspaceId.equals(col.getWorkspaceId())) throw new RuntimeException("Column topilmadi");
+        if (req.getTitle() != null) col.setTitle(req.getTitle());
+        if (req.getOrder() != null) col.setOrder(req.getOrder());
+        columnRepository.save(col);
+        return ApiResponse.success("Column yangilandi", ColumnDto.fromEntity(col));
+    }
+
+    @PatchMapping("/workspaces/{workspaceId}/columns")
+    public ApiResponse<List<ColumnDto>> reorderColumns(@PathVariable String workspaceId,
+                                                       @RequestBody List<ColumnReorderItem> items) {
+        List<ColumnDto> result = items.stream().map(item -> {
+            BoardColumn col = columnRepository.findById(item.getId())
+                    .orElseThrow(() -> new RuntimeException("Column topilmadi"));
+            if (!workspaceId.equals(col.getWorkspaceId())) throw new RuntimeException("Column topilmadi");
+            if (item.getOrder() != null) col.setOrder(item.getOrder());
+            return ColumnDto.fromEntity(columnRepository.save(col));
+        }).collect(Collectors.toList());
+        return ApiResponse.success("Columnlar tartibi yangilandi", result);
     }
 
     @DeleteMapping("/workspaces/{workspaceId}/columns/{id}")
@@ -138,12 +167,16 @@ public class BoardController {
     @PostMapping("/workspaces/{workspaceId}/tasks")
     public ApiResponse<TaskDto> createTask(@PathVariable String workspaceId,
                                            @RequestBody TaskCreateRequest req) {
+        Integer order = req.getOrder();
+        if (order == null || order <= 0) {
+            order = taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1;
+        }
         Task task = Task.builder()
                 .workspaceId(workspaceId)
                 .columnId(req.getColumnId())
                 .title(req.getTitle())
                 .description(req.getDescription())
-                .order(req.getOrder() != null ? req.getOrder() : 0)
+                .order(order)
                 .build();
         taskRepository.save(task);
         return ApiResponse.success("Task yaratildi", TaskDto.fromEntity(task));
@@ -154,6 +187,20 @@ public class BoardController {
                                            @PathVariable String id,
                                            @RequestBody TaskUpdateRequest req) {
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        if (req.getTitle() != null) task.setTitle(req.getTitle());
+        if (req.getDescription() != null) task.setDescription(req.getDescription());
+        if (req.getColumnId() != null) task.setColumnId(req.getColumnId());
+        if (req.getOrder() != null) task.setOrder(req.getOrder());
+        taskRepository.save(task);
+        return ApiResponse.success("Task yangilandi", TaskDto.fromEntity(task));
+    }
+
+    @PatchMapping("/workspaces/{workspaceId}/tasks/{id}")
+    public ApiResponse<TaskDto> patchTask(@PathVariable String workspaceId,
+                                          @PathVariable String id,
+                                          @RequestBody TaskUpdateRequest req) {
+        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        if (!workspaceId.equals(task.getWorkspaceId())) throw new RuntimeException("Task topilmadi");
         if (req.getTitle() != null) task.setTitle(req.getTitle());
         if (req.getDescription() != null) task.setDescription(req.getDescription());
         if (req.getColumnId() != null) task.setColumnId(req.getColumnId());
