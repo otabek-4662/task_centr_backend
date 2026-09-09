@@ -1,8 +1,8 @@
 -- Flyway baseline migration: initial schema
--- This is the baseline - creates all tables from scratch
+-- Idempotent: safe to run against an existing (pre-Flyway) schema.
 
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     full_name VARCHAR(255),
@@ -14,7 +14,7 @@ CREATE TABLE users (
 );
 
 -- Workspaces table
-CREATE TABLE workspaces (
+CREATE TABLE IF NOT EXISTS workspaces (
     id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     bg_color VARCHAR(255),
@@ -25,7 +25,7 @@ CREATE TABLE workspaces (
 );
 
 -- Board columns table
-CREATE TABLE board_columns (
+CREATE TABLE IF NOT EXISTS board_columns (
     id VARCHAR(255) PRIMARY KEY,
     workspace_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE board_columns (
 );
 
 -- Labels table
-CREATE TABLE labels (
+CREATE TABLE IF NOT EXISTS labels (
     id VARCHAR(255) PRIMARY KEY,
     workspace_id VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE labels (
 );
 
 -- Tasks table
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
     id VARCHAR(255) PRIMARY KEY,
     public_id VARCHAR(255) NOT NULL UNIQUE,
     workspace_id VARCHAR(255) NOT NULL,
@@ -53,21 +53,21 @@ CREATE TABLE tasks (
 );
 
 -- Task labels (many-to-many)
-CREATE TABLE task_labels (
+CREATE TABLE IF NOT EXISTS task_labels (
     task_id VARCHAR(255) NOT NULL,
     label_id VARCHAR(255) NOT NULL,
     PRIMARY KEY (task_id, label_id)
 );
 
 -- Task assignees (many-to-many)
-CREATE TABLE task_assignees (
+CREATE TABLE IF NOT EXISTS task_assignees (
     task_id VARCHAR(255) NOT NULL,
     user_id VARCHAR(255) NOT NULL,
     PRIMARY KEY (task_id, user_id)
 );
 
 -- Workspace members (many-to-many with role)
-CREATE TABLE workspace_members (
+CREATE TABLE IF NOT EXISTS workspace_members (
     workspace_id VARCHAR(255) NOT NULL,
     user_id VARCHAR(255) NOT NULL,
     role VARCHAR(255) NOT NULL,
@@ -75,45 +75,46 @@ CREATE TABLE workspace_members (
 );
 
 -- Foreign key constraints
-ALTER TABLE workspaces ADD CONSTRAINT fk_workspaces_owner 
-    FOREIGN KEY (owner_id) REFERENCES users(id);
-
-ALTER TABLE board_columns ADD CONSTRAINT fk_columns_workspace 
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
-
-ALTER TABLE labels ADD CONSTRAINT fk_labels_workspace 
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
-
-ALTER TABLE tasks ADD CONSTRAINT fk_tasks_workspace 
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
-
-ALTER TABLE tasks ADD CONSTRAINT fk_tasks_column 
-    FOREIGN KEY (column_id) REFERENCES board_columns(id);
-
-ALTER TABLE task_labels ADD CONSTRAINT fk_task_labels_task 
-    FOREIGN KEY (task_id) REFERENCES tasks(id);
-
-ALTER TABLE task_labels ADD CONSTRAINT fk_task_labels_label 
-    FOREIGN KEY (label_id) REFERENCES labels(id);
-
-ALTER TABLE task_assignees ADD CONSTRAINT fk_task_assignees_task 
-    FOREIGN KEY (task_id) REFERENCES tasks(id);
-
-ALTER TABLE task_assignees ADD CONSTRAINT fk_task_assignees_user 
-    FOREIGN KEY (user_id) REFERENCES users(id);
-
-ALTER TABLE workspace_members ADD CONSTRAINT fk_ws_members_workspace 
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
-
-ALTER TABLE workspace_members ADD CONSTRAINT fk_ws_members_user 
-    FOREIGN KEY (user_id) REFERENCES users(id);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_workspaces_owner') THEN
+        ALTER TABLE workspaces ADD CONSTRAINT fk_workspaces_owner FOREIGN KEY (owner_id) REFERENCES users(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_columns_workspace') THEN
+        ALTER TABLE board_columns ADD CONSTRAINT fk_columns_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_labels_workspace') THEN
+        ALTER TABLE labels ADD CONSTRAINT fk_labels_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tasks_workspace') THEN
+        ALTER TABLE tasks ADD CONSTRAINT fk_tasks_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tasks_column') THEN
+        ALTER TABLE tasks ADD CONSTRAINT fk_tasks_column FOREIGN KEY (column_id) REFERENCES board_columns(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_labels_task') THEN
+        ALTER TABLE task_labels ADD CONSTRAINT fk_task_labels_task FOREIGN KEY (task_id) REFERENCES tasks(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_labels_label') THEN
+        ALTER TABLE task_labels ADD CONSTRAINT fk_task_labels_label FOREIGN KEY (label_id) REFERENCES labels(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_assignees_task') THEN
+        ALTER TABLE task_assignees ADD CONSTRAINT fk_task_assignees_task FOREIGN KEY (task_id) REFERENCES tasks(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_assignees_user') THEN
+        ALTER TABLE task_assignees ADD CONSTRAINT fk_task_assignees_user FOREIGN KEY (user_id) REFERENCES users(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ws_members_workspace') THEN
+        ALTER TABLE workspace_members ADD CONSTRAINT fk_ws_members_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ws_members_user') THEN
+        ALTER TABLE workspace_members ADD CONSTRAINT fk_ws_members_user FOREIGN KEY (user_id) REFERENCES users(id);
+    END IF;
+END $$;
 
 -- Indexes for performance
-CREATE INDEX idx_board_columns_workspace_order ON board_columns (workspace_id, column_order);
-CREATE INDEX idx_tasks_workspace_order ON tasks (workspace_id, task_order);
-CREATE INDEX idx_tasks_column_order ON tasks (column_id, task_order);
-CREATE INDEX idx_tasks_public_id ON tasks (public_id) UNIQUE;
-CREATE INDEX idx_workspaces_owner ON workspaces (owner_id);
-
--- Seed data (optional - can be removed for production)
--- This is the initial test workspace and users
+CREATE INDEX IF NOT EXISTS idx_board_columns_workspace_order ON board_columns (workspace_id, column_order);
+CREATE INDEX IF NOT EXISTS idx_tasks_workspace_order ON tasks (workspace_id, task_order);
+CREATE INDEX IF NOT EXISTS idx_tasks_column_order ON tasks (column_id, task_order);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_public_id ON tasks (public_id);
+CREATE INDEX IF NOT EXISTS idx_workspaces_owner ON workspaces (owner_id);
