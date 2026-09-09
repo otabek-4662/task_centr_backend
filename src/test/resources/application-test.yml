@@ -18,3 +18,7 @@ spring:
 jwt:
   secret: test-secret-key-that-is-at-least-256-bits-long-for-hs256-testing-only
   expiration: 604800000
+
+ratelimit:
+  auth:
+    enabled: false
