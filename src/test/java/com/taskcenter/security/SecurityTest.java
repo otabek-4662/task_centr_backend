@@ -138,4 +138,39 @@ class SecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(header().exists("Access-Control-Allow-Origin"));
     }
+
+    @Test
+    void actuatorHealth_isPublic() throws Exception {
+        mvc.perform(get("/actuator/health"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").exists());
+    }
+
+    @Test
+    void adminEndpoint_userRole_rejected() throws Exception {
+        String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
+        mvc.perform(get("/api/users").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createWorkspace_oversizedTitle_rejected() throws Exception {
+        String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
+        String longTitle = "T".repeat(300);
+        mvc.perform(post("/api/workspaces")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + longTitle + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createWorkspace_invalidBgColor_rejected() throws Exception {
+        String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
+        mvc.perform(post("/api/workspaces")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Ws\",\"bgColor\":\"not-a-color\"}"))
+                .andExpect(status().isBadRequest());
+    }
 }

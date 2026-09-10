@@ -6,6 +6,8 @@ import com.taskcenter.dto.RegisterRequest;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.security.JwtTokenProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -29,6 +31,7 @@ public class AuthService {
         this.tokenProvider = tokenProvider;
     }
 
+    @CacheEvict(value = "users", key = "#request.name")
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByName(request.getName())) {
             throw new RuntimeException("Bu nom allaqachon ishlatilmoqda!");
@@ -58,8 +61,13 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
-        User user = userRepository.findByName(request.getName()).orElseThrow();
+        User user = getUserByName(request.getName());
 
         return new AuthResponse(jwt, AuthResponse.UserDto.fromEntity(user));
+    }
+    
+    @Cacheable(value = "users", key = "#name")
+    public User getUserByName(String name) {
+        return userRepository.findByName(name).orElseThrow();
     }
 }

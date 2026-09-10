@@ -96,4 +96,17 @@ class WorkspaceQueriesTest {
 
         assertThat(taskRepository.findMaxOrderByColumnId(col.getId())).isEqualTo(4);
     }
+
+    @Test
+    void deleteById_softDeletes_workspaceHiddenFromQueries() {
+        Workspace ws = workspaceRepository.save(Workspace.builder()
+                .title("Soft").ownerId(owner.getId()).build());
+
+        workspaceRepository.deleteById(ws.getId());
+
+        assertThat(workspaceRepository.findById(ws.getId())).isEmpty();
+        assertThat(workspaceRepository.findByOwnerIdOrMemberUserId(owner.getId()))
+                .extracting(Workspace::getId)
+                .doesNotContain(ws.getId());
+    }
 }

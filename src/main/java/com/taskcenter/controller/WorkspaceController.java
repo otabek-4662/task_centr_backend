@@ -44,19 +44,19 @@ public class WorkspaceController {
     }
 
     @GetMapping
-    public ApiResponse<List<WorkspaceDto>> getWorkspaces(
+    public ApiResponse<List<WorkspaceListDto>> getWorkspaces(
             @AuthenticationPrincipal User currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         if (size > 100) size = 100;
         if (page < 0 || size <= 0) {
             List<Workspace> workspaces = workspaceRepository.findByOwnerIdOrMemberUserId(currentUser.getId());
-            return ApiResponse.success("ok", workspaces.stream().map(WorkspaceDto::fromEntity).collect(Collectors.toList()));
+            return ApiResponse.success("ok", workspaces.stream().map(WorkspaceListDto::fromEntity).collect(Collectors.toList()));
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<Workspace> workspacePage = workspaceRepository.findByOwnerIdOrMemberUserIdPaginated(currentUser.getId(), pageable);
-        List<WorkspaceDto> dtos = workspacePage.getContent().stream()
-                .map(WorkspaceDto::fromEntity)
+        List<WorkspaceListDto> dtos = workspacePage.getContent().stream()
+                .map(WorkspaceListDto::fromEntity)
                 .collect(Collectors.toList());
         return ApiResponse.success("ok", dtos);
     }
