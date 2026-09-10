@@ -74,6 +74,15 @@ CREATE TABLE IF NOT EXISTS workspace_members (
     PRIMARY KEY (workspace_id, user_id)
 );
 
+-- Cleanup orphan data before adding constraints
+DELETE FROM task_assignees WHERE task_id NOT IN (SELECT id FROM tasks) OR user_id NOT IN (SELECT id FROM users);
+DELETE FROM task_labels WHERE task_id NOT IN (SELECT id FROM tasks) OR label_id NOT IN (SELECT id FROM labels);
+DELETE FROM tasks WHERE workspace_id NOT IN (SELECT id FROM workspaces) OR column_id NOT IN (SELECT id FROM board_columns);
+DELETE FROM labels WHERE workspace_id NOT IN (SELECT id FROM workspaces);
+DELETE FROM board_columns WHERE workspace_id NOT IN (SELECT id FROM workspaces);
+DELETE FROM workspace_members WHERE workspace_id NOT IN (SELECT id FROM workspaces) OR user_id NOT IN (SELECT id FROM users);
+DELETE FROM workspaces WHERE owner_id NOT IN (SELECT id FROM users);
+
 -- Foreign key constraints
 DO $$
 BEGIN
