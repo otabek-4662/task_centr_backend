@@ -18,7 +18,7 @@ spring:
       connection-test-query: SELECT 1
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -26,6 +26,9 @@ spring:
 
   flyway:
     enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
 jwt:
   secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
