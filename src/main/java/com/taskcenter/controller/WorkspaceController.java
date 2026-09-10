@@ -7,6 +7,9 @@ import com.taskcenter.repository.*;
 import com.taskcenter.service.WorkspaceAuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,9 +44,21 @@ public class WorkspaceController {
     }
 
     @GetMapping
-    public ApiResponse<List<WorkspaceDto>> getWorkspaces(@AuthenticationPrincipal User currentUser) {
-        List<Workspace> workspaces = workspaceRepository.findByOwnerIdOrMemberUserId(currentUser.getId());
-        return ApiResponse.success("ok", workspaces.stream().map(WorkspaceDto::fromEntity).collect(Collectors.toList()));
+    public ApiResponse<List<WorkspaceDto>> getWorkspaces(
+            @AuthenticationPrincipal User currentUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (size > 100) size = 100;
+        if (page < 0 || size <= 0) {
+            List<Workspace> workspaces = workspaceRepository.findByOwnerIdOrMemberUserId(currentUser.getId());
+            return ApiResponse.success("ok", workspaces.stream().map(WorkspaceDto::fromEntity).collect(Collectors.toList()));
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Workspace> workspacePage = workspaceRepository.findByOwnerIdOrMemberUserIdPaginated(currentUser.getId(), pageable);
+        List<WorkspaceDto> dtos = workspacePage.getContent().stream()
+                .map(WorkspaceDto::fromEntity)
+                .collect(Collectors.toList());
+        return ApiResponse.success("ok", dtos);
     }
 
     @GetMapping("/{id}")
@@ -84,14 +99,6 @@ public class WorkspaceController {
     public ApiResponse<Void> deleteWorkspace(@PathVariable String id,
                                              @AuthenticationPrincipal User currentUser) {
         authorizationService.checkOwner(id, currentUser);
-        List<String> columnIds = columnRepository.findByWorkspaceIdOrderByOrderAsc(id)
-                .stream().map(c -> c.getId()).collect(Collectors.toList());
-        for (String colId : columnIds) {
-            taskRepository.deleteByColumnId(colId);
-        }
-        columnRepository.deleteByWorkspaceId(id);
-        labelRepository.deleteByWorkspaceId(id);
-        memberRepository.deleteByWorkspaceId(id);
         workspaceRepository.deleteById(id);
         return ApiResponse.success("Workspace o'chirildi", null);
     }

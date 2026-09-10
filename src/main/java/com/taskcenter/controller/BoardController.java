@@ -129,7 +129,6 @@ public class BoardController {
         if (!workspaceId.equals(col.getWorkspaceId())) {
             throw new RuntimeException("Column topilmadi");
         }
-        taskRepository.deleteByColumnId(id);
         columnRepository.deleteById(id);
         return ApiResponse.success("Column o'chirildi", null);
     }
@@ -190,11 +189,20 @@ public class BoardController {
     // ========== TASKS ==========
 
     @GetMapping("/workspaces/{workspaceId}/tasks")
-    public ApiResponse<List<TaskDto>> getTasksByWorkspace(@PathVariable String workspaceId,
-                                                          @AuthenticationPrincipal User currentUser) {
+    public ApiResponse<List<TaskDto>> getTasksByWorkspace(
+            @PathVariable String workspaceId,
+            @AuthenticationPrincipal User currentUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        List<Task> tasks = taskRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<TaskDto> dtos = tasks.stream().map(TaskDto::fromEntity).collect(Collectors.toList());
+        if (size > 100) size = 100;
+        if (page < 0 || size <= 0) {
+            List<Task> tasks = taskRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+            return ApiResponse.success("ok", tasks.stream().map(TaskDto::fromEntity).collect(Collectors.toList()));
+        }
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<Task> taskPage = taskRepository.findByWorkspaceIdPaginated(workspaceId, pageable);
+        List<TaskDto> dtos = taskPage.getContent().stream().map(TaskDto::fromEntity).collect(Collectors.toList());
         return ApiResponse.success("ok", dtos);
     }
 
@@ -203,7 +211,7 @@ public class BoardController {
                                             @PathVariable String id,
                                             @AuthenticationPrincipal User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        Task task = taskRepository.findByIdWithDetails(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
         if (!workspaceId.equals(task.getWorkspaceId())) {
             throw new RuntimeException("Task topilmadi");
         }
@@ -290,7 +298,7 @@ public class BoardController {
         authorizationService.checkAccess(workspaceId, currentUser);
         List<WorkspaceMember> members = memberRepository.findByWorkspaceId(workspaceId);
         Set<String> memberIds = members.stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
-        List<UserDto> users = userRepository.findAllById(memberIds).stream()
+        List<UserDto> users = userRepository.findByIdIn(memberIds).stream()
                 .map(UserDto::fromEntity)
                 .collect(Collectors.toList());
         return ApiResponse.success("ok", users);
