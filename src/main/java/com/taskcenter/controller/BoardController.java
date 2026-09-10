@@ -11,8 +11,10 @@ import com.taskcenter.repository.LabelRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
+import com.taskcenter.service.WorkspaceAuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,21 +32,26 @@ public class BoardController {
     private final TaskRepository taskRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final WorkspaceAuthorizationService authorizationService;
 
     public BoardController(ColumnRepository columnRepository, LabelRepository labelRepository,
                            TaskRepository taskRepository, WorkspaceMemberRepository memberRepository,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           WorkspaceAuthorizationService authorizationService) {
         this.columnRepository = columnRepository;
         this.labelRepository = labelRepository;
         this.taskRepository = taskRepository;
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
+        this.authorizationService = authorizationService;
     }
 
     // ========== COLUMNS ==========
 
     @GetMapping("/workspaces/{workspaceId}/columns")
-    public ApiResponse<List<ColumnDto>> getColumns(@PathVariable String workspaceId) {
+    public ApiResponse<List<ColumnDto>> getColumns(@PathVariable String workspaceId,
+                                                   @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
         List<ColumnDto> dtos = cols.stream().map(ColumnDto::fromEntity).collect(Collectors.toList());
         return ApiResponse.success("ok", dtos);
@@ -52,7 +59,9 @@ public class BoardController {
 
     @PostMapping("/workspaces/{workspaceId}/columns")
     public ApiResponse<ColumnDto> createColumn(@PathVariable String workspaceId,
-                                               @Valid @RequestBody ColumnCreateRequest req) {
+                                               @Valid @RequestBody ColumnCreateRequest req,
+                                               @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         Integer order = req.getOrder();
         if (order == null || order <= 0) {
             order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;
@@ -69,8 +78,13 @@ public class BoardController {
     @PutMapping("/workspaces/{workspaceId}/columns/{id}")
     public ApiResponse<ColumnDto> updateColumn(@PathVariable String workspaceId,
                                                @PathVariable String id,
-                                               @RequestBody ColumnCreateRequest req) {
+                                               @RequestBody ColumnCreateRequest req,
+                                               @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column not found"));
+        if (!workspaceId.equals(col.getWorkspaceId())) {
+            throw new RuntimeException("Column topilmadi");
+        }
         if (req.getTitle() != null) col.setTitle(req.getTitle());
         if (req.getOrder() != null) col.setOrder(req.getOrder());
         columnRepository.save(col);
@@ -80,7 +94,9 @@ public class BoardController {
     @PatchMapping("/workspaces/{workspaceId}/columns/{id}")
     public ApiResponse<ColumnDto> patchColumn(@PathVariable String workspaceId,
                                               @PathVariable String id,
-                                              @RequestBody ColumnPatchRequest req) {
+                                              @RequestBody ColumnPatchRequest req,
+                                              @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column topilmadi"));
         if (!workspaceId.equals(col.getWorkspaceId())) throw new RuntimeException("Column topilmadi");
         if (req.getTitle() != null) col.setTitle(req.getTitle());
@@ -91,7 +107,9 @@ public class BoardController {
 
     @PatchMapping("/workspaces/{workspaceId}/columns")
     public ApiResponse<List<ColumnDto>> reorderColumns(@PathVariable String workspaceId,
-                                                       @RequestBody List<ColumnReorderItem> items) {
+                                                       @RequestBody List<ColumnReorderItem> items,
+                                                       @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<ColumnDto> result = items.stream().map(item -> {
             BoardColumn col = columnRepository.findById(item.getId())
                     .orElseThrow(() -> new RuntimeException("Column topilmadi"));
@@ -104,7 +122,13 @@ public class BoardController {
 
     @DeleteMapping("/workspaces/{workspaceId}/columns/{id}")
     public ApiResponse<Void> deleteColumn(@PathVariable String workspaceId,
-                                          @PathVariable String id) {
+                                          @PathVariable String id,
+                                          @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column topilmadi"));
+        if (!workspaceId.equals(col.getWorkspaceId())) {
+            throw new RuntimeException("Column topilmadi");
+        }
         taskRepository.deleteByColumnId(id);
         columnRepository.deleteById(id);
         return ApiResponse.success("Column o'chirildi", null);
@@ -113,14 +137,18 @@ public class BoardController {
     // ========== LABELS ==========
 
     @GetMapping("/workspaces/{workspaceId}/labels")
-    public ApiResponse<List<LabelDto>> getLabels(@PathVariable String workspaceId) {
+    public ApiResponse<List<LabelDto>> getLabels(@PathVariable String workspaceId,
+                                                 @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<Label> labels = labelRepository.findByWorkspaceId(workspaceId);
         return ApiResponse.success("ok", labels.stream().map(LabelDto::fromEntity).collect(Collectors.toList()));
     }
 
     @PostMapping("/workspaces/{workspaceId}/labels")
     public ApiResponse<LabelDto> createLabel(@PathVariable String workspaceId,
-                                             @RequestBody LabelDto req) {
+                                             @RequestBody LabelDto req,
+                                             @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         Label label = Label.builder()
                 .workspaceId(workspaceId)
                 .name(req.getName())
@@ -132,7 +160,13 @@ public class BoardController {
 
     @DeleteMapping("/workspaces/{workspaceId}/labels/{id}")
     public ApiResponse<Void> deleteLabel(@PathVariable String workspaceId,
-                                         @PathVariable String id) {
+                                         @PathVariable String id,
+                                         @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        Label label = labelRepository.findById(id).orElseThrow(() -> new RuntimeException("Label topilmadi"));
+        if (!workspaceId.equals(label.getWorkspaceId())) {
+            throw new RuntimeException("Label topilmadi");
+        }
         labelRepository.deleteById(id);
         return ApiResponse.success("Label o'chirildi", null);
     }
@@ -140,7 +174,9 @@ public class BoardController {
     // ========== BOARD ==========
 
     @GetMapping("/workspaces/{workspaceId}/board")
-    public ApiResponse<List<ColumnWithCardsDto>> getBoard(@PathVariable String workspaceId) {
+    public ApiResponse<List<ColumnWithCardsDto>> getBoard(@PathVariable String workspaceId,
+                                                          @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdWithTasks(workspaceId);
         List<ColumnWithCardsDto> result = cols.stream().map(c -> {
             List<Task> tasks = c.getTasks().stream()
@@ -154,7 +190,9 @@ public class BoardController {
     // ========== TASKS ==========
 
     @GetMapping("/workspaces/{workspaceId}/tasks")
-    public ApiResponse<List<TaskDto>> getTasksByWorkspace(@PathVariable String workspaceId) {
+    public ApiResponse<List<TaskDto>> getTasksByWorkspace(@PathVariable String workspaceId,
+                                                          @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<Task> tasks = taskRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
         List<TaskDto> dtos = tasks.stream().map(TaskDto::fromEntity).collect(Collectors.toList());
         return ApiResponse.success("ok", dtos);
@@ -162,14 +200,26 @@ public class BoardController {
 
     @GetMapping("/workspaces/{workspaceId}/tasks/{id}")
     public ApiResponse<TaskDto> getTaskById(@PathVariable String workspaceId,
-                                            @PathVariable String id) {
+                                            @PathVariable String id,
+                                            @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new RuntimeException("Task topilmadi");
+        }
         return ApiResponse.success("ok", TaskDto.fromEntity(task));
     }
 
     @PostMapping("/workspaces/{workspaceId}/tasks")
     public ApiResponse<TaskDto> createTask(@PathVariable String workspaceId,
-                                           @Valid @RequestBody TaskCreateRequest req) {
+                                           @Valid @RequestBody TaskCreateRequest req,
+                                           @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        BoardColumn column = columnRepository.findById(req.getColumnId())
+                .orElseThrow(() -> new RuntimeException("Column topilmadi"));
+        if (!workspaceId.equals(column.getWorkspaceId())) {
+            throw new RuntimeException("Column topilmadi");
+        }
         Integer order = req.getOrder();
         if (order == null || order <= 0) {
             order = taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1;
@@ -188,8 +238,13 @@ public class BoardController {
     @PutMapping("/workspaces/{workspaceId}/tasks/{id}")
     public ApiResponse<TaskDto> updateTask(@PathVariable String workspaceId,
                                            @PathVariable String id,
-                                           @RequestBody TaskUpdateRequest req) {
+                                           @RequestBody TaskUpdateRequest req,
+                                           @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new RuntimeException("Task topilmadi");
+        }
         if (req.getTitle() != null) task.setTitle(req.getTitle());
         if (req.getDescription() != null) task.setDescription(req.getDescription());
         if (req.getColumnId() != null) task.setColumnId(req.getColumnId());
@@ -201,7 +256,9 @@ public class BoardController {
     @PatchMapping("/workspaces/{workspaceId}/tasks/{id}")
     public ApiResponse<TaskDto> patchTask(@PathVariable String workspaceId,
                                           @PathVariable String id,
-                                          @RequestBody TaskUpdateRequest req) {
+                                          @RequestBody TaskUpdateRequest req,
+                                          @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
         if (!workspaceId.equals(task.getWorkspaceId())) throw new RuntimeException("Task topilmadi");
         if (req.getTitle() != null) task.setTitle(req.getTitle());
@@ -214,7 +271,13 @@ public class BoardController {
 
     @DeleteMapping("/workspaces/{workspaceId}/tasks/{id}")
     public ApiResponse<Void> deleteTask(@PathVariable String workspaceId,
-                                        @PathVariable String id) {
+                                        @PathVariable String id,
+                                        @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task topilmadi"));
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new RuntimeException("Task topilmadi");
+        }
         taskRepository.deleteById(id);
         return ApiResponse.success("Task o'chirildi", null);
     }
@@ -222,7 +285,9 @@ public class BoardController {
     // ========== MEMBERS ==========
 
     @GetMapping("/workspaces/{workspaceId}/members")
-    public ApiResponse<List<UserDto>> getMembers(@PathVariable String workspaceId) {
+    public ApiResponse<List<UserDto>> getMembers(@PathVariable String workspaceId,
+                                                 @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
         List<WorkspaceMember> members = memberRepository.findByWorkspaceId(workspaceId);
         Set<String> memberIds = members.stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
         List<UserDto> users = userRepository.findAllById(memberIds).stream()

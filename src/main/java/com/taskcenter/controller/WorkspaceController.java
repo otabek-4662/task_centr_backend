@@ -4,6 +4,7 @@ import com.taskcenter.dto.*;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.repository.*;
+import com.taskcenter.service.WorkspaceAuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,17 +24,20 @@ public class WorkspaceController {
     private final TaskRepository taskRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final LabelRepository labelRepository;
+    private final WorkspaceAuthorizationService authorizationService;
 
     public WorkspaceController(WorkspaceRepository workspaceRepository,
                                ColumnRepository columnRepository,
                                TaskRepository taskRepository,
                                WorkspaceMemberRepository memberRepository,
-                               LabelRepository labelRepository) {
+                               LabelRepository labelRepository,
+                               WorkspaceAuthorizationService authorizationService) {
         this.workspaceRepository = workspaceRepository;
         this.columnRepository = columnRepository;
         this.taskRepository = taskRepository;
         this.memberRepository = memberRepository;
         this.labelRepository = labelRepository;
+        this.authorizationService = authorizationService;
     }
 
     @GetMapping
@@ -43,7 +47,9 @@ public class WorkspaceController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<WorkspaceDto> getWorkspace(@PathVariable String id) {
+    public ApiResponse<WorkspaceDto> getWorkspace(@PathVariable String id,
+                                                  @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkAccess(id, currentUser);
         Workspace ws = workspaceRepository.findById(id).orElseThrow(() -> new RuntimeException("Workspace topilmadi"));
         return ApiResponse.success("ok", WorkspaceDto.fromEntity(ws));
     }
@@ -63,7 +69,9 @@ public class WorkspaceController {
 
     @PutMapping("/{id}")
     public ApiResponse<WorkspaceDto> updateWorkspace(@PathVariable String id,
-                                                     @RequestBody WorkspaceCreateRequest req) {
+                                                     @RequestBody WorkspaceCreateRequest req,
+                                                     @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkOwner(id, currentUser);
         Workspace ws = workspaceRepository.findById(id).orElseThrow(() -> new RuntimeException("Workspace topilmadi"));
         if (req.getTitle() != null) ws.setTitle(req.getTitle());
         if (req.getBgColor() != null) ws.setBgColor(req.getBgColor());
@@ -73,7 +81,9 @@ public class WorkspaceController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteWorkspace(@PathVariable String id) {
+    public ApiResponse<Void> deleteWorkspace(@PathVariable String id,
+                                             @AuthenticationPrincipal User currentUser) {
+        authorizationService.checkOwner(id, currentUser);
         List<String> columnIds = columnRepository.findByWorkspaceIdOrderByOrderAsc(id)
                 .stream().map(c -> c.getId()).collect(Collectors.toList());
         for (String colId : columnIds) {

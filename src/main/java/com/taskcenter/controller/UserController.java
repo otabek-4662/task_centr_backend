@@ -6,6 +6,7 @@ import com.taskcenter.model.User;
 import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
+import com.taskcenter.service.WorkspaceAuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,10 +26,14 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository memberRepository;
+    private final WorkspaceAuthorizationService authorizationService;
 
-    public UserController(UserRepository userRepository, WorkspaceMemberRepository memberRepository) {
+    public UserController(UserRepository userRepository,
+                          WorkspaceMemberRepository memberRepository,
+                          WorkspaceAuthorizationService authorizationService) {
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
+        this.authorizationService = authorizationService;
     }
 
     @GetMapping("/me")
@@ -52,6 +57,7 @@ public class UserController {
         if (workspaceId == null || workspaceId.isBlank()) {
             userPage = userRepository.findAll(pageable);
         } else {
+            authorizationService.checkAccess(workspaceId, currentUser);
             Set<String> memberIds = memberRepository.findByWorkspaceId(workspaceId)
                     .stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
             List<User> members = userRepository.findAllById(memberIds);
