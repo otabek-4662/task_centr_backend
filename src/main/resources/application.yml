@@ -25,7 +25,7 @@ spring:
         format_sql: true
 
   flyway:
-    enabled: false
+    enabled: true
 
 jwt:
   secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
