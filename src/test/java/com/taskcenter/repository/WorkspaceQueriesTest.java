@@ -5,6 +5,7 @@ import com.taskcenter.model.Task;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.model.WorkspaceMember;
+import com.taskcenter.model.WorkspaceRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +47,7 @@ class WorkspaceQueriesTest {
         workspace = workspaceRepository.save(Workspace.builder()
                 .title("Repo WS").ownerId(owner.getId()).build());
         memberRepository.save(WorkspaceMember.builder()
-                .workspaceId(workspace.getId()).userId(member.getId()).role("MEMBER").build());
+                .workspaceId(workspace.getId()).userId(member.getId()).role(WorkspaceRole.MEMBER).build());
     }
 
     @Test

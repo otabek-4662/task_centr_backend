@@ -21,6 +21,7 @@ public class WorkspaceMember {
     @Id
     private String userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String role;
+    private WorkspaceRole role;
 }

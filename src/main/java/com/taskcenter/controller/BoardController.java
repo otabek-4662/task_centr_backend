@@ -61,7 +61,7 @@ public class BoardController {
     public ApiResponse<ColumnDto> createColumn(@PathVariable String workspaceId,
                                                @Valid @RequestBody ColumnCreateRequest req,
                                                @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         Integer order = req.getOrder();
         if (order == null || order <= 0) {
             order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;
@@ -80,7 +80,7 @@ public class BoardController {
                                                @PathVariable String id,
                                                @RequestBody ColumnCreateRequest req,
                                                @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column not found"));
         if (!workspaceId.equals(col.getWorkspaceId())) {
             throw new RuntimeException("Column topilmadi");
@@ -96,7 +96,7 @@ public class BoardController {
                                               @PathVariable String id,
                                               @RequestBody ColumnPatchRequest req,
                                               @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column topilmadi"));
         if (!workspaceId.equals(col.getWorkspaceId())) throw new RuntimeException("Column topilmadi");
         if (req.getTitle() != null) col.setTitle(req.getTitle());
@@ -109,7 +109,7 @@ public class BoardController {
     public ApiResponse<List<ColumnDto>> reorderColumns(@PathVariable String workspaceId,
                                                        @RequestBody List<ColumnReorderItem> items,
                                                        @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         List<ColumnDto> result = items.stream().map(item -> {
             BoardColumn col = columnRepository.findById(item.getId())
                     .orElseThrow(() -> new RuntimeException("Column topilmadi"));
@@ -124,7 +124,7 @@ public class BoardController {
     public ApiResponse<Void> deleteColumn(@PathVariable String workspaceId,
                                           @PathVariable String id,
                                           @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         BoardColumn col = columnRepository.findById(id).orElseThrow(() -> new RuntimeException("Column topilmadi"));
         if (!workspaceId.equals(col.getWorkspaceId())) {
             throw new RuntimeException("Column topilmadi");
@@ -148,7 +148,7 @@ public class BoardController {
     public ApiResponse<LabelDto> createLabel(@PathVariable String workspaceId,
                                              @RequestBody LabelDto req,
                                              @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         Label label = Label.builder()
                 .workspaceId(workspaceId)
                 .name(req.getName())
@@ -162,7 +162,7 @@ public class BoardController {
     public ApiResponse<Void> deleteLabel(@PathVariable String workspaceId,
                                          @PathVariable String id,
                                          @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         Label label = labelRepository.findById(id).orElseThrow(() -> new RuntimeException("Label topilmadi"));
         if (!workspaceId.equals(label.getWorkspaceId())) {
             throw new RuntimeException("Label topilmadi");

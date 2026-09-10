@@ -35,9 +35,13 @@ class BoardControllerTest {
     private MockMvc mvc;
 
     private String bearer() throws Exception {
+        return bearer("elshod");
+    }
+
+    private String bearer(String name) throws Exception {
         MvcResult result = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"elshod\",\"password\":\"password123\"}"))
+                        .content("{\"name\":\"" + name + "\",\"password\":\"password123\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         return "Bearer " + JsonPath.read(result.getResponse().getContentAsString(), "$.data.token");
@@ -180,7 +184,7 @@ class BoardControllerTest {
     @Test
     void column_unknownId_returns404() throws Exception {
         mvc.perform(patch("/api/workspaces/" + SEED_WS + "/columns/nope")
-                        .header("Authorization", bearer())
+                        .header("Authorization", bearer("xusan"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"order\":1}"))
                 .andExpect(status().isNotFound());
@@ -231,7 +235,7 @@ class BoardControllerTest {
 
     @Test
     void labels_crud() throws Exception {
-        String auth = bearer();
+        String auth = bearer("xusan");
 
         MvcResult created = mvc.perform(post("/api/workspaces/" + SEED_WS + "/labels")
                         .header("Authorization", auth)

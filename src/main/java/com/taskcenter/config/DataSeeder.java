@@ -56,9 +56,9 @@ public class DataSeeder {
                     .build();
             workspaceRepository.save(ws);
 
-            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(elshod.getId()).role("MEMBER").build());
-            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(mirxon.getId()).role("MEMBER").build());
-            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(xusan.getId()).role("OWNER").build());
+            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(elshod.getId()).role(WorkspaceRole.MEMBER).build());
+            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(mirxon.getId()).role(WorkspaceRole.MEMBER).build());
+            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(xusan.getId()).role(WorkspaceRole.OWNER).build());
 
             BoardColumn todo = BoardColumn.builder().id("6a45163133ff7819b28ef90d").workspaceId(wsId).title("To Do").order(1).isDefault(true).build();
             BoardColumn inProgress = BoardColumn.builder().id("6a45163133ff7819b28ef90e").workspaceId(wsId).title("In Progress").order(2).isDefault(true).build();
