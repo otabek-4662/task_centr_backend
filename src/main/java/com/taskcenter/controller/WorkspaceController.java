@@ -2,19 +2,13 @@ package com.taskcenter.controller;
 
 import com.taskcenter.dto.*;
 import com.taskcenter.model.User;
-import com.taskcenter.model.Workspace;
-import com.taskcenter.repository.*;
-import com.taskcenter.service.WorkspaceAuthorizationService;
+import com.taskcenter.service.WorkspaceService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -22,25 +16,10 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class WorkspaceController {
 
-    private final WorkspaceRepository workspaceRepository;
-    private final ColumnRepository columnRepository;
-    private final TaskRepository taskRepository;
-    private final WorkspaceMemberRepository memberRepository;
-    private final LabelRepository labelRepository;
-    private final WorkspaceAuthorizationService authorizationService;
+    private final WorkspaceService workspaceService;
 
-    public WorkspaceController(WorkspaceRepository workspaceRepository,
-                               ColumnRepository columnRepository,
-                               TaskRepository taskRepository,
-                               WorkspaceMemberRepository memberRepository,
-                               LabelRepository labelRepository,
-                               WorkspaceAuthorizationService authorizationService) {
-        this.workspaceRepository = workspaceRepository;
-        this.columnRepository = columnRepository;
-        this.taskRepository = taskRepository;
-        this.memberRepository = memberRepository;
-        this.labelRepository = labelRepository;
-        this.authorizationService = authorizationService;
+    public WorkspaceController(WorkspaceService workspaceService) {
+        this.workspaceService = workspaceService;
     }
 
     @GetMapping
@@ -48,58 +27,36 @@ public class WorkspaceController {
             @AuthenticationPrincipal User currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        if (size > 100) size = 100;
-        if (page < 0 || size <= 0) {
-            List<Workspace> workspaces = workspaceRepository.findByOwnerIdOrMemberUserId(currentUser.getId());
-            return ApiResponse.success("ok", workspaces.stream().map(WorkspaceListDto::fromEntity).collect(Collectors.toList()));
-        }
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Workspace> workspacePage = workspaceRepository.findByOwnerIdOrMemberUserIdPaginated(currentUser.getId(), pageable);
-        List<WorkspaceListDto> dtos = workspacePage.getContent().stream()
-                .map(WorkspaceListDto::fromEntity)
-                .collect(Collectors.toList());
-        return ApiResponse.success("ok", dtos);
+        return ApiResponse.success("ok", workspaceService.getWorkspaceList(currentUser, page, size));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<WorkspaceDto> getWorkspace(@PathVariable String id,
-                                                  @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkAccess(id, currentUser);
-        Workspace ws = workspaceRepository.findById(id).orElseThrow(() -> new RuntimeException("Workspace topilmadi"));
-        return ApiResponse.success("ok", WorkspaceDto.fromEntity(ws));
+    public ApiResponse<WorkspaceDto> getWorkspace(
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        return ApiResponse.success("ok", workspaceService.getWorkspaceById(id, currentUser));
     }
 
     @PostMapping
-    public ApiResponse<WorkspaceDto> createWorkspace(@Valid @RequestBody WorkspaceCreateRequest req,
-                                                     @AuthenticationPrincipal User currentUser) {
-        Workspace ws = Workspace.builder()
-                .title(req.getTitle())
-                .bgColor(req.getBgColor())
-                .description(req.getDescription())
-                .ownerId(currentUser.getId())
-                .build();
-        workspaceRepository.save(ws);
-        return ApiResponse.success("Workspace yaratildi", WorkspaceDto.fromEntity(ws));
+    public ApiResponse<WorkspaceDto> createWorkspace(
+            @Valid @RequestBody WorkspaceCreateRequest req,
+            @AuthenticationPrincipal User currentUser) {
+        return ApiResponse.success("Workspace yaratildi", workspaceService.createWorkspace(req, currentUser));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<WorkspaceDto> updateWorkspace(@PathVariable String id,
-                                                     @RequestBody WorkspaceCreateRequest req,
-                                                     @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkOwner(id, currentUser);
-        Workspace ws = workspaceRepository.findById(id).orElseThrow(() -> new RuntimeException("Workspace topilmadi"));
-        if (req.getTitle() != null) ws.setTitle(req.getTitle());
-        if (req.getBgColor() != null) ws.setBgColor(req.getBgColor());
-        if (req.getDescription() != null) ws.setDescription(req.getDescription());
-        workspaceRepository.save(ws);
-        return ApiResponse.success("Workspace yangilandi", WorkspaceDto.fromEntity(ws));
+    public ApiResponse<WorkspaceDto> updateWorkspace(
+            @PathVariable String id,
+            @RequestBody WorkspaceCreateRequest req,
+            @AuthenticationPrincipal User currentUser) {
+        return ApiResponse.success("Workspace yangilandi", workspaceService.updateWorkspace(id, req, currentUser));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteWorkspace(@PathVariable String id,
-                                             @AuthenticationPrincipal User currentUser) {
-        authorizationService.checkOwner(id, currentUser);
-        workspaceRepository.deleteById(id);
+    public ApiResponse<Void> deleteWorkspace(
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        workspaceService.deleteWorkspace(id, currentUser);
         return ApiResponse.success("Workspace o'chirildi", null);
     }
 }
