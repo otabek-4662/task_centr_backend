@@ -23,6 +23,7 @@ stages:
 build:
   stage: build
   script:
+    - chmod +x mvnw
     - ./mvnw -q compile $MAVEN_OPTS
   rules:
     # Har qanday branchga push bo'lganda ishga tushadi
@@ -34,6 +35,7 @@ build:
 test:
   stage: test
   script:
+    - chmod +x mvnw
     - ./mvnw test $MAVEN_OPTS
   # Test natijalarini GitLab UI da ko'rsatadi (Tests tab)
   artifacts:
