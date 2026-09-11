@@ -1,6 +1,7 @@
 package com.taskcenter.service;
 
 import com.taskcenter.dto.*;
+import com.taskcenter.exception.EntityNotFoundException;
 import com.taskcenter.model.*;
 import com.taskcenter.repository.*;
 import org.springframework.data.domain.Page;
@@ -12,10 +13,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * BoardService — column, task, label va member uchun barcha biznes logikani o'z ichiga oladi.
- * Controller bu serviceni chaqiradi, repository ga to'g'ridan-to'g'ri murojaat qilmaydi.
- */
 @Service
 public class BoardService {
 
@@ -45,9 +42,7 @@ public class BoardService {
     public List<ColumnDto> getColumns(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         return columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId)
-                .stream()
-                .map(ColumnDto::fromEntity)
-                .collect(Collectors.toList());
+                .stream().map(ColumnDto::fromEntity).collect(Collectors.toList());
     }
 
     public ColumnDto createColumn(String workspaceId, ColumnCreateRequest req, User currentUser) {
@@ -88,13 +83,11 @@ public class BoardService {
     public List<ColumnDto> reorderColumns(String workspaceId,
                                           List<ColumnReorderItem> items, User currentUser) {
         authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
-        // Barcha columnlarni bitta so'rovda olamiz — N+1 dan saqlaymiz
         List<String> ids = items.stream().map(ColumnReorderItem::getId).collect(Collectors.toList());
         List<BoardColumn> columns = columnRepository.findAllById(ids);
-
         columns.forEach(col -> {
             if (!workspaceId.equals(col.getWorkspaceId())) {
-                throw new RuntimeException("Column topilmadi");
+                throw new EntityNotFoundException("Column", col.getId());
             }
             items.stream()
                     .filter(item -> item.getId().equals(col.getId()))
@@ -103,11 +96,8 @@ public class BoardService {
                         if (item.getOrder() != null) col.setOrder(item.getOrder());
                     });
         });
-        // Hammani bitta so'rovda saqlaymiz
         return columnRepository.saveAll(columns)
-                .stream()
-                .map(ColumnDto::fromEntity)
-                .collect(Collectors.toList());
+                .stream().map(ColumnDto::fromEntity).collect(Collectors.toList());
     }
 
     public void deleteColumn(String workspaceId, String columnId, User currentUser) {
@@ -116,7 +106,7 @@ public class BoardService {
         columnRepository.deleteById(columnId);
     }
 
-    // ===================== BOARD (full view) =====================
+    // ===================== BOARD =====================
 
     public List<ColumnWithCardsDto> getBoard(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
@@ -138,9 +128,7 @@ public class BoardService {
         authorizationService.checkAccess(workspaceId, currentUser);
         if (page < 0 || size <= 0) {
             return taskRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId)
-                    .stream()
-                    .map(TaskDto::fromEntity)
-                    .collect(Collectors.toList());
+                    .stream().map(TaskDto::fromEntity).collect(Collectors.toList());
         }
         if (size > 100) size = 100;
         Pageable pageable = PageRequest.of(page, size);
@@ -151,9 +139,9 @@ public class BoardService {
     public TaskDto getTaskById(String workspaceId, String taskId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         Task task = taskRepository.findByIdWithDetails(taskId)
-                .orElseThrow(() -> new RuntimeException("Task topilmadi"));
+                .orElseThrow(() -> new EntityNotFoundException("Task", taskId));
         if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new RuntimeException("Task topilmadi");
+            throw new EntityNotFoundException("Task", taskId);
         }
         return TaskDto.fromEntity(task);
     }
@@ -199,9 +187,7 @@ public class BoardService {
     public List<LabelDto> getLabels(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         return labelRepository.findByWorkspaceId(workspaceId)
-                .stream()
-                .map(LabelDto::fromEntity)
-                .collect(Collectors.toList());
+                .stream().map(LabelDto::fromEntity).collect(Collectors.toList());
     }
 
     public LabelDto createLabel(String workspaceId, LabelDto req, User currentUser) {
@@ -218,9 +204,9 @@ public class BoardService {
     public void deleteLabel(String workspaceId, String labelId, User currentUser) {
         authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
         Label label = labelRepository.findById(labelId)
-                .orElseThrow(() -> new RuntimeException("Label topilmadi"));
+                .orElseThrow(() -> new EntityNotFoundException("Label", labelId));
         if (!workspaceId.equals(label.getWorkspaceId())) {
-            throw new RuntimeException("Label topilmadi");
+            throw new EntityNotFoundException("Label", labelId);
         }
         labelRepository.deleteById(labelId);
     }
@@ -230,31 +216,27 @@ public class BoardService {
     public List<UserDto> getMembers(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         Set<String> memberIds = memberRepository.findByWorkspaceId(workspaceId)
-                .stream()
-                .map(WorkspaceMember::getUserId)
-                .collect(Collectors.toSet());
+                .stream().map(WorkspaceMember::getUserId).collect(Collectors.toSet());
         return userRepository.findByIdIn(memberIds)
-                .stream()
-                .map(UserDto::fromEntity)
-                .collect(Collectors.toList());
+                .stream().map(UserDto::fromEntity).collect(Collectors.toList());
     }
 
     // ===================== PRIVATE HELPERS =====================
 
     private BoardColumn findColumnInWorkspace(String columnId, String workspaceId) {
         BoardColumn col = columnRepository.findById(columnId)
-                .orElseThrow(() -> new RuntimeException("Column topilmadi"));
+                .orElseThrow(() -> new EntityNotFoundException("Column", columnId));
         if (!workspaceId.equals(col.getWorkspaceId())) {
-            throw new RuntimeException("Column topilmadi");
+            throw new EntityNotFoundException("Column", columnId);
         }
         return col;
     }
 
     private Task findTaskInWorkspace(String taskId, String workspaceId) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task topilmadi"));
+                .orElseThrow(() -> new EntityNotFoundException("Task", taskId));
         if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new RuntimeException("Task topilmadi");
+            throw new EntityNotFoundException("Task", taskId);
         }
         return task;
     }

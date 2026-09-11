@@ -1,5 +1,7 @@
 package com.taskcenter.service;
 
+import com.taskcenter.exception.EntityNotFoundException;
+import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.model.WorkspaceMember;
@@ -53,31 +55,28 @@ public class WorkspaceAuthorizationService {
     }
 
     private Workspace requireWorkspace(String workspaceId) {
-        Workspace workspace = workspaceRepository.findById(workspaceId).orElse(null);
-        if (workspace == null) {
-            throw new RuntimeException("Workspace topilmadi");
-        }
-        return workspace;
+        return workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new EntityNotFoundException("Workspace", workspaceId));
     }
 
     public void checkAccess(String workspaceId, User currentUser) {
         requireWorkspace(workspaceId);
         if (currentUser == null || !hasAccess(workspaceId, currentUser.getId())) {
-            throw new RuntimeException("Ruxsat yo'q");
+            throw new ForbiddenException();
         }
     }
 
     public void checkOwner(String workspaceId, User currentUser) {
         requireWorkspace(workspaceId);
         if (currentUser == null || !isOwner(workspaceId, currentUser.getId())) {
-            throw new RuntimeException("Ruxsat yo'q");
+            throw new ForbiddenException("Faqat workspace egasi bu amalni bajarishi mumkin");
         }
     }
 
     public void checkOwnerOrAdmin(String workspaceId, User currentUser) {
         requireWorkspace(workspaceId);
         if (currentUser == null || !isOwnerOrAdmin(workspaceId, currentUser.getId())) {
-            throw new RuntimeException("Ruxsat yo'q");
+            throw new ForbiddenException("Faqat workspace egasi yoki admin bu amalni bajarishi mumkin");
         }
     }
 }
