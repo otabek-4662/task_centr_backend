@@ -25,7 +25,7 @@ function Invoke-TestApi {
         [object]$Body = $null,
         [string]$Token = "",
         [string]$Desc = "",
-        [int]$Expect = 200
+        [object]$Expect = 200
     )
     $url = "$BaseUrl$Path"
     $expected = @($Expect)
@@ -73,7 +73,7 @@ Invoke-TestApi -Method Get -Path "/api/auth/me" -Token $token -Desc "Get auth/me
 Invoke-TestApi -Method Get -Path "/api/users" -Token $token -Desc "Get users (oddiy user uchun 403 to'g'ri)" -Expect 403 | Out-Null
 
 # 3. Workspaces
-$ws = Invoke-TestApi -Method Post -Path "/api/workspaces" -Token $token -Body @{ title = "Smoke WS"; bgColor = "#ff0000"; description = "smoke test" } -Desc "Create workspace"
+$ws = Invoke-TestApi -Method Post -Path "/api/workspaces" -Token $token -Body @{ title = "Smoke WS $user"; bgColor = "#ff0000"; description = "smoke test" } -Desc "Create workspace"
 $wsId = $ws.data.id
 Invoke-TestApi -Method Get -Path "/api/workspaces?page=0&size=20" -Token $token -Desc "List workspaces" | Out-Null
 Invoke-TestApi -Method Get -Path "/api/workspaces/$wsId" -Token $token -Desc "Get workspace" | Out-Null
