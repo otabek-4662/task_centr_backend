@@ -1,6 +1,7 @@
 package com.taskcenter.config;
 
 import com.taskcenter.security.JwtTokenProvider;
+import com.taskcenter.service.WorkspaceAuthorizationService;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -29,13 +30,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
+                .addInterceptors(new WebSocketAuthInterceptor(jwtTokenProvider, workspaceAuthorizationService))
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new WebSocketAuthInterceptor(jwtTokenProvider));
         registration.interceptors(new SubscriptionAuthorizationInterceptor(workspaceAuthorizationService));
     }
 }

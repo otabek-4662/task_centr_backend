@@ -37,10 +37,17 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
     }
 
     private String extractToken(ServerHttpRequest request) {
-        // Try to get token from query parameter "token"
-        String token = request.getQueryParams().getFirst("token");
-        if (token != null) {
-            return token;
+        // Try to get token from query parameter "token" (?token=...)
+        String query = request.getURI().getQuery();
+        if (query != null) {
+            for (String param : query.split("&")) {
+                int idx = param.indexOf('=');
+                String name = idx >= 0 ? param.substring(0, idx) : param;
+                if (name.equals("token")) {
+                    String value = idx >= 0 ? param.substring(idx + 1) : "";
+                    return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8);
+                }
+            }
         }
         // Try to get token from header "Authorization: Bearer <token>"
         String authHeader = request.getHeaders().getFirst("Authorization");
