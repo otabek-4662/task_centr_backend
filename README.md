@@ -252,4 +252,9 @@ Docker (`Dockerfile` — multi-stage: Maven build → JRE-alpine) va Render Blue
 
 *MIT · `otabek-4662`*
 
+<p align="center">
+  <img src="https://media.giphy.com/media/XR9cbNEfzDrFe/giphy.gif" alt="Berserk" width="500" />
+</p>
+<p align="center"><i>⚔️ "Struggle, endure, contend. For that alone is the sword of one who defies death." — Berserk</i></p>
+
 </div>
