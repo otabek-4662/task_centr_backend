@@ -1,0 +1,35 @@
+package com.taskcenter.repository;
+
+import com.taskcenter.dto.WorkspaceListDto;
+import com.taskcenter.model.Workspace;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface WorkspaceRepository extends JpaRepository<Workspace, String> {
+    List<Workspace> findAllByOwnerId(String ownerId);
+
+    boolean existsByKeyPrefix(String keyPrefix);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT w FROM Workspace w WHERE w.id = :id")
+    Optional<Workspace> findByIdForUpdate(@Param("id") String id);
+
+    @Query("SELECT w FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    List<Workspace> findByOwnerIdOrMemberUserId(@Param("userId") String userId);
+
+    @Query("SELECT new com.taskcenter.dto.WorkspaceListDto(w.id, w.title, w.bgColor, w.ownerId) " +
+           "FROM Workspace w WHERE w.ownerId = :userId OR w.id IN " +
+           "(SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    List<WorkspaceListDto> findWorkspaceListByUser(@Param("userId") String userId);
+
+    @Query("SELECT w FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    Page<Workspace> findByOwnerIdOrMemberUserIdPaginated(@Param("userId") String userId, Pageable pageable);
+}
