@@ -1,169 +1,254 @@
-<p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:1e3a8a,100:3b82f6&height=180&section=header&text=Task%20Center%20Backend&fontSize=42&fontColor=ffffff" alt="Task Center Backend" />
-</p>
+<div align="center">
 
-<p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&pause=1000&color=3B82F6&center=true&vCenter=true&width=650&lines=Jira-uslubidagi+task+boshqaruv+API;Real-time+WebSocket+yangilanishlar;JWT+%2B+Spring+Boot+3.2+%2B+PostgreSQL" alt="typing" />
-</p>
+# ⚔️ TASK CENTER BACKEND
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Java-17-blue" alt="Java" />
-  <img src="https://img.shields.io/badge/Spring_Boot-3.2.5-brightgreen" alt="Spring Boot" />
-  <img src="https://img.shields.io/badge/PostgreSQL-16%2F17-blue" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Flyway-10.13-red" alt="Flyway" />
-  <img src="https://img.shields.io/badge/Auth-JWT-orange" alt="JWT" />
-  <img src="https://img.shields.io/badge/Realtime-WebSocket%2FSTOMP-purple" alt="WebSocket" />
-  <img src="https://img.shields.io/badge/Tests-JUnit5_%2B_Mockito-success" alt="Tests" />
-</p>
+**Production-oriented task management backend built with Java & Spring Boot.**
 
-<p align="center">
-  <a href="https://task-centr-backend.onrender.com/swagger-ui/index.html">📖 Swagger UI</a> •
-  <a href="https://task-centr-backend.onrender.com/actuator/health">💚 Health</a>
-</p>
+*Discipline in architecture. Endurance under load. Every request earns its passage.*
+
+![Java](https://img.shields.io/badge/Java-17-1a1a1a?style=for-the-badge&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.5-8B0000?style=for-the-badge&logo=springboot&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2F17-2F2F2F?style=for-the-badge&logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-5c0000?style=for-the-badge)
+![Flyway](https://img.shields.io/badge/Flyway-10.13-3d3d3d?style=for-the-badge)
+![WebSocket](https://img.shields.io/badge/Realtime-STOMP-4d4d4d?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-98_passing-2d5a2d?style=for-the-badge&logo=junit5&logoColor=white)
+
+[📖 Swagger UI](https://task-centr-backend.onrender.com/swagger-ui/index.html) · [💚 Health](https://task-centr-backend.onrender.com/actuator/health) · [📦 Repository](https://github.com/otabek-4662/task_centr_backend)
 
 <p align="center">
   <img src="https://media.giphy.com/media/XR9cbNEfzDrFe/giphy.gif" alt="Berserk" width="500" />
 </p>
 <p align="center"><i>⚔️ "Struggle, endure, contend. For that alone is the sword of one who defies death." — Berserk</i></p>
 
-## Texnologiyalar
+</div>
 
-- **Java 17**, **Spring Boot 3.2.5** (Web, Data JPA, Security, Validation, Cache, Actuator)
-- **PostgreSQL** + **Flyway** migratsiyalar (`src/main/resources/db/migration`)
-- **JWT** autentifikatsiya (`jjwt 0.11.5`)
-- **WebSocket / STOMP** real-time board yangilanishlar (`/ws`, `/topic/board/{workspaceId}`)
-- **JUnit 5 + Mockito + MockMvc** testlar, **springdoc-openapi** (Swagger UI)
-- Caching (Caffeine), rate limiting (Bucket4j), Prometheus metrikalar
+---
 
-<p align="center">
-  <a href="https://skillicons.dev"><img src="https://skillicons.dev/icons?i=java,spring,postgres,docker,git,idea" alt="stack" /></a>
-</p>
+## Loyiha haqida
+
+**Task Center** — jamoalar uchun Jira-uslubidagi task boshqaruv tizimi backend'i. Har bir task global unikal public ID oladi (`TC-1`, `TC-2`), har bir board o'zgarishi millisekundlarda barcha ochiq mijozlarga yetkaziladi.
+
+```
+User → Workspace → Board → Columns → Tasks
+```
+
+---
 
 ## Asosiy imkoniyatlar
 
-- JWT autentifikatsiya (register / login, 7 kunlik tokenlar) va rollar (`USER`, `ADMIN`)
-- Workspace → Board → Column → Task ierarxiyasi, a'zolar va rollar (`OWNER`, `ADMIN`, `MEMBER`)
-- Jira-uslubidagi public task ID'lar (`TC-1`, `TC-2`, …), global unikal key prefikslar (`WR` → `WR2` …)
-- Pessimitic locking (`SELECT … FOR UPDATE`) bilan race-condition'siz counter
-- WebSocket/STOMP orqali real-time yangilanishlar: task/column/label create, update, delete eventlari
-- Label'lar, task biriktirish (assignee), ustuvorlik (priority), due date
-- Hamma joyda soft delete, Flyway sxema boshqaruvi, profil statistikasi (`GET /api/me/stats`)
+| Soha | Qurol-aslaha |
+|---|---|
+| **Autentifikatsiya** | JWT (7 kunlik token), `USER` / `ADMIN` rollari |
+| **Ruxsatlar** | Workspace a'zoligi + `OWNER` / `ADMIN` / `MEMBER` ierarxiyasi |
+| **Board** | Column yaratish, tartiblash, ko'chirish; to'liq board bitta so'rovda |
+| **Tasklar** | Yaratish, yangilash, ustunlararo ko'chirish, biriktirish, ustuvorlik, due date |
+| **Label'lar** | Rangli label'lar, taskga qo'shish/olib tashlash |
+| **Identifikatsiya** | `TC-N` public ID'lar, workspace'lararo unikal key prefikslar (`WR` → `WR2`) |
+| **Real-time** | WebSocket/STOMP eventlar: created / updated / deleted / moved |
+| **Ma'lumot** | Soft delete, Flyway migratsiyalar (V1–V10) |
+| **Chidamlilik** | Pessimistic locking, rate limiting, cache, metrics |
+
+---
 
 ## Arxitektura
 
-Qatlamli Spring Boot loyiha. Controller'lar HTTP + JWT user'ni qabul qiladi,
-servislar tranzaksiya va ruxsat tekshiruvlarini bajaradi (`WorkspaceAuthorizationService`),
-repository'lar Spring Data JPA interfeyslari (ayrimlarida `@EntityGraph` / pessimistic lock).
-
-```
-src/main/java/com/taskcenter/
-├── controller/   # AuthController, WorkspaceController, BoardController, UserController
-├── service/      # AuthService, WorkspaceService, BoardService, WorkspaceAuthorizationService, WebSocketEventPublisher
-├── repository/   # User, Workspace, WorkspaceMember, Column, Task, Label repository'lar
-├── model/        # JPA entity'lar (User, Workspace, BoardColumn, Task, Label, …)
-├── dto/          # Request/response DTO'lar (TaskCreateRequest, BoardEvent, UserStatsDto, …)
-├── security/     # JwtTokenProvider, JwtAuthenticationFilter, rate limiting
-├── config/       # Security, WebSocket/STOMP, cache, Swagger, seed data
-├── exception/    # GlobalExceptionHandler + ApiResponse o'rami
-└── monitoring/   # Health indicatorlar, request logging
-src/main/resources/db/migration/  # Flyway migratsiyalar V1..V10
-```
-
-So'rov oqimi:
-
 ```mermaid
-flowchart LR
-    Client["🌐 Client / Swagger"] --> WS["⚡ /ws (STOMP)"]
-    Client --> API["🔌 REST /api"]
-    API --> SEC["🔐 JWT filter + Rate limit"]
-    SEC --> SVC["⚙️ Service (@Transactional)"]
-    SVC --> AUTHZ["🛡️ WorkspaceAuthorizationService"]
-    SVC --> DB[("🐘 PostgreSQL + Flyway")]
-    SVC --> PUB["📣 WebSocketEventPublisher"]
-    PUB --> TOPIC["📡 /topic/board/{id}"]
+flowchart TB
+    Client["🌐 Client / Swagger"]
+    GW["REST /api<br/>WebSocket /ws"]
+    SEC["🔐 JWT Security<br/>Rate Limiting"]
+    CTRL["🎛️ Controller"]
+    SVC["⚙️ Service<br/>(@Transactional)"]
+    AUTHZ["🛡️ WorkspaceAuthorizationService"]
+    REPO["🗄️ Repository<br/>(JPA + EntityGraph + FOR UPDATE)"]
+    DB[("🐘 PostgreSQL<br/>Flyway V1–V10")]
+    PUB["📣 WebSocketEventPublisher"]
+    TOPIC["📡 /topic/board/{workspaceId}"]
+
+    Client --> GW
+    GW --> SEC
+    SEC --> CTRL
+    CTRL --> SVC
+    SVC --> AUTHZ
+    SVC --> REPO
+    REPO --> DB
+    SVC --> PUB
+    PUB --> TOPIC
     TOPIC --> Client
 ```
 
-## Ishga tushirish
+Har bir yozish operatsiyasi uchta darvozadan o'tadi: **autentifikatsiya** (kim?), **avtorizatsiya** (qaysi workspace'da qanday rol?), **tranzaksiya** (atomarlik + qulflash).
 
-**Talablar:** Java 17+, PostgreSQL 14+, Maven (loyihada `mvnw` wrapper bor, alohida o'rnatish shart emas).
+### Paket strukturasi
 
-1. Bazani yarating:
-   ```sql
-   CREATE DATABASE taskcenter;
-   ```
-2. `.env.example` ni `.env` ga nusxalang (yoki o'zgaruvchilarni export qiling) va to'ldiring:
-   ```env
-   SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/taskcenter
-   SPRING_DATASOURCE_USERNAME=postgres
-   SPRING_DATASOURCE_PASSWORD=password
-   JWT_SECRET=your-secret-here-min-256-bits-long-for-hs256
-   JWT_EXPIRATION=604800000
-   PORT=8080
-   ```
-3. Yurgizing (Flyway sxemani avtomatik migratsiya qiladi):
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-4. Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+```
+src/main/java/com/taskcenter/
+├── controller/   # Auth, Workspace, Board, User — HTTP kirish nuqtalari
+├── service/      # Auth, Workspace, Board, Authorization, WebSocketEventPublisher
+├── repository/   # Spring Data JPA (User, Workspace, Column, Task, Label)
+├── model/        # JPA entity'lar
+├── dto/          # Request/response DTO'lar
+├── security/     # JwtTokenProvider, JwtAuthenticationFilter, rate limit
+├── config/       # Security, WebSocket/STOMP, cache, Swagger, seed
+├── exception/    # GlobalExceptionHandler + ApiResponse o'rami
+└── monitoring/   # Health, request logging
+```
 
-> Avval `POST /api/auth/register` orqali ro'yxatdan o'ting, tokenni nusxalang, Swagger'da **Authorize** tugmasini bosib `Bearer <token>` kiriting.
+---
 
-### Real-time yangilanishlar (WebSocket)
+## Autentifikatsiya oqimi
 
-- Ulanish (STOMP + SockJS): `ws://<host>/ws?token=<JWT>`
-- Obuna: `/topic/board/{workspaceId}` (faqat a'zo bo'lgan workspace'lar; boshqasi rad etiladi)
-- Event formati: `{ "type": "TASK_CREATED|TASK_UPDATED|…", "data": { … } }`
+```
+Register → Login → JWT → Authorization header → Protected API
+```
+
+1. `POST /api/auth/register` yoki `/api/auth/login` → `{ token, user }`
+2. Swagger'da **Authorize** → `Bearer <token>`
+3. Har bir himoyalangan so'rovda `Authorization: Bearer <token>` header
+4. `JwtAuthenticationFilter` tokenni tekshiradi, rolni `SecurityContext` ga qo'yadi
+
+---
+
+## Workspace / Board modeli
+
+```
+User ──(OWNER / ADMIN / MEMBER)──▶ Workspace ──▶ Board ──▶ Columns ──▶ Tasks
+```
+
+| Rol | Imkoniyat |
+|---|---|
+| `OWNER` | Hamma narsa: sozlash, a'zo boshqaruv, o'chirish |
+| `ADMIN` | Column/label/a'zo boshqaruv (o'chirishdan tashqari kritik amallar) |
+| `MEMBER` | Board ko'rish, task yaratish/yangilash/ko'chirish |
+
+---
 
 ## API ro'yxati
 
-Hamma javob `{ "success", "message", "data", "timestamp" }` o'ramida qaytadi.
+Hamma javob `{ "success", "message", "data", "timestamp" }` o'ramida.
 
-| Metod | Path | Tavsif | Auth |
+| Metod | Endpoint | Tavsif | Auth |
 |---|---|---|---|
-| POST | `/api/auth/register` | Ro'yxatdan o'tish, JWT beradi (201) | Yo'q |
-| POST | `/api/auth/login` | Kirish, JWT beradi | Yo'q |
+| POST | `/api/auth/register` | Ro'yxatdan o'tish, JWT (201) | Yo'q |
+| POST | `/api/auth/login` | Kirish, JWT | Yo'q |
 | GET | `/api/me`, `/api/auth/me` | Joriy user | Ha |
-| GET | `/api/me/stats` | `{taskCount, workspaceCount}` — profil uchun | Ha |
-| GET | `/api/users` | Userlar ro'yxati (paged) | Admin |
+| GET | `/api/me/stats` | `{taskCount, workspaceCount}` | Ha |
+| GET | `/api/users` | Userlar (paged) | Admin |
 | GET | `/api/workspaces?page=&size=` | Mening workspace'larim | Ha |
-| POST | `/api/workspaces` | Workspace yaratish (unikal key prefix) | Ha |
-| GET | `/api/workspaces/{id}` | Workspace tafsiloti | A'zo |
-| PUT | `/api/workspaces/{id}` | Workspace yangilash | Owner |
-| DELETE | `/api/workspaces/{id}` | Workspace o'chirish (soft) | Owner |
-| POST | `/api/workspaces/{workspaceId}/members?userId=` | A'zo qo'shish | Owner/Admin |
-| DELETE | `/api/workspaces/{workspaceId}/members/{userId}` | A'zo o'chirish | Owner/Admin |
-| GET | `/api/workspaces/{workspaceId}/board` | To'liq board: card'li column'lar | A'zo |
-| GET/POST | `/api/workspaces/{workspaceId}/columns` | Column ro'yxati / yaratish | A'zo / Owner/Admin |
-| PUT/PATCH | `/api/workspaces/{workspaceId}/columns/{id}` | Column yangilash | Owner/Admin |
-| PATCH | `/api/workspaces/{workspaceId}/columns` | Column tartibini o'zgartirish | Owner/Admin |
-| DELETE | `/api/workspaces/{workspaceId}/columns/{id}` | Column o'chirish | Owner/Admin |
-| GET | `/api/workspaces/{workspaceId}/tasks?page=&size=` | Task ro'yxati (paged) | A'zo |
-| GET | `/api/workspaces/{workspaceId}/tasks/{id}` | Task tafsiloti | A'zo |
-| POST | `/api/workspaces/{workspaceId}/tasks` | Task yaratish (`TC-N` id) | A'zo |
-| PUT/PATCH | `/api/workspaces/{workspaceId}/tasks/{id}` | Task yangilash | A'zo |
-| DELETE | `/api/workspaces/{workspaceId}/tasks/{id}` | Task o'chirish | A'zo |
-| PATCH | `/api/workspaces/{workspaceId}/tasks/{taskId}/column/{columnId}` | Task ko'chirish | A'zo |
-| PUT | `/api/workspaces/{workspaceId}/tasks/{taskId}/assignee/{userId}` | User biriktirish | A'zo |
-| POST/DELETE | `/api/workspaces/{workspaceId}/tasks/{taskId}/labels/{labelId}` | Label qo'shish/olib tashlash | A'zo |
-| GET/POST | `/api/workspaces/{workspaceId}/labels` | Label ro'yxati / yaratish | A'zo / Owner/Admin |
-| DELETE | `/api/workspaces/{workspaceId}/labels/{id}` | Label o'chirish | Owner/Admin |
-| GET | `/api/workspaces/{workspaceId}/members` | A'zolar ro'yxati | A'zo |
-| GET | `/actuator/health`, `/actuator/metrics`, `/actuator/prometheus` | Operatsion endpointlar | Yo'q |
+| POST | `/api/workspaces` | Workspace yaratish | Ha |
+| GET | `/api/workspaces/{id}` | Tafsilot | A'zo |
+| PUT | `/api/workspaces/{id}` | Yangilash | Owner |
+| DELETE | `/api/workspaces/{id}` | O'chirish (soft) | Owner |
+| POST | `/api/workspaces/{wid}/members?userId=` | A'zo qo'shish | Owner/Admin |
+| DELETE | `/api/workspaces/{wid}/members/{userId}` | A'zo o'chirish | Owner/Admin |
+| GET | `/api/workspaces/{wid}/board` | To'liq board | A'zo |
+| GET/POST | `/api/workspaces/{wid}/columns` | Ro'yxat / yaratish | A'zo / Owner/Admin |
+| PUT/PATCH | `/api/workspaces/{wid}/columns/{id}` | Yangilash | Owner/Admin |
+| PATCH | `/api/workspaces/{wid}/columns` | Tartiblash | Owner/Admin |
+| DELETE | `/api/workspaces/{wid}/columns/{id}` | O'chirish | Owner/Admin |
+| GET | `/api/workspaces/{wid}/tasks?page=&size=` | Tasklar (paged) | A'zo |
+| GET | `/api/workspaces/{wid}/tasks/{id}` | Tafsilot | A'zo |
+| POST | `/api/workspaces/{wid}/tasks` | Yaratish (`TC-N`) | A'zo |
+| PUT/PATCH | `/api/workspaces/{wid}/tasks/{id}` | Yangilash | A'zo |
+| DELETE | `/api/workspaces/{wid}/tasks/{id}` | O'chirish | A'zo |
+| PATCH | `/api/workspaces/{wid}/tasks/{tid}/column/{cid}` | Ko'chirish | A'zo |
+| PUT | `/api/workspaces/{wid}/tasks/{tid}/assignee/{uid}` | Biriktirish | A'zo |
+| POST/DELETE | `/api/workspaces/{wid}/tasks/{tid}/labels/{lid}` | Label +/- | A'zo |
+| GET/POST | `/api/workspaces/{wid}/labels` | Ro'yxat / yaratish | A'zo / Owner/Admin |
+| DELETE | `/api/workspaces/{wid}/labels/{id}` | O'chirish | Owner/Admin |
+| GET | `/api/workspaces/{wid}/members` | A'zolar | A'zo |
+| GET | `/actuator/health`, `/metrics`, `/prometheus` | Monitoring | Yo'q |
+
+---
+
+## Real-time tizim
+
+STOMP + SockJS. Ulanish: `ws://<host>/ws?token=<JWT>` — tokensiz handshake rad etiladi.
+Obuna: `/topic/board/{workspaceId}` — faqat a'zo bo'lgan workspace'lar; begona obuna rad etiladi.
+
+| Event | Qachon |
+|---|---|
+| `TASK_CREATED` / `TASK_UPDATED` / `TASK_DELETED` | Task CRUD |
+| `COLUMN_CREATED` / `COLUMN_UPDATED` / `COLUMN_DELETED` | Column CRUD |
+| `LABEL_CREATED` / `LABEL_DELETED` | Label CRUD |
+
+Format: `{ "type": "...", "data": { ... } }`
+
+---
+
+## Baza
+
+PostgreSQL + Flyway. Sxema faqat migratsiyalar orqali o'zgaradi (`V1`–`V10` mavjud) — qo'lda DDL yo'q:
+`init → orphan cleanup → indexlar → cascade → soft delete/audit → task fieldlar → key prefix/counter → unique → dedup → partial unique`.
+
+---
 
 ## Testlar
+
+JUnit 5 + Mockito (unit) va MockMvc + H2 (integratsiya). Jami **98 ta test**, barchasi yashil (tekshirilgan):
 
 ```bash
 ./mvnw test
 ```
 
-Mockito unit testlar + H2 da MockMvc integratsiya testlar, shuningdek live serverni tekshiradigan
-PowerShell smoke skript (`swagger_smoke_test.ps1`) bor.
+Jonli serverni uchidan-uchiga tekshirish uchun: `./swagger_smoke_test.ps1` (35+ endpoint).
 
-## Litsenziya
+---
 
-MIT. Muallif: `otabek-4662`.
+## Chidamlilik
 
-<p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,100:1e3a8a&height=120&section=footer" alt="footer" />
-</p>
+- **Pessimistic locking** — task counter `FOR UPDATE` bilan, dublikat `publicId` istisno
+- **Bucket4j rate limiting** — auth va API alohida cheklovlar
+- **Caffeine cache** — workspace ro'yxatlari
+- **Prometheus + Actuator** — `hikaricp`, `jvm`, `cache` metrikalari
+
+---
+
+## Lokal ishga tushirish
+
+**Talablar:** Java 17+, PostgreSQL 14+, Maven (wrapper bor).
+
+```sql
+CREATE DATABASE taskcenter;
+```
+
+```env
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/taskcenter
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=password
+JWT_SECRET=your-secret-here-min-256-bits-long-for-hs256
+JWT_EXPIRATION=604800000
+PORT=8080
+```
+
+```bash
+./mvnw spring-boot:run
+```
+
+Swagger: `http://localhost:8080/swagger-ui/index.html`
+
+---
+
+## Swagger
+
+Lokal: `http://localhost:8080/swagger-ui/index.html` · Prod: `https://task-centr-backend.onrender.com/swagger-ui/index.html`.
+Avval register/login dan token oling, **Authorize** ga `Bearer <token>` qo'ying.
+
+---
+
+## Deploy
+
+Docker (`Dockerfile` — multi-stage: Maven build → JRE-alpine) va Render Blueprint (`render.yaml` — web service + Postgres, `master` branch, auto-deploy).
+
+---
+
+<div align="center">
+
+## Built to endure. Designed to scale. ⚔️
+
+[📦 Repository](https://github.com/otabek-4662/task_centr_backend) · [📖 Swagger](https://task-centr-backend.onrender.com/swagger-ui/index.html) · [💚 Health](https://task-centr-backend.onrender.com/actuator/health)
+
+*MIT · `otabek-4662`*
+
+</div>
