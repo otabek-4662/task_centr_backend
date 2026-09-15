@@ -39,6 +39,9 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     locations: classpath:db/migration
+    # Prod DB da V6 eski checksum bilan applied qilingan (tarixda yo'q, qo'lda yozilgan),
+    # shuning uchun validatsiya o'chiq. Prod da `flyway repair` qilingach true ga qaytarish mumkin.
+    validate-on-migrate: false
 
 jwt:
   secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
