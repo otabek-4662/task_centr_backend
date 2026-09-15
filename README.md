@@ -21,6 +21,11 @@
   <a href="https://task-centr-backend.onrender.com/actuator/health">💚 Health</a>
 </p>
 
+<p align="center">
+  <img src="https://media.giphy.com/media/XR9cbNEfzDrFe/giphy.gif" alt="Berserk" width="500" />
+</p>
+<p align="center"><i>⚔️ "Struggle, endure, contend. For that alone is the sword of one who defies death." — Berserk</i></p>
+
 ## Texnologiyalar
 
 - **Java 17**, **Spring Boot 3.2.5** (Web, Data JPA, Security, Validation, Cache, Actuator)
