@@ -110,8 +110,9 @@ Invoke-TestApi -Method Delete -Path "/api/workspaces/$wsId/tasks/$taskId/labels/
 Invoke-TestApi -Method Delete -Path "/api/workspaces/$wsId/tasks/$taskId" -Token $token -Desc "Delete task" | Out-Null
 Invoke-TestApi -Method Get -Path "/api/workspaces/$wsId/tasks/$taskId" -Token $token -Desc "Get deleted task (404 kutiladi)" -Expect 404 | Out-Null
 
-# 7. Members
+# 7. Members + stats
 Invoke-TestApi -Method Get -Path "/api/workspaces/$wsId/members" -Token $token -Desc "List members" | Out-Null
+Invoke-TestApi -Method Get -Path "/api/me/stats" -Token $token -Desc "My stats (taskCount/workspaceCount)" | Out-Null
 
 # 8. Tozalash (teskari tartibda)
 Invoke-TestApi -Method Delete -Path "/api/workspaces/$wsId/labels/$labelId" -Token $token -Desc "Delete label" | Out-Null

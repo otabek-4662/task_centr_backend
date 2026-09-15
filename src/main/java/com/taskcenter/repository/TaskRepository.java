@@ -30,6 +30,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT COALESCE(MAX(t.order), 0) FROM Task t WHERE t.columnId = :columnId")
     Integer findMaxOrderByColumnId(@Param("columnId") String columnId);
 
+    long countByAssigneeId(String assigneeId);
+
     @Transactional
     void deleteByColumnId(String columnId);
 

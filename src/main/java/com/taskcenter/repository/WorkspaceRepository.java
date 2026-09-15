@@ -32,4 +32,7 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, String> {
 
     @Query("SELECT w FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
     Page<Workspace> findByOwnerIdOrMemberUserIdPaginated(@Param("userId") String userId, Pageable pageable);
+
+    @Query("SELECT COUNT(w) FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    long countByOwnerIdOrMemberUserId(@Param("userId") String userId);
 }

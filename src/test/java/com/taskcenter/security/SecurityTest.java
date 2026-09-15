@@ -165,12 +165,24 @@ class SecurityTest {
     }
 
     @Test
-    void createWorkspace_invalidBgColor_rejected() throws Exception {
+    void createWorkspace_gradientBgColor_accepted() throws Exception {
         String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
         mvc.perform(post("/api/workspaces")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Ws\",\"bgColor\":\"not-a-color\"}"))
+                        .content("{\"title\":\"Ws\",\"bgColor\":\"linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bgColor").value("linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)"));
+    }
+
+    @Test
+    void createWorkspace_oversizedBgColor_rejected() throws Exception {
+        String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
+        String longColor = "x".repeat(300);
+        mvc.perform(post("/api/workspaces")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Ws\",\"bgColor\":\"" + longColor + "\"}"))
                 .andExpect(status().isBadRequest());
     }
 }

@@ -2,10 +2,13 @@ package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
 import com.taskcenter.dto.UserDto;
+import com.taskcenter.dto.UserStatsDto;
 import com.taskcenter.model.User;
 import com.taskcenter.model.WorkspaceMember;
+import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
+import com.taskcenter.repository.WorkspaceRepository;
 import com.taskcenter.service.WorkspaceAuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
@@ -26,13 +29,19 @@ public class UserController {
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final WorkspaceAuthorizationService authorizationService;
+    private final TaskRepository taskRepository;
+    private final WorkspaceRepository workspaceRepository;
 
     public UserController(UserRepository userRepository,
                           WorkspaceMemberRepository memberRepository,
-                          WorkspaceAuthorizationService authorizationService) {
+                          WorkspaceAuthorizationService authorizationService,
+                          TaskRepository taskRepository,
+                          WorkspaceRepository workspaceRepository) {
         this.userRepository = userRepository;
         this.memberRepository = memberRepository;
         this.authorizationService = authorizationService;
+        this.taskRepository = taskRepository;
+        this.workspaceRepository = workspaceRepository;
     }
 
     @GetMapping("/me")
@@ -46,6 +55,19 @@ public class UserController {
     @GetMapping("/auth/me")
     public ApiResponse<UserDto> getAuthMe(@AuthenticationPrincipal User currentUser) {
         return getMe(currentUser);
+    }
+
+    @GetMapping("/me/stats")
+    public ApiResponse<UserStatsDto> getMyStats(@AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+        long taskCount = taskRepository.countByAssigneeId(currentUser.getId());
+        long workspaceCount = workspaceRepository.countByOwnerIdOrMemberUserId(currentUser.getId());
+        return ApiResponse.success("ok", UserStatsDto.builder()
+                .taskCount(taskCount)
+                .workspaceCount(workspaceCount)
+                .build());
     }
 
     @GetMapping("/users")
