@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="Task Center Backend — dark fantasy banner with armored warrior silhouette before a red moon">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#060608"/>
+      <stop offset="0.62" stop-color="#0d0708"/>
+      <stop offset="1" stop-color="#1c0605"/>
+    </linearGradient>
+    <radialGradient id="moon" cx="0.5" cy="0.42" r="0.65">
+      <stop offset="0" stop-color="#ff4a22"/>
+      <stop offset="0.45" stop-color="#d4200c"/>
+      <stop offset="0.8" stop-color="#7a0d05"/>
+      <stop offset="1" stop-color="#4d0703"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2a12" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff2a12" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.6"/>
+    </radialGradient>
+  </defs>
+
+  <!-- night sky -->
+  <rect width="1280" height="420" fill="url(#sky)"/>
+
+  <!-- stars -->
+  <g fill="#cfcfe0">
+    <circle cx="60" cy="50" r="1.6" opacity="0.7"/>
+    <circle cx="150" cy="120" r="1.2" opacity="0.5"/>
+    <circle cx="230" cy="45" r="1.9" opacity="0.8"/>
+    <circle cx="330" cy="90" r="1.1" opacity="0.45"/>
+    <circle cx="420" cy="40" r="1.5" opacity="0.65"/>
+    <circle cx="510" cy="105" r="1.2" opacity="0.5"/>
+    <circle cx="600" cy="55" r="1.8" opacity="0.75"/>
+    <circle cx="690" cy="110" r="1.1" opacity="0.4"/>
+    <circle cx="80" cy="220" r="1.3" opacity="0.5"/>
+    <circle cx="180" cy="270" r="1.1" opacity="0.4"/>
+    <circle cx="420" cy="250" r="1.4" opacity="0.5"/>
+    <circle cx="540" cy="200" r="1.1" opacity="0.4"/>
+    <circle cx="1150" cy="70" r="1.6" opacity="0.7"/>
+    <circle cx="1230" cy="150" r="1.2" opacity="0.5"/>
+    <circle cx="1100" cy="300" r="1.3" opacity="0.45"/>
+    <circle cx="1210" cy="250" r="1.7" opacity="0.6"/>
+    <circle cx="40" cy="330" r="1.2" opacity="0.4"/>
+  </g>
+
+  <!-- red moon + glow -->
+  <circle cx="900" cy="175" r="165" fill="url(#glow)"/>
+  <circle cx="900" cy="175" r="125" fill="url(#moon)"/>
+  <circle cx="900" cy="175" r="125" fill="none" stroke="#2a0302" stroke-width="3" opacity="0.8"/>
+
+  <!-- red mist above the ridge -->
+  <ellipse cx="900" cy="330" rx="310" ry="26" fill="#7a0d05" opacity="0.3"/>
+
+  <!-- hill ridge -->
+  <path d="M0,352 Q160,318 340,330 Q520,342 680,322 Q820,305 900,330 Q980,352 1130,338 Q1210,332 1280,340 L1280,420 L0,420 Z" fill="#000000"/>
+
+  <!-- warrior silhouette (original): back view, greatsword planted -->
+  <g fill="#000000">
+    <!-- cloak -->
+    <path d="M880,175 L920,175 L935,330 Q920,322 900,330 Q880,322 865,330 Z"/>
+    <!-- legs + boots -->
+    <rect x="888" y="248" width="11" height="82"/>
+    <rect x="901" y="248" width="11" height="82"/>
+    <rect x="884" y="325" width="17" height="10" rx="2"/>
+    <rect x="899" y="325" width="17" height="10" rx="2"/>
+    <!-- torso -->
+    <polygon points="884,178 916,178 910,248 890,248"/>
+    <!-- pauldrons -->
+    <ellipse cx="880" cy="172" rx="15" ry="9"/>
+    <ellipse cx="920" cy="172" rx="15" ry="9"/>
+    <!-- arms -->
+    <polygon points="884,180 876,225 884,228 890,184"/>
+    <polygon points="916,180 924,225 916,228 910,184"/>
+    <!-- helmet + crest -->
+    <circle cx="900" cy="148" r="17"/>
+    <rect x="897" y="118" width="6" height="22" rx="3"/>
+    <!-- gauntlets on the hilt -->
+    <circle cx="893" cy="205" r="6"/>
+    <circle cx="907" cy="205" r="6"/>
+    <!-- greatsword: pommel, guard, blade, tip -->
+    <circle cx="900" cy="190" r="6"/>
+    <rect x="884" y="197" width="32" height="8" rx="2"/>
+    <rect x="897" y="205" width="6" height="105"/>
+    <polygon points="897,310 903,310 900,324"/>
+  </g>
+
+  <!-- title block -->
+  <text x="80" y="168" font-family="Georgia, 'Times New Roman', serif" font-size="78" letter-spacing="10" fill="#dcdce4">TASK CENTER</text>
+  <rect x="84" y="192" width="120" height="5" fill="#b30d0d"/>
+  <text x="82" y="262" font-family="Georgia, 'Times New Roman', serif" font-size="50" letter-spacing="32" fill="#c1121f">BACKEND</text>
+  <text x="84" y="308" font-family="'Courier New', monospace" font-size="20" letter-spacing="3" fill="#8a8a94">PRODUCTION TASK MANAGEMENT API — JAVA / SPRING BOOT</text>
+
+  <!-- vignette -->
+  <rect width="1280" height="420" fill="url(#vignette)"/>
+</svg>

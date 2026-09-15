@@ -1,5 +1,9 @@
 <div align="center">
 
+<p align="center">
+  <img src="./assets/banner.svg" alt="Task Center Backend — armored warrior before the red moon" width="100%" />
+</p>
+
 # ⚔️ TASK CENTER BACKEND
 
 **Production-oriented task management backend built with Java & Spring Boot.**
@@ -16,9 +20,6 @@
 
 [📖 Swagger UI](https://task-centr-backend.onrender.com/swagger-ui/index.html) · [💚 Health](https://task-centr-backend.onrender.com/actuator/health) · [📦 Repository](https://github.com/otabek-4662/task_centr_backend)
 
-<p align="center">
-  <img src="https://media.giphy.com/media/XR9cbNEfzDrFe/giphy.gif" alt="Berserk" width="500" />
-</p>
 <p align="center"><i>⚔️ "Struggle, endure, contend. For that alone is the sword of one who defies death." — Berserk</i></p>
 
 </div>
