@@ -1,272 +1,164 @@
-# Task Center Backend
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:1e3a8a,100:3b82f6&height=180&section=header&text=Task%20Center%20Backend&fontSize=42&fontColor=ffffff" alt="Task Center Backend" />
+</p>
 
-O'zbek tilida yozilgan Spring Boot asosidagi autentifikatsiya API. Java juniorlar uchun sodda va tushunarli qilib tayyorlangan.
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=20&pause=1000&color=3B82F6&center=true&vCenter=true&width=650&lines=Jira-uslubidagi+task+boshqaruv+API;Real-time+WebSocket+yangilanishlar;JWT+%2B+Spring+Boot+3.2+%2B+PostgreSQL" alt="typing" />
+</p>
 
-## Loyiha haqida
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17-blue" alt="Java" />
+  <img src="https://img.shields.io/badge/Spring_Boot-3.2.5-brightgreen" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16%2F17-blue" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Flyway-10.13-red" alt="Flyway" />
+  <img src="https://img.shields.io/badge/Auth-JWT-orange" alt="JWT" />
+  <img src="https://img.shields.io/badge/Realtime-WebSocket%2FSTOMP-purple" alt="WebSocket" />
+  <img src="https://img.shields.io/badge/Tests-JUnit5_%2B_Mockito-success" alt="Tests" />
+</p>
 
-`task_center_backend` — foydalanuvchilarni ro'yxatdan o'tkazish (`register`) va tizimga kirish (`login`) uchun JWT token beruvchi backend. Swagger orqali osongina test qilish mumkin.
-
-Asosiy imkoniyatlar:
-- `POST /api/auth/register` — yangi foydalanuvchi yaratish
-- `POST /api/auth/login` — tizimga kirish va JWT olish
-- PostgreSQL bilan ishlaydi
-- Swagger UI (springdoc-openapi) mavjud
-- JWT (jjwt 0.11.5) bilan himoyalangan
+<p align="center">
+  <a href="https://task-centr-backend.onrender.com/swagger-ui/index.html">📖 Swagger UI</a> •
+  <a href="https://task-centr-backend.onrender.com/actuator/health">💚 Health</a>
+</p>
 
 ## Texnologiyalar
 
-| Texnologiya | Versiya |
-|---|---|
-| Java | 17 (Temurin 17.0.19+) |
-| Spring Boot | 3.2.5 |
-| Spring Security + JPA | 6.2.4 / Hibernate 6.4.4 |
-| PostgreSQL | 16/17 |
-| JWT | jjwt 0.11.5 |
-| Swagger | springdoc-openapi 2.5.0 |
-| Build | Maven (mvnw) |
+- **Java 17**, **Spring Boot 3.2.5** (Web, Data JPA, Security, Validation, Cache, Actuator)
+- **PostgreSQL** + **Flyway** migratsiyalar (`src/main/resources/db/migration`)
+- **JWT** autentifikatsiya (`jjwt 0.11.5`)
+- **WebSocket / STOMP** real-time board yangilanishlar (`/ws`, `/topic/board/{workspaceId}`)
+- **JUnit 5 + Mockito + MockMvc** testlar, **springdoc-openapi** (Swagger UI)
+- Caching (Caffeine), rate limiting (Bucket4j), Prometheus metrikalar
 
-## Talablar
+<p align="center">
+  <a href="https://skillicons.dev"><img src="https://skillicons.dev/icons?i=java,spring,postgres,docker,git,idea" alt="stack" /></a>
+</p>
 
-- Java 17+ (`java -version` bilan tekshir)
-- Maven (loyihada `mvnw` bor, alohida o'rnatish shart emas)
-- PostgreSQL 17 (`localhost:5432`)
-- IntelliJ IDEA 2026.2+ (yoki istalgan IDE)
+## Asosiy imkoniyatlar
 
-## Tez boshlash (IntelliJ — Usul A, tavsiya)
+- JWT autentifikatsiya (register / login, 7 kunlik tokenlar) va rollar (`USER`, `ADMIN`)
+- Workspace → Board → Column → Task ierarxiyasi, a'zolar va rollar (`OWNER`, `ADMIN`, `MEMBER`)
+- Jira-uslubidagi public task ID'lar (`TC-1`, `TC-2`, …), global unikal key prefikslar (`WR` → `WR2` …)
+- Pessimitic locking (`SELECT … FOR UPDATE`) bilan race-condition'siz counter
+- WebSocket/STOMP orqali real-time yangilanishlar: task/column/label create, update, delete eventlari
+- Label'lar, task biriktirish (assignee), ustuvorlik (priority), due date
+- Hamma joyda soft delete, Flyway sxema boshqaruvi, profil statistikasi (`GET /api/me/stats`)
 
-Bu usulni sen tanlading — eng oson va juniorlarga mos.
+## Arxitektura
 
-1. **Loyihani ochish**
-   ```
-   File -> Open -> C:\Users\Bekmurod\Desktop\task_center_backend -> pom.xml ni tanla -> Open as Project
-   ```
-   O'ng pastdagi Maven import tugashini kut.
-
-2. **PostgreSQL ni yoqish**
-
-   Windows da Service o'chiq bo'lsa:
-   - `Windows` tugmasi -> `PowerShell` -> o'ng click -> **Run as administrator**
-   - Yoz:
-     ```
-     net start postgresql-x64-17
-     ```
-     `started successfully` chiqsa bo'ldi.
-
-   Yoki qo'lda yaratilgan klaster ishlayotgan bo'lsa (bu loyihada `C:\Users\Bekmurod\pgdata_test` ishlatilgan), u avtomatik `5432` da turadi.
-
-3. **Database yaratilganini tekshirish**
-
-   Intellij da Terminal ochib:
-   ```
-   psql -h localhost -U postgres -p 5432 -l
-   ```
-   Ro'yxatda `taskcenter` bo'lishi kerak. Yo'q bo'lsa:
-   ```
-   psql -h localhost -U postgres -p 5432 -c "CREATE DATABASE taskcenter;"
-   ```
-
-4. **IntelliJ da Run qilish**
-
-   `src/main/java/com/taskcenter/BackendApplication.java` ni och -> `main` yonidagi yashil **▶** ni bos -> **Run 'BackendApplication'**
-
-   Logda:
-   ```
-   HikariPool-1 - Added connection
-   Tomcat started on port 8080
-   Started BackendApplication in 4.3 seconds
-   ```
-   chiqsa backend tayyor.
-
-5. **Swagger ni ochish**
-
-   ```
-   http://localhost:8080/swagger-ui/index.html
-   http://localhost:8080/v3/api-docs
-   ```
-
-   Swagger yuqorisidagi **Servers** dropdown da `http://localhost:8080 - Local` tanlangan bo'lsin. Agar `ngrok` tanlangan bo'lsa, `Failed to fetch` beradi — Local ga o'tkaz.
-
-## Database ni IntelliJ da ulash
-
-`application.yml` dagi sozlama:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/taskcenter
-    username: postgres
-    password: password
-```
-
-IntelliJ da ko'rish uchun:
-
-1. O'ng/pastdagi **Database** panelini och (View > Tool Windows > Database)
-2. `+` -> **Data Source -> PostgreSQL**
-3. `Host: localhost`, `Port: 5432`, `Database: taskcenter`, `User: postgres`, `Password: password`
-4. **Download** (driver) -> **Test Connection** -> `Succeeded` -> **OK**
-5. `taskcenter -> Schemas -> public -> Tables -> users` ichida Swagger orqali yaratilgan userlarni ko'rasan.
-
-## Swagger da test qilish
-
-### Register
-
-`POST /api/auth/register` -> `Try it out`:
-
-```json
-{
-  "name": "Otabek",
-  "email": "otabek@test.uz",
-  "password": "Test1234!"
-}
-```
-
-Javob **201**:
-```json
-{
-  "success": true,
-  "message": "Muvaffaqiyatli ro'yxatdan o'tdingiz",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "user": { "id": 1, "name": "Otabek", "email": "otabek@test.uz" }
-  }
-}
-```
-
-### Login
-
-`POST /api/auth/login` -> `Try it out`:
-
-```json
-{
-  "email": "otabek@test.uz",
-  "password": "Test1234!"
-}
-```
-
-Javob **200**:
-```json
-{
-  "success": true,
-  "message": "Tizimga muvaffaqiyatli kirdingiz",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "user": { "id": 1, "name": "Otabek", "email": "otabek@test.uz" }
-  }
-}
-```
-
-Token 7 kun amal qiladi (`jwt.expiration: 604800000`). Keyingi himoyalangan so'rovlarda Swagger dagi **Authorize** 🔓 tugmasini bosib `Bearer <token>` ni qo'y.
-
-> Eslatma: `email` da `@` bo'lishi kerak (`strin.gmail.com` emas, `strin@gmail.com`). `AuthService.java:33` da email unique — takrorlansa `Email is already in use!` qaytadi.
-
-### Curl bilan test
-
-```bash
-# Register
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test","email":"test@test.uz","password":"12345678"}'
-
-# Login
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.uz","password":"12345678"}'
-```
-
-Avtomatik script ham bor: `swagger_auth_test2.ps1`
-
-```powershell
-powershell -ExecutionPolicy Bypass -File swagger_auth_test2.ps1
-```
-
-## Loyiha tuzilishi
+Qatlamli Spring Boot loyiha. Controller'lar HTTP + JWT user'ni qabul qiladi,
+servislar tranzaksiya va ruxsat tekshiruvlarini bajaradi (`WorkspaceAuthorizationService`),
+repository'lar Spring Data JPA interfeyslari (ayrimlarida `@EntityGraph` / pessimistic lock).
 
 ```
 src/main/java/com/taskcenter/
-  BackendApplication.java       # Main (run shu yerdan)
-  config/
-    SecurityConfig.java         # /api/auth/** va /swagger-ui/** ochiq, qolganlari JWT
-    SwaggerConfig.java          # OpenAPI serverlar: localhost:8080 va ngrok
-  controller/
-    AuthController.java         # POST /api/auth/register, /login
-    GlobalExceptionHandler.java
-  dto/
-    RegisterRequest.java        # name, email, password
-    LoginRequest.java           # email, password
-    AuthResponse.java           # token + user
-    ApiResponse.java            # success, message, data
-  model/
-    User.java                   # JPA Entity, UserDetails
-  repository/
-    UserRepository.java
-  security/
-    JwtTokenProvider.java       # token generatsiya
-    JwtAuthenticationFilter.java
-    CustomUserDetailsService.java
-src/main/resources/
-  application.yml               # DB va jwt sozlamalari
+├── controller/   # AuthController, WorkspaceController, BoardController, UserController
+├── service/      # AuthService, WorkspaceService, BoardService, WorkspaceAuthorizationService, WebSocketEventPublisher
+├── repository/   # User, Workspace, WorkspaceMember, Column, Task, Label repository'lar
+├── model/        # JPA entity'lar (User, Workspace, BoardColumn, Task, Label, …)
+├── dto/          # Request/response DTO'lar (TaskCreateRequest, BoardEvent, UserStatsDto, …)
+├── security/     # JwtTokenProvider, JwtAuthenticationFilter, rate limiting
+├── config/       # Security, WebSocket/STOMP, cache, Swagger, seed data
+├── exception/    # GlobalExceptionHandler + ApiResponse o'rami
+└── monitoring/   # Health indicatorlar, request logging
+src/main/resources/db/migration/  # Flyway migratsiyalar V1..V10
 ```
 
-## Muhit o'zgaruvchilari
+So'rov oqimi:
 
-`JWT_SECRET` environment variable talab qilinadi (bo'lmasa default ishlaydi, lekin production'da albatta o'rnating).
-`.env.example` dan nusxa oling: `cp .env.example .env` va `JWT_SECRET=...` ni to'ldiring.
-
-`application.yml` da:
-
-```yaml
-jwt:
-  secret: ${JWT_SECRET:...} # env dan o'qiladi
-  expiration: ${JWT_EXPIRATION:604800000} # 7 kun
+```mermaid
+flowchart LR
+    Client["🌐 Client / Swagger"] --> WS["⚡ /ws (STOMP)"]
+    Client --> API["🔌 REST /api"]
+    API --> SEC["🔐 JWT filter + Rate limit"]
+    SEC --> SVC["⚙️ Service (@Transactional)"]
+    SVC --> AUTHZ["🛡️ WorkspaceAuthorizationService"]
+    SVC --> DB[("🐘 PostgreSQL + Flyway")]
+    SVC --> PUB["📣 WebSocketEventPublisher"]
+    PUB --> TOPIC["📡 /topic/board/{id}"]
+    TOPIC --> Client
 ```
 
-Docker da:
+## Ishga tushirish
 
-```yaml
-SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskcenter
-SPRING_DATASOURCE_USERNAME: postgres
-SPRING_DATASOURCE_PASSWORD: password
-```
+**Talablar:** Java 17+, PostgreSQL 14+, Maven (loyihada `mvnw` wrapper bor, alohida o'rnatish shart emas).
 
-## Docker bilan ishga tushirish
+1. Bazani yarating:
+   ```sql
+   CREATE DATABASE taskcenter;
+   ```
+2. `.env.example` ni `.env` ga nusxalang (yoki o'zgaruvchilarni export qiling) va to'ldiring:
+   ```env
+   SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/taskcenter
+   SPRING_DATASOURCE_USERNAME=postgres
+   SPRING_DATASOURCE_PASSWORD=password
+   JWT_SECRET=your-secret-here-min-256-bits-long-for-hs256
+   JWT_EXPIRATION=604800000
+   PORT=8080
+   ```
+3. Yurgizing (Flyway sxemani avtomatik migratsiya qiladi):
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+4. Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+
+> Avval `POST /api/auth/register` orqali ro'yxatdan o'ting, tokenni nusxalang, Swagger'da **Authorize** tugmasini bosib `Bearer <token>` kiriting.
+
+### Real-time yangilanishlar (WebSocket)
+
+- Ulanish (STOMP + SockJS): `ws://<host>/ws?token=<JWT>`
+- Obuna: `/topic/board/{workspaceId}` (faqat a'zo bo'lgan workspace'lar; boshqasi rad etiladi)
+- Event formati: `{ "type": "TASK_CREATED|TASK_UPDATED|…", "data": { … } }`
+
+## API ro'yxati
+
+Hamma javob `{ "success", "message", "data", "timestamp" }` o'ramida qaytadi.
+
+| Metod | Path | Tavsif | Auth |
+|---|---|---|---|
+| POST | `/api/auth/register` | Ro'yxatdan o'tish, JWT beradi (201) | Yo'q |
+| POST | `/api/auth/login` | Kirish, JWT beradi | Yo'q |
+| GET | `/api/me`, `/api/auth/me` | Joriy user | Ha |
+| GET | `/api/me/stats` | `{taskCount, workspaceCount}` — profil uchun | Ha |
+| GET | `/api/users` | Userlar ro'yxati (paged) | Admin |
+| GET | `/api/workspaces?page=&size=` | Mening workspace'larim | Ha |
+| POST | `/api/workspaces` | Workspace yaratish (unikal key prefix) | Ha |
+| GET | `/api/workspaces/{id}` | Workspace tafsiloti | A'zo |
+| PUT | `/api/workspaces/{id}` | Workspace yangilash | Owner |
+| DELETE | `/api/workspaces/{id}` | Workspace o'chirish (soft) | Owner |
+| POST | `/api/workspaces/{workspaceId}/members?userId=` | A'zo qo'shish | Owner/Admin |
+| DELETE | `/api/workspaces/{workspaceId}/members/{userId}` | A'zo o'chirish | Owner/Admin |
+| GET | `/api/workspaces/{workspaceId}/board` | To'liq board: card'li column'lar | A'zo |
+| GET/POST | `/api/workspaces/{workspaceId}/columns` | Column ro'yxati / yaratish | A'zo / Owner/Admin |
+| PUT/PATCH | `/api/workspaces/{workspaceId}/columns/{id}` | Column yangilash | Owner/Admin |
+| PATCH | `/api/workspaces/{workspaceId}/columns` | Column tartibini o'zgartirish | Owner/Admin |
+| DELETE | `/api/workspaces/{workspaceId}/columns/{id}` | Column o'chirish | Owner/Admin |
+| GET | `/api/workspaces/{workspaceId}/tasks?page=&size=` | Task ro'yxati (paged) | A'zo |
+| GET | `/api/workspaces/{workspaceId}/tasks/{id}` | Task tafsiloti | A'zo |
+| POST | `/api/workspaces/{workspaceId}/tasks` | Task yaratish (`TC-N` id) | A'zo |
+| PUT/PATCH | `/api/workspaces/{workspaceId}/tasks/{id}` | Task yangilash | A'zo |
+| DELETE | `/api/workspaces/{workspaceId}/tasks/{id}` | Task o'chirish | A'zo |
+| PATCH | `/api/workspaces/{workspaceId}/tasks/{taskId}/column/{columnId}` | Task ko'chirish | A'zo |
+| PUT | `/api/workspaces/{workspaceId}/tasks/{taskId}/assignee/{userId}` | User biriktirish | A'zo |
+| POST/DELETE | `/api/workspaces/{workspaceId}/tasks/{taskId}/labels/{labelId}` | Label qo'shish/olib tashlash | A'zo |
+| GET/POST | `/api/workspaces/{workspaceId}/labels` | Label ro'yxati / yaratish | A'zo / Owner/Admin |
+| DELETE | `/api/workspaces/{workspaceId}/labels/{id}` | Label o'chirish | Owner/Admin |
+| GET | `/api/workspaces/{workspaceId}/members` | A'zolar ro'yxati | A'zo |
+| GET | `/actuator/health`, `/actuator/metrics`, `/actuator/prometheus` | Operatsion endpointlar | Yo'q |
+
+## Testlar
 
 ```bash
-docker compose up -d
-# yoki
-docker-compose up -d
+./mvnw test
 ```
 
-`docker-compose.yml` da `postgres:16` va `backend` (eclipse-temurin:17) bor. `app.jar` ni avval `mvnw package -DskipTests` bilan build qilish kerak.
+Mockito unit testlar + H2 da MockMvc integratsiya testlar, shuningdek live serverni tekshiradigan
+PowerShell smoke skript (`swagger_smoke_test.ps1`) bor.
 
-## Build
+## Litsenziya
 
-```bash
-./mvnw package -DskipTests
-java -jar target/backend-0.0.1-SNAPSHOT.jar
-# yoki
-./start.bat  # Windows
-```
+MIT. Muallif: `otabek-4662`.
 
-## Git
-
-```bash
-git clone https://github.com/otabek-4662/task_centr_backend.git
-git add .
-git commit -m "xabar"
-git push origin master
-```
-
-## Muammolar va yechim
-
-| Xato | Sabab | Yechim |
-|---|---|---|
-| `localhost refused the connection` | Backend o'chiq | `BackendApplication` ni run qil |
-| `5432 CLOSED` | Postgres o'chiq | `net start postgresql-x64-17` (admin) |
-| `Failed to fetch` Swagger da | Server ngrok tanlangan | Swagger Servers -> `http://localhost:8080` ni tanla |
-| `Email is already in use!` | Email takror | Boshqa email bilan register qil |
-| `Port 8080 already in use` | Eski jar turibdi | IntelliJ da eski run ni Stop (qizil ■) qil |
-
-## Muallif
-
-Otabek Sotimov — Java junior. Savollar bo'lsa Swagger dagi `Try it out` bilan test qilib, `users` jadvalidan tekshirib bor.
-
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,100:1e3a8a&height=120&section=footer" alt="footer" />
+</p>
