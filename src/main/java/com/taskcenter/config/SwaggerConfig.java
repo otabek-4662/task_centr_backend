@@ -14,11 +14,11 @@ import org.springframework.context.annotation.Profile;
 public class SwaggerConfig {
 
     @Bean
-    @Profile({"local", "dev", "test"})
+    @Profile({"local", "dev", "test", "default"})
     public OpenAPI customOpenAPI(@Value("${spring.profiles.active:local}") String activeProfile) {
         String renderUrl = System.getenv("RENDER_EXTERNAL_URL");
         if (renderUrl == null || renderUrl.isBlank()) {
-            renderUrl = "https://task-center-backend.onrender.com";
+            renderUrl = "https://task-centr-backend.onrender.com";
         }
         return new OpenAPI()
             .info(new Info().title("Task Center API").description("1. POST /api/auth/register yoki POST /api/auth/login dan AuthResponse.token oling (7 kun amal qiladi). 2. Yuqoridagi Authorize \uD83D\uDD13 tugmasini bosing, token ni qo'ying (Swagger Bearer prefiksini o'zi qo'shadi). 3. Qolgan endpointlarni chaqiring. Tokensiz faqat login/register ishlaydi.").version("1.0"))
