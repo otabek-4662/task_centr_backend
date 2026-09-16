@@ -244,6 +244,12 @@ Docker (`Dockerfile` — multi-stage: Maven build → JRE-alpine) va Render Blue
 
 ---
 
+## Hujjatlar
+
+To'liq backend hujjatlari (o'zbek tilida): [docs/README.md](./docs/README.md).
+
+---
+
 <div align="center">
 
 ## Built to endure. Designed to scale. ⚔️
