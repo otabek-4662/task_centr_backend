@@ -1,6 +1,7 @@
 package com.taskcenter.service;
 
 import com.taskcenter.dto.*;
+import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.Task;
@@ -47,14 +48,14 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDto> getTasksByWorkspace(String workspaceId, User currentUser, int page, int size) {
         authorizationService.checkAccess(workspaceId, currentUser);
+        if (page < 0) {
+            throw new BadRequestException("Sahifa raqami 0 yoki undan katta bo'lishi kerak");
+        }
+        if (size <= 0) {
+            throw new BadRequestException("Sahifa hajmi 1 yoki undan katta bo'lishi kerak");
+        }
         if (size > 100) {
             size = 100;
-        }
-        if (page < 0 || size <= 0) {
-            return taskRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId)
-                    .stream()
-                    .map(TaskDto::fromEntity)
-                    .collect(Collectors.toList());
         }
 
         Pageable pageable = PageRequest.of(page, size);

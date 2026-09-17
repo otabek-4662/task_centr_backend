@@ -3,6 +3,8 @@ package com.taskcenter.service;
 import com.taskcenter.dto.WorkspaceCreateRequest;
 import com.taskcenter.dto.WorkspaceDto;
 import com.taskcenter.dto.WorkspaceListDto;
+import com.taskcenter.exception.BadRequestException;
+import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
@@ -30,14 +32,17 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceListDto> getWorkspaces(User currentUser, int page, int size) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
+        }
+        if (page < 0) {
+            throw new BadRequestException("Sahifa raqami 0 yoki undan katta bo'lishi kerak");
+        }
+        if (size <= 0) {
+            throw new BadRequestException("Sahifa hajmi 1 yoki undan katta bo'lishi kerak");
+        }
         if (size > 100) {
             size = 100;
-        }
-        if (page < 0 || size <= 0) {
-            return workspaceRepository.findByOwnerIdOrMemberUserId(currentUser.getId())
-                    .stream()
-                    .map(WorkspaceListDto::fromEntity)
-                    .collect(Collectors.toList());
         }
 
         Pageable pageable = PageRequest.of(page, size);

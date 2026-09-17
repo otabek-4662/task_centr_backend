@@ -38,10 +38,10 @@ public class UserController {
         return getMe(currentUser);
     }
 
-    @Operation(summary = "Foydalanuvchilar ro'yxatini olish (workspaceId bo'yicha filter qilish mumkin)")
+    @Operation(summary = "Workspace dagi foydalanuvchilar ro'yxatini olish")
     @GetMapping("/users")
     public ApiResponse<Page<UserDto>> getUsers(
-            @RequestParam(required = false) String workspaceId,
+            @RequestParam String workspaceId,
             @AuthenticationPrincipal User currentUser,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Page<UserDto> users = userService.getUsers(workspaceId, currentUser, pageable);
