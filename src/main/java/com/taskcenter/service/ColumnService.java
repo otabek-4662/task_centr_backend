@@ -8,6 +8,7 @@ import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +20,14 @@ import java.util.stream.Collectors;
 public class ColumnService {
 
     private final ColumnRepository columnRepository;
+    private final TaskRepository taskRepository;
     private final WorkspaceAuthorizationService authorizationService;
 
     public ColumnService(ColumnRepository columnRepository,
+                         TaskRepository taskRepository,
                          WorkspaceAuthorizationService authorizationService) {
         this.columnRepository = columnRepository;
+        this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
     }
 
@@ -151,6 +155,7 @@ public class ColumnService {
             throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
         }
 
+        taskRepository.deleteByColumnId(id);
         columnRepository.deleteById(id);
     }
 }

@@ -6,8 +6,11 @@ import com.taskcenter.dto.WorkspaceListDto;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
+import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,11 +26,17 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceAuthorizationService authorizationService;
+    private final ColumnRepository columnRepository;
+    private final TaskRepository taskRepository;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
-                            WorkspaceAuthorizationService authorizationService) {
+                            WorkspaceAuthorizationService authorizationService,
+                            ColumnRepository columnRepository,
+                            TaskRepository taskRepository) {
         this.workspaceRepository = workspaceRepository;
         this.authorizationService = authorizationService;
+        this.columnRepository = columnRepository;
+        this.taskRepository = taskRepository;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +89,30 @@ public class WorkspaceService {
                 .build();
 
         Workspace saved = workspaceRepository.save(workspace);
+
+        if (Boolean.TRUE.equals(request.getInitDefaultColumns())) {
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Qilinishi kerak (To Do)")
+                    .order(1)
+                    .isDefault(true)
+                    .build());
+
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Bajarilmoqda (In Progress)")
+                    .order(2)
+                    .isDefault(false)
+                    .build());
+
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Bajarildi (Done)")
+                    .order(3)
+                    .isDefault(false)
+                    .build());
+        }
+
         return WorkspaceDto.fromEntity(saved);
     }
 
@@ -109,6 +142,8 @@ public class WorkspaceService {
         if (!workspaceRepository.existsById(id)) {
             throw new ResourceNotFoundException("Workspace topilmadi: " + id);
         }
+        taskRepository.deleteByWorkspaceId(id);
+        columnRepository.deleteByWorkspaceId(id);
         workspaceRepository.deleteById(id);
     }
 }

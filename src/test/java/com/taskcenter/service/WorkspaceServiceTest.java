@@ -7,6 +7,8 @@ import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
+import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +35,10 @@ class WorkspaceServiceTest {
     private WorkspaceRepository workspaceRepository;
     @Mock
     private WorkspaceAuthorizationService authorizationService;
+    @Mock
+    private ColumnRepository columnRepository;
+    @Mock
+    private TaskRepository taskRepository;
 
     @InjectMocks
     private WorkspaceService workspaceService;
@@ -117,6 +123,7 @@ class WorkspaceServiceTest {
         WorkspaceCreateRequest req = new WorkspaceCreateRequest();
         req.setTitle("New WS");
         req.setBgColor("#fff");
+        req.setInitDefaultColumns(true);
 
         when(workspaceRepository.save(any(Workspace.class))).thenAnswer(inv -> {
             Workspace ws = inv.getArgument(0);
@@ -128,6 +135,7 @@ class WorkspaceServiceTest {
 
         assertThat(result.getTitle()).isEqualTo("New WS");
         verify(workspaceRepository).save(any(Workspace.class));
+        verify(columnRepository, times(3)).save(any());
     }
 
     // ===== deleteWorkspace =====
@@ -139,6 +147,8 @@ class WorkspaceServiceTest {
 
         workspaceService.deleteWorkspace("ws1", testUser());
 
+        verify(taskRepository).deleteByWorkspaceId("ws1");
+        verify(columnRepository).deleteByWorkspaceId("ws1");
         verify(workspaceRepository).deleteById("ws1");
     }
 

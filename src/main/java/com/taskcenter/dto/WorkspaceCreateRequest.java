@@ -18,4 +18,6 @@ public class WorkspaceCreateRequest {
 
     @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")
     private String description;
+
+    private Boolean initDefaultColumns;
 }
