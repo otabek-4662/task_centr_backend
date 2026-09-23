@@ -27,29 +27,38 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final ColumnRepository columnRepository;
+    private final com.taskcenter.repository.SprintRepository sprintRepository;
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
+                       com.taskcenter.repository.SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
+        this.sprintRepository = sprintRepository;
         this.authorizationService = authorizationService;
         this.activityService = activityService;
     }
 
     @Transactional(readOnly = true)
-    public List<ColumnWithCardsDto> getBoard(String workspaceId, User currentUser) {
+    public List<ColumnWithCardsDto> getBoard(String workspaceId, String sprintId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdWithTasks(workspaceId);
         return cols.stream().map(c -> {
             List<Task> tasks = c.getTasks().stream()
+                    .filter(t -> sprintId == null || sprintId.equals(t.getSprintId()))
                     .sorted(Comparator.comparing(Task::getOrder))
                     .collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, tasks);
         }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ColumnWithCardsDto> getBoard(String workspaceId, User currentUser) {
+        return getBoard(workspaceId, null, currentUser);
     }
 
     @Transactional(readOnly = true)
@@ -104,6 +113,19 @@ public class TaskService {
         Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
         IssueType issueType = req.getIssueType() != null ? req.getIssueType() : IssueType.TASK;
 
+        String sprintId = null;
+        if (req.getSprintId() != null && !req.getSprintId().isBlank()) {
+            com.taskcenter.model.Sprint sprint = sprintRepository.findById(req.getSprintId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + req.getSprintId()));
+            if (!workspaceId.equals(sprint.getWorkspaceId())) {
+                throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
+            }
+            if (sprint.getStatus() == com.taskcenter.model.SprintStatus.CLOSED) {
+                throw new BadRequestException("Yopilgan sprintga yangi vazifa biriktirib bo'lmaydi");
+            }
+            sprintId = sprint.getId();
+        }
+
         Task task = Task.builder()
                 .workspaceId(workspaceId)
                 .columnId(req.getColumnId())
@@ -113,6 +135,8 @@ public class TaskService {
                 .priority(priority)
                 .issueType(issueType)
                 .dueDate(req.getDueDate())
+                .storyPoints(req.getStoryPoints())
+                .sprintId(sprintId)
                 .build();
 
         Task saved = taskRepository.save(task);
@@ -172,6 +196,30 @@ public class TaskService {
             LocalDate oldDate = task.getDueDate();
             task.setDueDate(req.getDueDate());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), String.valueOf(req.getDueDate()));
+        }
+        if (req.getStoryPoints() != null && !req.getStoryPoints().equals(task.getStoryPoints())) {
+            Integer oldPoints = task.getStoryPoints();
+            task.setStoryPoints(req.getStoryPoints());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", String.valueOf(oldPoints), String.valueOf(req.getStoryPoints()));
+        }
+        if (req.getSprintId() != null) {
+            String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
+            if (newSprintId != null && !newSprintId.equals(task.getSprintId())) {
+                com.taskcenter.model.Sprint sprint = sprintRepository.findById(newSprintId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + newSprintId));
+                if (!workspaceId.equals(sprint.getWorkspaceId())) {
+                    throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
+                }
+                if (sprint.getStatus() == com.taskcenter.model.SprintStatus.CLOSED) {
+                    throw new BadRequestException("Yopilgan sprintga vazifani ko'chirib bo'lmaydi");
+                }
+                String oldSprintId = task.getSprintId();
+                task.setSprintId(newSprintId);
+                activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_ASSIGNED, "sprint", oldSprintId, sprint.getName());
+            } else if (newSprintId == null && task.getSprintId() != null) {
+                task.setSprintId(null);
+                activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_REMOVED, "sprint", null, "Backlog");
+            }
         }
 
         Task saved = taskRepository.save(task);

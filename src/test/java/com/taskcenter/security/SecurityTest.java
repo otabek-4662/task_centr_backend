@@ -128,6 +128,8 @@ class SecurityTest {
     void swaggerUi_isPublic() throws Exception {
         mvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().is2xxSuccessful());
+        mvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection());
     }
 
     @Test

@@ -25,12 +25,13 @@ public class BoardController {
         this.taskService = taskService;
     }
 
-    @Operation(summary = "Workspace doskasini barcha ustunlar va ularning vazifalari bilan olish")
+    @Operation(summary = "Workspace doskasini barcha ustunlar va ularning vazifalari bilan olish (sprintId bo'yicha filter qilish mumkin)")
     @GetMapping
     public ApiResponse<List<ColumnWithCardsDto>> getBoard(
             @PathVariable String workspaceId,
+            @RequestParam(required = false) String sprintId,
             @AuthenticationPrincipal User currentUser) {
-        List<ColumnWithCardsDto> board = taskService.getBoard(workspaceId, currentUser);
+        List<ColumnWithCardsDto> board = taskService.getBoard(workspaceId, sprintId, currentUser);
         return ApiResponse.success("ok", board);
     }
 }

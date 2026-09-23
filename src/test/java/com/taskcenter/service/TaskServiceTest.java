@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +32,8 @@ class TaskServiceTest {
     private TaskRepository taskRepository;
     @Mock
     private ColumnRepository columnRepository;
+    @Mock
+    private com.taskcenter.repository.SprintRepository sprintRepository;
     @Mock
     private WorkspaceAuthorizationService authorizationService;
     @Mock
@@ -113,12 +116,44 @@ class TaskServiceTest {
         req.setPriority(com.taskcenter.model.Priority.URGENT);
         req.setIssueType(com.taskcenter.model.IssueType.BUG);
         req.setDueDate(java.time.LocalDate.of(2026, 12, 31));
+        req.setStoryPoints(8);
 
         TaskDto result = taskService.createTask("ws1", req, testUser());
 
         assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.URGENT);
         assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.BUG);
         assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 12, 31));
+        assertThat(result.getStoryPoints()).isEqualTo(8);
+    }
+
+    @Test
+    void createTask_withValidSprintId_assignsCorrectly() {
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
+        com.taskcenter.model.Sprint sprint = com.taskcenter.model.Sprint.builder()
+                .id("sprint-1")
+                .workspaceId("ws1")
+                .name("Sprint 1")
+                .status(com.taskcenter.model.SprintStatus.ACTIVE)
+                .build();
+        when(sprintRepository.findById("sprint-1")).thenReturn(Optional.of(sprint));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId("new-task-sprint");
+            t.setPublicId("WFM-SP1");
+            t.setCreatedAt(java.time.LocalDateTime.now());
+            return t;
+        });
+
+        TaskCreateRequest req = new TaskCreateRequest();
+        req.setTitle("Sprint Task");
+        req.setColumnId("col1");
+        req.setSprintId("sprint-1");
+
+        TaskDto result = taskService.createTask("ws1", req, testUser());
+
+        assertThat(result.getSprintId()).isEqualTo("sprint-1");
     }
 
     @Test
@@ -201,6 +236,7 @@ class TaskServiceTest {
         req.setPriority(com.taskcenter.model.Priority.HIGH);
         req.setIssueType(com.taskcenter.model.IssueType.STORY);
         req.setDueDate(java.time.LocalDate.of(2026, 11, 15));
+        req.setStoryPoints(5);
 
         TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
 
@@ -209,6 +245,8 @@ class TaskServiceTest {
         assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.HIGH);
         assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.STORY);
         assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 11, 15));
+        assertThat(result.getStoryPoints()).isEqualTo(5);
+        verify(activityService).logActivity("task1", testUser(), com.taskcenter.model.TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", "null", "5");
     }
 
     @Test
@@ -248,5 +286,20 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> taskService.deleteTask("ws1", "task1", stranger))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void getBoard_withSprintIdFilter_filtersCorrectly() {
+        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        Task t1 = Task.builder().id("t1").title("Task 1").sprintId("sprint-1").order(1).build();
+        Task t2 = Task.builder().id("t2").title("Task 2").sprintId("sprint-2").order(2).build();
+        BoardColumn col = BoardColumn.builder().id("col1").workspaceId("ws1").title("Todo").order(1).tasks(new java.util.HashSet<>(List.of(t1, t2))).build();
+        when(columnRepository.findByWorkspaceIdWithTasks("ws1")).thenReturn(List.of(col));
+
+        List<com.taskcenter.dto.ColumnWithCardsDto> board = taskService.getBoard("ws1", "sprint-1", testUser());
+
+        assertThat(board).hasSize(1);
+        assertThat(board.get(0).getCards()).hasSize(1);
+        assertThat(board.get(0).getCards().get(0).getId()).isEqualTo("t1");
     }
 }

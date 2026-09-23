@@ -30,6 +30,26 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT COALESCE(MAX(t.order), 0) FROM Task t WHERE t.columnId = :columnId")
     Integer findMaxOrderByColumnId(@Param("columnId") String columnId);
 
+    @EntityGraph(attributePaths = {"labels", "assignees"})
+    List<Task> findBySprintIdOrderByOrderAsc(String sprintId);
+
+    List<Task> findBySprintId(String sprintId);
+
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL ORDER BY t.order ASC")
+    Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
+
+    long countBySprintId(String sprintId);
+
+    @Query("SELECT COALESCE(SUM(t.storyPoints), 0) FROM Task t WHERE t.sprintId = :sprintId")
+    Integer sumStoryPointsBySprintId(@Param("sprintId") String sprintId);
+
+    @Query("SELECT COALESCE(SUM(t.storyPoints), 0) FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL")
+    Integer sumStoryPointsInBacklog(@Param("workspaceId") String workspaceId);
+
+    @Query("SELECT t.sprintId as sprintId, COUNT(t) as taskCount, COALESCE(SUM(t.storyPoints), 0) as totalStoryPoints " +
+           "FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NOT NULL GROUP BY t.sprintId")
+    List<com.taskcenter.dto.SprintStatsProjection> findSprintStatsByWorkspaceId(@Param("workspaceId") String workspaceId);
+
     @Transactional
     void deleteByColumnId(String columnId);
 

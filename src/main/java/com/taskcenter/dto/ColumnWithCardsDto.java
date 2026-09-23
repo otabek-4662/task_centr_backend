@@ -25,6 +25,13 @@ public class ColumnWithCardsDto {
         private String publicId;
         private String title;
         private Integer order;
+        private com.taskcenter.model.Priority priority;
+        private com.taskcenter.model.IssueType issueType;
+        private java.time.LocalDate dueDate;
+        private Integer storyPoints;
+        private String sprintId;
+        private List<LabelDto> labels;
+        private List<UserDto> assignees;
 
         public static TaskCardDto fromEntity(Task t) {
             return TaskCardDto.builder()
@@ -32,6 +39,13 @@ public class ColumnWithCardsDto {
                     .publicId(t.getPublicId())
                     .title(t.getTitle())
                     .order(t.getOrder())
+                    .priority(t.getPriority() != null ? t.getPriority() : com.taskcenter.model.Priority.MEDIUM)
+                    .issueType(t.getIssueType() != null ? t.getIssueType() : com.taskcenter.model.IssueType.TASK)
+                    .dueDate(t.getDueDate())
+                    .storyPoints(t.getStoryPoints())
+                    .sprintId(t.getSprintId())
+                    .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
+                    .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                     .build();
         }
     }

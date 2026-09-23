@@ -19,7 +19,9 @@ import java.util.Set;
     @Index(name = "idx_tasks_public_id", columnList = "public_id", unique = true),
     @Index(name = "idx_tasks_workspace_priority", columnList = "workspace_id, priority"),
     @Index(name = "idx_tasks_workspace_due_date", columnList = "workspace_id, due_date"),
-    @Index(name = "idx_tasks_workspace_issue_type", columnList = "workspace_id, issue_type")
+    @Index(name = "idx_tasks_workspace_issue_type", columnList = "workspace_id, issue_type"),
+    @Index(name = "idx_tasks_sprint_id", columnList = "sprint_id"),
+    @Index(name = "idx_tasks_workspace_sprint", columnList = "workspace_id, sprint_id")
 })
 @SQLDelete(sql = "UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @Where(clause = "deleted_at IS NULL")
@@ -67,6 +69,12 @@ public class Task {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "story_points")
+    private Integer storyPoints;
+
+    @Column(name = "sprint_id")
+    private String sprintId;
+
     @CreatedBy
     @Column(name = "created_by")
     private String createdBy;
@@ -85,6 +93,7 @@ public class Task {
     private LocalDateTime updatedAt;
 
     @ManyToMany
+    @org.hibernate.annotations.BatchSize(size = 25)
     @JoinTable(
         name = "task_labels",
         joinColumns = @JoinColumn(name = "task_id"),
@@ -94,6 +103,7 @@ public class Task {
     private Set<Label> labels = new HashSet<>();
 
     @ManyToMany
+    @org.hibernate.annotations.BatchSize(size = 25)
     @JoinTable(
         name = "task_assignees",
         joinColumns = @JoinColumn(name = "task_id"),

@@ -24,6 +24,8 @@ public class TaskDto {
     private Priority priority;
     private IssueType issueType;
     private LocalDate dueDate;
+    private Integer storyPoints;
+    private String sprintId;
     private List<LabelDto> labels;
     private List<UserDto> assignees;
 
@@ -39,6 +41,8 @@ public class TaskDto {
                 .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
                 .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                 .dueDate(t.getDueDate())
+                .storyPoints(t.getStoryPoints())
+                .sprintId(t.getSprintId())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .build();
