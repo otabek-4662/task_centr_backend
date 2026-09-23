@@ -4,7 +4,10 @@ import com.taskcenter.dto.*;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.BoardColumn;
+import com.taskcenter.model.IssueType;
+import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.TaskActivityType;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
@@ -14,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,13 +28,16 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ColumnRepository columnRepository;
     private final WorkspaceAuthorizationService authorizationService;
+    private final TaskActivityService activityService;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
-                       WorkspaceAuthorizationService authorizationService) {
+                       WorkspaceAuthorizationService authorizationService,
+                       TaskActivityService activityService) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.authorizationService = authorizationService;
+        this.activityService = activityService;
     }
 
     @Transactional(readOnly = true)
@@ -94,15 +101,22 @@ public class TaskService {
             order = taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1;
         }
 
+        Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
+        IssueType issueType = req.getIssueType() != null ? req.getIssueType() : IssueType.TASK;
+
         Task task = Task.builder()
                 .workspaceId(workspaceId)
                 .columnId(req.getColumnId())
                 .title(req.getTitle())
                 .description(req.getDescription())
                 .order(order)
+                .priority(priority)
+                .issueType(issueType)
+                .dueDate(req.getDueDate())
                 .build();
 
         Task saved = taskRepository.save(task);
+        activityService.logActivity(saved.getId(), currentUser, TaskActivityType.TASK_CREATED, "task", null, saved.getTitle());
         return TaskDto.fromEntity(saved);
     }
 
@@ -123,20 +137,41 @@ public class TaskService {
             if (!workspaceId.equals(newColumn.getWorkspaceId())) {
                 throw new ResourceNotFoundException("Yangi column ushbu workspace ga tegishli emas");
             }
+            String oldColId = task.getColumnId();
             task.setColumnId(req.getColumnId());
             if (req.getOrder() == null) {
                 task.setOrder(taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1);
             }
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
         }
 
-        if (req.getTitle() != null) {
+        if (req.getTitle() != null && !req.getTitle().equals(task.getTitle())) {
+            String oldTitle = task.getTitle();
             task.setTitle(req.getTitle());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.TITLE_UPDATED, "title", oldTitle, req.getTitle());
         }
-        if (req.getDescription() != null) {
+        if (req.getDescription() != null && !req.getDescription().equals(task.getDescription())) {
+            String oldDesc = task.getDescription();
             task.setDescription(req.getDescription());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DESCRIPTION_UPDATED, "description", oldDesc, req.getDescription());
         }
         if (req.getOrder() != null) {
             task.setOrder(req.getOrder());
+        }
+        if (req.getPriority() != null && req.getPriority() != task.getPriority()) {
+            Priority oldPriority = task.getPriority();
+            task.setPriority(req.getPriority());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.PRIORITY_UPDATED, "priority", String.valueOf(oldPriority), String.valueOf(req.getPriority()));
+        }
+        if (req.getIssueType() != null && req.getIssueType() != task.getIssueType()) {
+            IssueType oldType = task.getIssueType();
+            task.setIssueType(req.getIssueType());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.ISSUE_TYPE_UPDATED, "issueType", String.valueOf(oldType), String.valueOf(req.getIssueType()));
+        }
+        if (req.getDueDate() != null && !req.getDueDate().equals(task.getDueDate())) {
+            LocalDate oldDate = task.getDueDate();
+            task.setDueDate(req.getDueDate());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), String.valueOf(req.getDueDate()));
         }
 
         Task saved = taskRepository.save(task);

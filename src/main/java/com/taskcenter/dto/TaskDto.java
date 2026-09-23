@@ -1,7 +1,11 @@
 package com.taskcenter.dto;
 
+import com.taskcenter.model.IssueType;
+import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
 import lombok.*;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,6 +21,9 @@ public class TaskDto {
     private String title;
     private String description;
     private Integer order;
+    private Priority priority;
+    private IssueType issueType;
+    private LocalDate dueDate;
     private List<LabelDto> labels;
     private List<UserDto> assignees;
 
@@ -29,6 +36,9 @@ public class TaskDto {
                 .title(t.getTitle())
                 .description(t.getDescription())
                 .order(t.getOrder())
+                .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
+                .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
+                .dueDate(t.getDueDate())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .build();

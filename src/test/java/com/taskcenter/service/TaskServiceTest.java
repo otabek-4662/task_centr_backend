@@ -33,6 +33,8 @@ class TaskServiceTest {
     private ColumnRepository columnRepository;
     @Mock
     private WorkspaceAuthorizationService authorizationService;
+    @Mock
+    private TaskActivityService activityService;
 
     @InjectMocks
     private TaskService taskService;
@@ -87,7 +89,36 @@ class TaskServiceTest {
         TaskDto result = taskService.createTask("ws1", req, testUser());
 
         assertThat(result.getTitle()).isEqualTo("New Task");
+        assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.MEDIUM);
+        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.TASK);
         verify(taskRepository).save(any(Task.class));
+    }
+
+    @Test
+    void createTask_withCustomPriorityAndDueDate_savesCorrectly() {
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId("new-task-2");
+            t.setPublicId("WFM-NEW2");
+            t.setCreatedAt(LocalDateTime.now());
+            return t;
+        });
+
+        TaskCreateRequest req = new TaskCreateRequest();
+        req.setTitle("Urgent Task");
+        req.setColumnId("col1");
+        req.setPriority(com.taskcenter.model.Priority.URGENT);
+        req.setIssueType(com.taskcenter.model.IssueType.BUG);
+        req.setDueDate(java.time.LocalDate.of(2026, 12, 31));
+
+        TaskDto result = taskService.createTask("ws1", req, testUser());
+
+        assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.URGENT);
+        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.BUG);
+        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 12, 31));
     }
 
     @Test
@@ -167,11 +198,17 @@ class TaskServiceTest {
         TaskUpdateRequest req = new TaskUpdateRequest();
         req.setTitle("Updated Title");
         req.setDescription("New desc");
+        req.setPriority(com.taskcenter.model.Priority.HIGH);
+        req.setIssueType(com.taskcenter.model.IssueType.STORY);
+        req.setDueDate(java.time.LocalDate.of(2026, 11, 15));
 
         TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
 
         assertThat(result.getTitle()).isEqualTo("Updated Title");
         assertThat(result.getDescription()).isEqualTo("New desc");
+        assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.HIGH);
+        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.STORY);
+        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 11, 15));
     }
 
     @Test

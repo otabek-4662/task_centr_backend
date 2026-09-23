@@ -1,269 +1,167 @@
-# Task Center Backend
+# 🚀 Task Center Backend (Jira-Grade Task Management Platform)
 
-O'zbek tilida yozilgan Spring Boot asosidagi autentifikatsiya API. Java juniorlar uchun sodda va tushunarli qilib tayyorlangan.
+Spring Boot 3.2.5 + Java 17 + PostgreSQL asosida yaratilgan, Jira va Trello kabi zamonaviy vazifalar boshqaruvi va jamoaviy hamkorlik uchun mo'ljallangan kuchli backend platforma.
 
-## Loyiha haqida
+---
 
-`task_center_backend` — foydalanuvchilarni ro'yxatdan o'tkazish (`register`) va tizimga kirish (`login`) uchun JWT token beruvchi backend. Swagger orqali osongina test qilish mumkin.
+## 🌟 Asosiy Imkoniyatlar (Features)
 
-Asosiy imkoniyatlar:
-- `POST /api/auth/register` — yangi foydalanuvchi yaratish
-- `POST /api/auth/login` — tizimga kirish va JWT olish
-- PostgreSQL bilan ishlaydi
-- Swagger UI (springdoc-openapi) mavjud
-- JWT (jjwt 0.11.5) bilan himoyalangan
+### 🔐 1. Autentifikatsiya va Xavfsizlik (Auth & Security)
+- **JWT (JSON Web Token)** orqali xavfsiz sessiya boshqaruvi (Access & Refresh token logikasi);
+- **Spring Security 6** bilan himoyalangan REST endpointlar;
+- **BCrypt Password Hashing**;
+- **Rate Limiting Filter** (DoS hujumlaridan himoya);
+- **CORS** konfiguratsiyasi (barcha frontend domenlar uchun ochiq).
 
-## Texnologiyalar
+### 🏢 2. Workspaces & Jamoa Boshqaruvi (Workspaces & Members Management)
+- Ko'p loyihali ish maydonlari (Workspaces);
+- **A'zolar boshqaruvi**: Yangi a'zolarni `username` yoki `email` orqali loyihaga taklif qilish;
+- **Granulyar Ruxsatlar (Role-based access)**:
+  - `OWNER` 👑 — Workspace to'liq egasi;
+  - `ADMIN` 🔴 — A'zolar va loyihani to'liq boshqaruvchi;
+  - `MEMBER` 🔵 — Vazifalar yaratuvchi va tahrirlovchi;
+  - `VIEWER` ⚪️ — Faqat kuzatuvchi.
+- `POST /api/workspaces/{id}/members` — A'zo taklif qilish;
+- `PATCH /api/workspaces/{id}/members/{userId}` — A'zo rolini o'zgartirish;
+- `DELETE /api/workspaces/{id}/members/{userId}` — A'zoni jamoadan chiqarish;
+- `GET /api/workspaces/{id}/members` — A'zolar va ularning rollari ro'yxati.
 
-| Texnologiya | Versiya |
+### 📋 3. Kanban Doska & Vazifalar (Kanban Board & Tasks)
+- Ustunlar (Columns) yaratish, tahrirlash va tartibini o'zgartirish (Drag & Drop Reorder);
+- **Task Priority (Muhimlik darajasi)**: `LOW`, `MEDIUM`, `HIGH`, `URGENT`;
+- **Issue Types (Vazifa turlari)**:
+  - `TASK` 🟦 — Oddiy vazifa;
+  - `BUG` 🔴 — Xatolik (Defect);
+  - `STORY` 🟩 — Foydalanuvchi talabi (Feature);
+  - `EPIC` 🟪 — Yirik modul/loyiha;
+- **Due Date (Dedlayn)**: Vazifa tugash muddati (`LocalDate`), muddati o'tgan tasklarni tezkor filtrlash;
+- Optimistic Locking (`@Version`) va Soft Delete (`deleted_at`).
+
+### 💬 4. Izohlar Tizimi (Comments)
+- Task ichida jamoaviy munozaralar olib borish;
+- `POST /api/tasks/{taskId}/comments` — Izoh yozish;
+- `GET /api/tasks/{taskId}/comments` — Sahifalangan izohlar ro'yxati (`Pageable`);
+- `PUT /api/tasks/{taskId}/comments/{commentId}` — O'z izohini tahrirlash;
+- `DELETE /api/tasks/{taskId}/comments/{commentId}` — O'chirish (muallif yoki admin);
+- **N+1 muammosi yo'q**: `@EntityGraph` orqali mualliflar ma'lumotlari bitta SQL so'rovda yuklanadi.
+
+### 📜 5. Faoliyatlar Tarixi (Activity Log / Audit Trail)
+- Jiradagi **"History"** tabi backend ta'minoti;
+- `GET /api/tasks/{taskId}/activities` — Xronologik tartibdagi o'zgarishlar jurnali;
+- Kim, qachon, nimani o'zgartirganini avtomatik qayd etish (`TITLE_UPDATED`, `STATUS_UPDATED`, `PRIORITY_UPDATED`, `ISSUE_TYPE_UPDATED`, `DUE_DATE_UPDATED`, `TASK_CREATED`).
+
+### 📎 6. Biriktirilgan Fayllar (Attachments)
+- Rasm, skrinshot va hujjatlarni taskka yuklash (`multipart/form-data`);
+- `POST /api/tasks/{taskId}/attachments` — Fayl biriktirish;
+- `GET /api/tasks/{taskId}/attachments` — Biriktirilgan fayllar ro'yxati;
+- `GET /api/attachments/{id}/download` — Faylni yuklab olish yoki ko'rish;
+- `DELETE /api/attachments/{id}` — Faylni o'chirish;
+- **Pluggable Storage**: `FileStorageService` interfeysi orqali xohlagan vaqtda MinIO yoki AWS S3 ga o'tish imkoniyati.
+
+---
+
+## 🛠 Texnologiyalar Staki
+
+| Qatlam | Texnologiya |
 |---|---|
-| Java | 17 (Temurin 17.0.19+) |
-| Spring Boot | 3.2.5 |
-| Spring Security + JPA | 6.2.4 / Hibernate 6.4.4 |
-| PostgreSQL | 16/17 |
-| JWT | jjwt 0.11.5 |
-| Swagger | springdoc-openapi 2.5.0 |
-| Build | Maven (mvnw) |
+| **Til** | Java 17 (Temurin 17.0.19+) |
+| **Framework** | Spring Boot 3.2.5 (Web, Security, Data JPA, Validation) |
+| **Ma'lumotlar bazasi** | PostgreSQL 16/17 (H2 in-memory testlar uchun) |
+| **DB Migratsiyalari** | Flyway (V1 dan V16 gacha) |
+| **Kesh** | Caffeine Cache (`CaffeineCacheManager`) |
+| **Hujjatlashtirish** | Swagger / OpenAPI 3 (`springdoc-openapi` 2.5.0) |
+| **Build & Tooling** | Maven Wrapper (`mvnw`), Lombok, MapStruct |
+| **Test Framework** | JUnit 5, Mockito, AssertJ, Spring Boot Test (MockMvc) |
 
-## Talablar
+---
 
-- Java 17+ (`java -version` bilan tekshir)
-- Maven (loyihada `mvnw` bor, alohida o'rnatish shart emas)
-- PostgreSQL 17 (`localhost:5432`)
-- IntelliJ IDEA 2026.2+ (yoki istalgan IDE)
+## 🚀 Ishga Tushirish
 
-## Tez boshlash (IntelliJ — Usul A, tavsiya)
+### 1. Talablar:
+- Java 17+
+- PostgreSQL 16+ (yoki Docker)
 
-Bu usulni sen tanlading — eng oson va juniorlarga mos.
-
-1. **Loyihani ochish**
-   ```
-   File -> Open -> C:\Users\Bekmurod\Desktop\task_center_backend -> pom.xml ni tanla -> Open as Project
-   ```
-   O'ng pastdagi Maven import tugashini kut.
-
-2. **PostgreSQL ni yoqish**
-
-   Windows da Service o'chiq bo'lsa:
-   - `Windows` tugmasi -> `PowerShell` -> o'ng click -> **Run as administrator**
-   - Yoz:
-     ```
-     net start postgresql-x64-17
-     ```
-     `started successfully` chiqsa bo'ldi.
-
-   Yoki qo'lda yaratilgan klaster ishlayotgan bo'lsa (bu loyihada `C:\Users\Bekmurod\pgdata_test` ishlatilgan), u avtomatik `5432` da turadi.
-
-3. **Database yaratilganini tekshirish**
-
-   Intellij da Terminal ochib:
-   ```
-   psql -h localhost -U postgres -p 5432 -l
-   ```
-   Ro'yxatda `taskcenter` bo'lishi kerak. Yo'q bo'lsa:
-   ```
-   psql -h localhost -U postgres -p 5432 -c "CREATE DATABASE taskcenter;"
-   ```
-
-4. **IntelliJ da Run qilish**
-
-   `src/main/java/com/taskcenter/BackendApplication.java` ni och -> `main` yonidagi yashil **▶** ni bos -> **Run 'BackendApplication'**
-
-   Logda:
-   ```
-   HikariPool-1 - Added connection
-   Tomcat started on port 8080
-   Started BackendApplication in 4.3 seconds
-   ```
-   chiqsa backend tayyor.
-
-5. **Swagger ni ochish**
-
-   ```
-   http://localhost:8080/swagger-ui/index.html
-   http://localhost:8080/v3/api-docs
-   ```
-
-   Swagger yuqorisidagi **Servers** dropdown da `http://localhost:8080 - Local` tanlangan bo'lsin. Agar `ngrok` tanlangan bo'lsa, `Failed to fetch` beradi — Local ga o'tkaz.
-
-## Database ni IntelliJ da ulash
-
-`application.yml` dagi sozlama:
-
+### 2. Sozlamalar (`application.yml` yoki Environment variables):
 ```yaml
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/taskcenter
     username: postgres
-    password: password
+    password: your_password
+  flyway:
+    enabled: true
+app:
+  upload:
+    dir: ./uploads
 ```
 
-IntelliJ da ko'rish uchun:
-
-1. O'ng/pastdagi **Database** panelini och (View > Tool Windows > Database)
-2. `+` -> **Data Source -> PostgreSQL**
-3. `Host: localhost`, `Port: 5432`, `Database: taskcenter`, `User: postgres`, `Password: password`
-4. **Download** (driver) -> **Test Connection** -> `Succeeded` -> **OK**
-5. `taskcenter -> Schemas -> public -> Tables -> users` ichida Swagger orqali yaratilgan userlarni ko'rasan.
-
-## Swagger da test qilish
-
-### Register
-
-`POST /api/auth/register` -> `Try it out`:
-
-```json
-{
-  "name": "Otabek",
-  "email": "otabek@test.uz",
-  "password": "Test1234!"
-}
-```
-
-Javob **201**:
-```json
-{
-  "success": true,
-  "message": "Muvaffaqiyatli ro'yxatdan o'tdingiz",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "user": { "id": 1, "name": "Otabek", "email": "otabek@test.uz" }
-  }
-}
-```
-
-### Login
-
-`POST /api/auth/login` -> `Try it out`:
-
-```json
-{
-  "email": "otabek@test.uz",
-  "password": "Test1234!"
-}
-```
-
-Javob **200**:
-```json
-{
-  "success": true,
-  "message": "Tizimga muvaffaqiyatli kirdingiz",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "user": { "id": 1, "name": "Otabek", "email": "otabek@test.uz" }
-  }
-}
-```
-
-Token 7 kun amal qiladi (`jwt.expiration: 604800000`). Keyingi himoyalangan so'rovlarda Swagger dagi **Authorize** 🔓 tugmasini bosib `Bearer <token>` ni qo'y.
-
-> Eslatma: `email` da `@` bo'lishi kerak (`strin.gmail.com` emas, `strin@gmail.com`). `AuthService.java:33` da email unique — takrorlansa `Email is already in use!` qaytadi.
-
-### Curl bilan test
-
+### 3. Kompilyatsiya va Testlarni ishga tushirish:
 ```bash
-# Register
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test","email":"test@test.uz","password":"12345678"}'
+# Loyihani kompilyatsiya qilish
+./mvnw clean compile
 
-# Login
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.uz","password":"12345678"}'
+# Barcha 128 ta testni ishga tushirish
+./mvnw test
 ```
 
-Avtomatik script ham bor: `swagger_auth_test2.ps1`
-
-```powershell
-powershell -ExecutionPolicy Bypass -File swagger_auth_test2.ps1
-```
-
-## Loyiha tuzilishi
-
-```
-src/main/java/com/taskcenter/
-  BackendApplication.java       # Main (run shu yerdan)
-  config/
-    SecurityConfig.java         # /api/auth/** va /swagger-ui/** ochiq, qolganlari JWT
-    SwaggerConfig.java          # OpenAPI serverlar: localhost:8080 va ngrok
-  controller/
-    AuthController.java         # POST /api/auth/register, /login
-    GlobalExceptionHandler.java
-  dto/
-    RegisterRequest.java        # name, email, password
-    LoginRequest.java           # email, password
-    AuthResponse.java           # token + user
-    ApiResponse.java            # success, message, data
-  model/
-    User.java                   # JPA Entity, UserDetails
-  repository/
-    UserRepository.java
-  security/
-    JwtTokenProvider.java       # token generatsiya
-    JwtAuthenticationFilter.java
-    CustomUserDetailsService.java
-src/main/resources/
-  application.yml               # DB va jwt sozlamalari
-```
-
-## Muhit o'zgaruvchilari
-
-`application.yml` da:
-
-```yaml
-jwt:
-  secret: super-secret-key-that-needs-to-be-at-least-256-bits-long...
-  expiration: 604800000 # 7 kun
-```
-
-Docker da:
-
-```yaml
-SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskcenter
-SPRING_DATASOURCE_USERNAME: postgres
-SPRING_DATASOURCE_PASSWORD: password
-```
-
-## Docker bilan ishga tushirish
-
+### 4. Serverni yoqish:
 ```bash
-docker compose up -d
-# yoki
-docker-compose up -d
+./mvnw spring-boot:run
 ```
 
-`docker-compose.yml` da `postgres:16` va `backend` (eclipse-temurin:17) bor. `app.jar` ni avval `mvnw package -DskipTests` bilan build qilish kerak.
+API ishga tushgach:
+- **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+- **OpenAPI JSON**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 
-## Build
+---
 
-```bash
-./mvnw package -DskipTests
-java -jar target/backend-0.0.1-SNAPSHOT.jar
-# yoki
-./start.bat  # Windows
-```
+## 📚 API Endpointlar Xulosasi
 
-## Git
+### Autentifikatsiya:
+- `POST /api/auth/register` — Ro'yxatdan o'tish
+- `POST /api/auth/login` — Tizimga kirish va JWT olish
 
-```bash
-git clone https://github.com/otabek-4662/task_centr_backend.git
-git add .
-git commit -m "xabar"
-git push origin master
-```
+### Workspaces & Members:
+- `GET /api/workspaces` — Foydalanuvchi a'zo bo'lgan workspacelar
+- `POST /api/workspaces` — Yangi workspace yaratish
+- `GET /api/workspaces/{id}` — Workspace tafsilotlari
+- `GET /api/workspaces/{id}/members` — A'zolar ro'yxati
+- `POST /api/workspaces/{id}/members` — A'zo taklif qilish
+- `PATCH /api/workspaces/{id}/members/{userId}` — A'zo rolini o'zgartirish
+- `DELETE /api/workspaces/{id}/members/{userId}` — A'zoni o'chirish
 
-## Muammolar va yechim
+### Doska & Tasks:
+- `GET /api/workspaces/{id}/board` — Kanban doska va kartochkalar
+- `POST /api/workspaces/{id}/tasks` — Yangi task yaratish
+- `GET /api/workspaces/{id}/tasks/{taskId}` — Task ma'lumotlari
+- `PUT /api/workspaces/{id}/tasks/{taskId}` — Taskni tahrirlash (surish, nom, priority, type, due_date)
+- `DELETE /api/workspaces/{id}/tasks/{taskId}` — Taskni o'chirish
 
-| Xato | Sabab | Yechim |
-|---|---|---|
-| `localhost refused the connection` | Backend o'chiq | `BackendApplication` ni run qil |
-| `5432 CLOSED` | Postgres o'chiq | `net start postgresql-x64-17` (admin) |
-| `Failed to fetch` Swagger da | Server ngrok tanlangan | Swagger Servers -> `http://localhost:8080` ni tanla |
-| `Email is already in use!` | Email takror | Boshqa email bilan register qil |
-| `Port 8080 already in use` | Eski jar turibdi | IntelliJ da eski run ni Stop (qizil ■) qil |
+### Izohlar (Comments):
+- `GET /api/tasks/{taskId}/comments` — Izohlarni olish (`Pageable`)
+- `POST /api/tasks/{taskId}/comments` — Izoh yozish
+- `PUT /api/tasks/{taskId}/comments/{commentId}` — Izohni tahrirlash
+- `DELETE /api/tasks/{taskId}/comments/{commentId}` — Izohni o'chirish
 
-## Muallif
+### Tarix (Activities):
+- `GET /api/tasks/{taskId}/activities` — Task o'zgarishlar tarixi (`Pageable`)
 
-Otabek Sotimov — Java junior. Savollar bo'lsa Swagger dagi `Try it out` bilan test qilib, `users` jadvalidan tekshirib bor.
+### Fayllar (Attachments):
+- `POST /api/tasks/{taskId}/attachments` — Fayl yuklash (`multipart/form-data`)
+- `GET /api/tasks/{taskId}/attachments` — Fayllar ro'yxati
+- `GET /api/attachments/{id}/download` — Faylni yuklab olish
+- `DELETE /api/attachments/{id}` — Faylni o'chirish
 
+---
+
+## 🧪 Sifat va Testlar (Test Coverage)
+
+Loyiha to'liq **TDD & BDD** tamoyillari asosida unit va integratsion testlar bilan qoplangan:
+- Jami **128 ta avtomatlashtirilgan test** mavjud;
+- Controllerlar uchun `MockMvc` orqali to'liq HTTP ssenariylari, validatsiyalar va xavfsizlik (`403 Forbidden`, `401 Unauthorized`, `404 Not Found`, `409 Conflict`) sinovdan o'tgan;
+- N+1 muammolari bartaraf etilgan va ma'lumotlar bazasi so'rovlari optimallashtirilgan.
+
+---
+
+## 📄 Litsenziya
+Loyiha o'quv va tijoriy maqsadlarda foydalanish uchun ochiq.

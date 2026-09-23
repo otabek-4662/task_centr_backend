@@ -7,6 +7,7 @@ import org.hibernate.annotations.Where;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,7 +16,10 @@ import java.util.Set;
 @Table(name = "tasks", indexes = {
     @Index(name = "idx_tasks_workspace_order", columnList = "workspace_id, task_order"),
     @Index(name = "idx_tasks_column_order", columnList = "column_id, task_order"),
-    @Index(name = "idx_tasks_public_id", columnList = "public_id", unique = true)
+    @Index(name = "idx_tasks_public_id", columnList = "public_id", unique = true),
+    @Index(name = "idx_tasks_workspace_priority", columnList = "workspace_id, priority"),
+    @Index(name = "idx_tasks_workspace_due_date", columnList = "workspace_id, due_date"),
+    @Index(name = "idx_tasks_workspace_issue_type", columnList = "workspace_id, issue_type")
 })
 @SQLDelete(sql = "UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @Where(clause = "deleted_at IS NULL")
@@ -49,6 +53,19 @@ public class Task {
 
     @Column(name = "task_order", nullable = false)
     private Integer order;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    @Builder.Default
+    private Priority priority = Priority.MEDIUM;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "issue_type", nullable = false, length = 32)
+    @Builder.Default
+    private IssueType issueType = IssueType.TASK;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 
     @CreatedBy
     @Column(name = "created_by")

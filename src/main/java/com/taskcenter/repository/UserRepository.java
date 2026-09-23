@@ -13,7 +13,11 @@ import java.util.Set;
 
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByName(String name);
+    Optional<User> findByEmail(String email);
     boolean existsByName(String name);
+
+    @Query("SELECT u FROM User u WHERE LOWER(u.name) = LOWER(:query) OR LOWER(u.email) = LOWER(:query)")
+    Optional<User> findByNameOrEmail(@Param("query") String query);
     
     @Query("SELECT u FROM User u WHERE u.id IN :ids")
     List<User> findByIdIn(@Param("ids") Set<String> ids);
