@@ -81,6 +81,16 @@ public class ColumnController {
         return ApiResponse.success("Columnlar tartibi yangilandi", columns);
     }
 
+    @Operation(summary = "Ustunlar tartibini ID lar ro'yxati orqali yangilash (oddiy massiv: ['col1', 'col2'])")
+    @PatchMapping("/reorder")
+    public ApiResponse<List<ColumnDto>> reorderColumnsByIds(
+            @PathVariable String workspaceId,
+            @RequestBody List<String> columnIds,
+            @AuthenticationPrincipal User currentUser) {
+        List<ColumnDto> columns = columnService.reorderColumnsByIds(workspaceId, columnIds, currentUser);
+        return ApiResponse.success("Columnlar tartibi yangilandi", columns);
+    }
+
     @Operation(summary = "Ustunni o'chirish")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteColumn(

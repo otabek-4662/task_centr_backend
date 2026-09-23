@@ -121,6 +121,26 @@ public class ColumnService {
     }
 
     @Transactional
+    public List<ColumnDto> reorderColumnsByIds(String workspaceId, List<String> columnIds, User currentUser) {
+        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+
+        List<ColumnDto> result = new ArrayList<>();
+        for (int i = 0; i < columnIds.size(); i++) {
+            String colId = columnIds.get(i);
+            BoardColumn column = columnRepository.findById(colId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + colId));
+
+            if (!workspaceId.equals(column.getWorkspaceId())) {
+                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas: " + colId);
+            }
+
+            column.setOrder(i + 1);
+            result.add(ColumnDto.fromEntity(columnRepository.save(column)));
+        }
+        return result;
+    }
+
+    @Transactional
     public void deleteColumn(String workspaceId, String id, User currentUser) {
         authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
 

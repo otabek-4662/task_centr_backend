@@ -124,6 +124,9 @@ public class TaskService {
                 throw new ResourceNotFoundException("Yangi column ushbu workspace ga tegishli emas");
             }
             task.setColumnId(req.getColumnId());
+            if (req.getOrder() == null) {
+                task.setOrder(taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1);
+            }
         }
 
         if (req.getTitle() != null) {
@@ -138,6 +141,31 @@ public class TaskService {
 
         Task saved = taskRepository.save(task);
         return TaskDto.fromEntity(saved);
+    }
+
+    @Transactional
+    public List<TaskDto> reorderTasks(String workspaceId, String columnId, List<String> taskIds, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+
+        BoardColumn column = columnRepository.findById(columnId)
+                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + columnId));
+        if (!workspaceId.equals(column.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
+        }
+
+        List<TaskDto> result = new java.util.ArrayList<>();
+        for (int i = 0; i < taskIds.size(); i++) {
+            String taskId = taskIds.get(i);
+            Task task = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
+            if (!workspaceId.equals(task.getWorkspaceId())) {
+                throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas: " + taskId);
+            }
+            task.setColumnId(columnId);
+            task.setOrder(i + 1);
+            result.add(TaskDto.fromEntity(taskRepository.save(task)));
+        }
+        return result;
     }
 
     @Transactional
