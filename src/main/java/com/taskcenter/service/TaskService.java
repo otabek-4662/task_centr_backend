@@ -80,7 +80,7 @@ public class TaskService {
 
     @Transactional
     public TaskDto createTask(String workspaceId, TaskCreateRequest req, User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkCanEdit(workspaceId, currentUser);
 
         BoardColumn column = columnRepository.findById(req.getColumnId())
                 .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + req.getColumnId()));
@@ -108,7 +108,7 @@ public class TaskService {
 
     @Transactional
     public TaskDto updateTask(String workspaceId, String id, TaskUpdateRequest req, User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkCanEdit(workspaceId, currentUser);
 
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
@@ -142,7 +142,7 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(String workspaceId, String id, User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        authorizationService.checkCanEdit(workspaceId, currentUser);
 
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));

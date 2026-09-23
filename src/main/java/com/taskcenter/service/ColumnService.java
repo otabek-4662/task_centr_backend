@@ -30,7 +30,7 @@ public class ColumnService {
     @Transactional(readOnly = true)
     public List<ColumnDto> getColumns(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        return columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId)
+        return columnRepository.findByWorkspaceIdWithTasks(workspaceId)
                 .stream()
                 .map(ColumnDto::fromEntity)
                 .collect(Collectors.toList());

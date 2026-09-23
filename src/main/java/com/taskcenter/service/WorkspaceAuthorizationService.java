@@ -43,7 +43,15 @@ public class WorkspaceAuthorizationService {
     }
 
     public boolean hasAccess(String workspaceId, String userId) {
+        return hasRole(workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER, WorkspaceRole.VIEWER);
+    }
+
+    public boolean canEdit(String workspaceId, String userId) {
         return hasRole(workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER);
+    }
+
+    public boolean isViewer(String workspaceId, String userId) {
+        return hasRole(workspaceId, userId, WorkspaceRole.VIEWER);
     }
 
     public boolean isOwner(String workspaceId, String userId) {
@@ -63,6 +71,13 @@ public class WorkspaceAuthorizationService {
         requireWorkspace(workspaceId);
         if (currentUser == null || !hasAccess(workspaceId, currentUser.getId())) {
             throw new ForbiddenException("Ushbu workspace ga kirish uchun ruxsat yo'q");
+        }
+    }
+
+    public void checkCanEdit(String workspaceId, User currentUser) {
+        requireWorkspace(workspaceId);
+        if (currentUser == null || !canEdit(workspaceId, currentUser.getId())) {
+            throw new ForbiddenException("Kuzatuvchi (Viewer) roli ma'lumotlarni o'zgartira olmaydi");
         }
     }
 

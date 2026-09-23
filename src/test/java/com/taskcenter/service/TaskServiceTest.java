@@ -69,7 +69,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_savesAndReturnsDto() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
         when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
@@ -92,7 +92,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_columnNotFound_throws() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(columnRepository.findById("col999")).thenReturn(Optional.empty());
 
         TaskCreateRequest req = new TaskCreateRequest();
@@ -106,7 +106,7 @@ class TaskServiceTest {
 
     @Test
     void createTask_columnFromOtherWorkspace_throws() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         BoardColumn otherCol = BoardColumn.builder()
                 .id("col-other")
                 .workspaceId("ws-other")
@@ -159,7 +159,7 @@ class TaskServiceTest {
 
     @Test
     void updateTask_updatesFieldsAndSaves() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         Task task = testTask();
         when(taskRepository.findById("task1")).thenReturn(Optional.of(task));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -176,7 +176,7 @@ class TaskServiceTest {
 
     @Test
     void updateTask_moveToAnotherColumn() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         Task task = testTask();
         BoardColumn newCol = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
         when(taskRepository.findById("task1")).thenReturn(Optional.of(task));
@@ -195,7 +195,7 @@ class TaskServiceTest {
 
     @Test
     void deleteTask_deletesSuccessfully() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(taskRepository.findById("task1")).thenReturn(Optional.of(testTask()));
 
         taskService.deleteTask("ws1", "task1", testUser());
@@ -207,7 +207,7 @@ class TaskServiceTest {
     void deleteTask_noAccess_throwsForbidden() {
         User stranger = User.builder().id("stranger").name("other").role(User.Role.USER).build();
         doThrow(new ForbiddenException("Ruxsat yo'q"))
-                .when(authorizationService).checkAccess("ws1", stranger);
+                .when(authorizationService).checkCanEdit("ws1", stranger);
 
         assertThatThrownBy(() -> taskService.deleteTask("ws1", "task1", stranger))
                 .isInstanceOf(ForbiddenException.class);

@@ -11,7 +11,9 @@ public class WorkspaceCreateRequest {
     @Size(max = 255, message = "title 255 belgidan oshmasligi kerak")
     private String title;
 
-    @Pattern(regexp = "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", message = "bgColor hex formatda bo'lishi kerak (masalan: #1a1b41 yoki #abc)")
+    @Pattern(regexp = "^(#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})|linear-gradient\\(.+\\)|rgba?\\(.+\\))$", 
+             message = "bgColor hex (#1a1b41) yoki gradient (linear-gradient(...)) formatida bo'lishi kerak")
+    @Size(max = 255, message = "bgColor 255 belgidan oshmasligi kerak")
     private String bgColor;
 
     @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")
