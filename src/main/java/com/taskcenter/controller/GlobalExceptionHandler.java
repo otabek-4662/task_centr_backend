@@ -53,8 +53,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String msg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("Ma'lumotlar bazasida xatolik: dublikat yoki bog'lanish xatosi"));
+                .body(ApiResponse.error("Ma'lumotlar bazasida xatolik: " + msg));
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
