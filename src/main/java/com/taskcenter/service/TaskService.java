@@ -30,17 +30,20 @@ public class TaskService {
     private final com.taskcenter.repository.SprintRepository sprintRepository;
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
+    private final WebSocketNotifier webSocketNotifier;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
                        com.taskcenter.repository.SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
-                       TaskActivityService activityService) {
+                       TaskActivityService activityService,
+                       WebSocketNotifier webSocketNotifier) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
         this.authorizationService = authorizationService;
         this.activityService = activityService;
+        this.webSocketNotifier = webSocketNotifier;
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +144,13 @@ public class TaskService {
 
         Task saved = taskRepository.save(task);
         activityService.logActivity(saved.getId(), currentUser, TaskActivityType.TASK_CREATED, "task", null, saved.getTitle());
-        return TaskDto.fromEntity(saved);
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_CREATED")
+                .workspaceId(workspaceId)
+                .data(taskDto)
+                .build());
+        return taskDto;
     }
 
     @Transactional
@@ -223,7 +232,13 @@ public class TaskService {
         }
 
         Task saved = taskRepository.save(task);
-        return TaskDto.fromEntity(saved);
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_UPDATED")
+                .workspaceId(workspaceId)
+                .data(taskDto)
+                .build());
+        return taskDto;
     }
 
     @Transactional
@@ -249,9 +264,15 @@ public class TaskService {
             tasksToSave.add(task);
         }
         List<Task> savedTasks = taskRepository.saveAll(tasksToSave);
-        return savedTasks.stream()
+        List<TaskDto> result = savedTasks.stream()
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASKS_REORDERED")
+                .workspaceId(workspaceId)
+                .data(result)
+                .build());
+        return result;
     }
 
     @Transactional
@@ -266,5 +287,11 @@ public class TaskService {
         }
 
         taskRepository.deleteById(id);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_DELETED")
+                .workspaceId(workspaceId)
+                .data(java.util.Map.of("taskId", id))
+                .build());
     }
 }

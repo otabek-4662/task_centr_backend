@@ -38,6 +38,8 @@ class TaskServiceTest {
     private WorkspaceAuthorizationService authorizationService;
     @Mock
     private TaskActivityService activityService;
+    @Mock
+    private WebSocketNotifier webSocketNotifier;
 
     @InjectMocks
     private TaskService taskService;

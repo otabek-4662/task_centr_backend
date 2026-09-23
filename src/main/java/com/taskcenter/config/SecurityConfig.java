@@ -75,7 +75,8 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/v3/api-docs",
                     "/swagger-resources/**",
-                    "/webjars/**"
+                    "/webjars/**",
+                    "/ws/**"
                 ).permitAll()
                 .requestMatchers("/actuator/health", "/actuator/metrics", "/actuator/prometheus").permitAll()
                 // Admin only endpoints
