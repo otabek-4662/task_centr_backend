@@ -12,6 +12,7 @@ public class WorkspaceListDto {
     private String title;
     private String bgColor;
     private String ownerId;
+    private String keyPrefix;
 
     public static WorkspaceListDto fromEntity(Workspace w) {
         return WorkspaceListDto.builder()
@@ -19,6 +20,7 @@ public class WorkspaceListDto {
                 .title(w.getTitle())
                 .bgColor(w.getBgColor())
                 .ownerId(w.getOwnerId())
+                .keyPrefix(w.getKeyPrefix())
                 .build();
     }
 }

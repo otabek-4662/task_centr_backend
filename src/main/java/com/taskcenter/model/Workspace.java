@@ -36,6 +36,9 @@ public class Workspace {
     @Column(name = "bg_color")
     private String bgColor;
 
+    @Column(name = "key_prefix", unique = true)
+    private String keyPrefix;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

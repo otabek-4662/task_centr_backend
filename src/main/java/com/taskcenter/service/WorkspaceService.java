@@ -63,11 +63,20 @@ public class WorkspaceService {
 
     @Transactional
     public WorkspaceDto createWorkspace(WorkspaceCreateRequest request, User currentUser) {
+        String basePrefix = request.getTitle().replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+        if (basePrefix.length() > 3) {
+            basePrefix = basePrefix.substring(0, 3);
+        } else if (basePrefix.isEmpty()) {
+            basePrefix = "WS";
+        }
+        String uniqueKeyPrefix = basePrefix + "-" + java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+
         Workspace workspace = Workspace.builder()
                 .title(request.getTitle())
                 .bgColor(request.getBgColor())
                 .description(request.getDescription())
                 .ownerId(currentUser.getId())
+                .keyPrefix(uniqueKeyPrefix)
                 .build();
 
         Workspace saved = workspaceRepository.save(workspace);

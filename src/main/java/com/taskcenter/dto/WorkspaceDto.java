@@ -14,6 +14,7 @@ public class WorkspaceDto {
     private String bgColor;
     private String description;
     private String ownerId;
+    private String keyPrefix;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -24,6 +25,7 @@ public class WorkspaceDto {
                 .bgColor(w.getBgColor())
                 .description(w.getDescription())
                 .ownerId(w.getOwnerId())
+                .keyPrefix(w.getKeyPrefix())
                 .createdAt(w.getCreatedAt())
                 .updatedAt(w.getUpdatedAt())
                 .build();
