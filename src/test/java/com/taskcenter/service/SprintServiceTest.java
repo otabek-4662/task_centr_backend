@@ -39,6 +39,8 @@ class SprintServiceTest {
     private WorkspaceAuthorizationService authorizationService;
     @Mock
     private TaskActivityService activityService;
+    @Mock
+    private WebSocketNotifier webSocketNotifier;
 
     @InjectMocks
     private SprintService sprintService;

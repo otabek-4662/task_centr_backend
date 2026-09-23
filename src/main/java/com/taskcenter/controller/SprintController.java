@@ -37,6 +37,15 @@ public class SprintController {
         return ApiResponse.success("Sprintlar ro'yxati olindi", sprints);
     }
 
+    @Operation(summary = "Workspace sprintlari samaradorligini (Velocity Chart) olish")
+    @GetMapping("/workspaces/{workspaceId}/sprints/velocity")
+    public ApiResponse<VelocityChartDto> getVelocityChart(
+            @PathVariable String workspaceId,
+            @AuthenticationPrincipal User currentUser) {
+        VelocityChartDto chart = sprintService.getVelocityChart(workspaceId, currentUser);
+        return ApiResponse.success("Velocity chart ma'lumotlari olindi", chart);
+    }
+
     @Operation(summary = "Yangi sprint yaratish")
     @PostMapping("/workspaces/{workspaceId}/sprints")
     @ResponseStatus(HttpStatus.CREATED)

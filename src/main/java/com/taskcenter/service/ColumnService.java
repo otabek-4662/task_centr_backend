@@ -9,6 +9,7 @@ import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.dto.WebSocketEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +23,16 @@ public class ColumnService {
     private final ColumnRepository columnRepository;
     private final TaskRepository taskRepository;
     private final WorkspaceAuthorizationService authorizationService;
+    private final WebSocketNotifier webSocketNotifier;
 
     public ColumnService(ColumnRepository columnRepository,
                          TaskRepository taskRepository,
-                         WorkspaceAuthorizationService authorizationService) {
+                         WorkspaceAuthorizationService authorizationService,
+                         WebSocketNotifier webSocketNotifier) {
         this.columnRepository = columnRepository;
         this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
+        this.webSocketNotifier = webSocketNotifier;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +60,15 @@ public class ColumnService {
                 .build();
 
         BoardColumn saved = columnRepository.save(column);
-        return ColumnDto.fromEntity(saved);
+        ColumnDto dto = ColumnDto.fromEntity(saved);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMN_CREATED")
+                .workspaceId(workspaceId)
+                .data(dto)
+                .build());
+                
+        return dto;
     }
 
     @Transactional
@@ -78,7 +90,15 @@ public class ColumnService {
         }
 
         BoardColumn saved = columnRepository.save(column);
-        return ColumnDto.fromEntity(saved);
+        ColumnDto dto = ColumnDto.fromEntity(saved);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMN_UPDATED")
+                .workspaceId(workspaceId)
+                .data(dto)
+                .build());
+                
+        return dto;
     }
 
     @Transactional
@@ -100,7 +120,15 @@ public class ColumnService {
         }
 
         BoardColumn saved = columnRepository.save(column);
-        return ColumnDto.fromEntity(saved);
+        ColumnDto dto = ColumnDto.fromEntity(saved);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMN_UPDATED")
+                .workspaceId(workspaceId)
+                .data(dto)
+                .build());
+                
+        return dto;
     }
 
     @Transactional
@@ -121,6 +149,13 @@ public class ColumnService {
             }
             result.add(ColumnDto.fromEntity(columnRepository.save(column)));
         }
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMNS_REORDERED")
+                .workspaceId(workspaceId)
+                .data(result)
+                .build());
+                
         return result;
     }
 
@@ -141,6 +176,13 @@ public class ColumnService {
             column.setOrder(i + 1);
             result.add(ColumnDto.fromEntity(columnRepository.save(column)));
         }
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMNS_REORDERED")
+                .workspaceId(workspaceId)
+                .data(result)
+                .build());
+                
         return result;
     }
 
@@ -157,5 +199,11 @@ public class ColumnService {
 
         taskRepository.deleteByColumnId(id);
         columnRepository.deleteById(id);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMN_DELETED")
+                .workspaceId(workspaceId)
+                .data(java.util.Map.of("id", id))
+                .build());
     }
 }

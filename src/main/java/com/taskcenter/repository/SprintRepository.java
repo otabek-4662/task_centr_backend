@@ -13,6 +13,8 @@ public interface SprintRepository extends JpaRepository<Sprint, String> {
 
     List<Sprint> findByWorkspaceIdAndStatusOrderByCreatedAtDesc(String workspaceId, SprintStatus status);
 
+    List<Sprint> findByWorkspaceIdAndStatusOrderByCreatedAtAsc(String workspaceId, SprintStatus status);
+
     Optional<Sprint> findByWorkspaceIdAndStatus(String workspaceId, SprintStatus status);
 
     @Transactional

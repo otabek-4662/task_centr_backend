@@ -49,10 +49,19 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<ColumnWithCardsDto> getBoard(String workspaceId, String sprintId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
+        
+        String effectiveSprintId = sprintId;
+        if (effectiveSprintId == null) {
+            java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
+            effectiveSprintId = activeOpt.map(com.taskcenter.model.Sprint::getId).orElse("NO_ACTIVE_SPRINT");
+        }
+        
+        final String targetSprintId = effectiveSprintId;
+        
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdWithTasks(workspaceId);
         return cols.stream().map(c -> {
             List<Task> tasks = c.getTasks().stream()
-                    .filter(t -> sprintId == null || sprintId.equals(t.getSprintId()))
+                    .filter(t -> targetSprintId.equals(t.getSprintId()))
                     .sorted(Comparator.comparing(Task::getLexoRank))
                     .collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, tasks);

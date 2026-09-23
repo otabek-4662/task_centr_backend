@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.taskcenter.dto.WebSocketEvent;
 
 @Service
 public class SprintService {
@@ -27,17 +28,20 @@ public class SprintService {
     private final ColumnRepository columnRepository;
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
+    private final WebSocketNotifier webSocketNotifier;
 
     public SprintService(SprintRepository sprintRepository,
                          TaskRepository taskRepository,
                          ColumnRepository columnRepository,
                          WorkspaceAuthorizationService authorizationService,
-                         TaskActivityService activityService) {
+                         TaskActivityService activityService,
+                         WebSocketNotifier webSocketNotifier) {
         this.sprintRepository = sprintRepository;
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.authorizationService = authorizationService;
         this.activityService = activityService;
+        this.webSocketNotifier = webSocketNotifier;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +64,34 @@ public class SprintService {
                     return SprintDto.fromEntity(s, taskCount, storyPoints);
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public VelocityChartDto getVelocityChart(String workspaceId, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+
+        List<Sprint> closedSprints = sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtAsc(workspaceId, SprintStatus.CLOSED);
+
+        java.util.Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
+                .stream()
+                .collect(Collectors.toMap(SprintStatsProjection::getSprintId, s -> s, (a, b) -> a));
+
+        List<VelocityChartDto.SprintVelocityDto> sprintVelocities = closedSprints.stream()
+                .map(s -> {
+                    SprintStatsProjection stats = statsMap.get(s.getId());
+                    int completedPoints = stats != null && stats.getTotalStoryPoints() != null ? stats.getTotalStoryPoints() : 0;
+                    return VelocityChartDto.SprintVelocityDto.builder()
+                            .sprintId(s.getId())
+                            .sprintName(s.getName())
+                            .completedStoryPoints(completedPoints)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return VelocityChartDto.builder()
+                .workspaceId(workspaceId)
+                .sprints(sprintVelocities)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -151,7 +183,15 @@ public class SprintService {
         Sprint saved = sprintRepository.save(sprint);
         long taskCount = taskRepository.countBySprintId(saved.getId());
         Integer storyPoints = taskRepository.sumStoryPointsBySprintId(saved.getId());
-        return SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
+        SprintDto dto = SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
+        
+        webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
+                .type("SPRINT_STARTED")
+                .workspaceId(sprint.getWorkspaceId())
+                .data(dto)
+                .build());
+                
+        return dto;
     }
 
     @Transactional
@@ -221,7 +261,15 @@ public class SprintService {
         Sprint saved = sprintRepository.save(sprint);
         long taskCount = taskRepository.countBySprintId(saved.getId());
         Integer storyPoints = taskRepository.sumStoryPointsBySprintId(saved.getId());
-        return SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
+        SprintDto dto = SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
+        
+        webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
+                .type("SPRINT_COMPLETED")
+                .workspaceId(sprint.getWorkspaceId())
+                .data(dto)
+                .build());
+                
+        return dto;
     }
 
     @Transactional
@@ -290,10 +338,18 @@ public class SprintService {
             taskRepository.saveAll(tasksToSave);
         }
 
-        return taskRepository.findBySprintIdOrderByLexoRankAsc(sprintId)
+        List<TaskDto> result = taskRepository.findBySprintIdOrderByLexoRankAsc(sprintId)
                 .stream()
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
+                
+        webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
+                .type("SPRINT_TASKS_ADDED")
+                .workspaceId(sprint.getWorkspaceId())
+                .data(java.util.Map.of("sprintId", sprintId, "tasks", result))
+                .build());
+                
+        return result;
     }
 
     @Transactional
