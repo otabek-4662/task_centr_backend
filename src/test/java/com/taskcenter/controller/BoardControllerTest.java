@@ -203,17 +203,17 @@ class BoardControllerTest {
                         .content("{\"title\":\"T\",\"columnId\":\"" + colA + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.publicId").exists())
-                .andExpect(jsonPath("$.data.order").value(1))
+                .andExpect(jsonPath("$.data.lexoRank").exists())
                 .andReturn();
         String taskId = JsonPath.read(created.getResponse().getContentAsString(), "$.data.id");
 
         mvc.perform(patch("/api/workspaces/" + wsId + "/tasks/" + taskId)
                         .header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"columnId\":\"" + colB + "\",\"order\":3}"))
+                        .content("{\"columnId\":\"" + colB + "\",\"lexoRank\":\"0000000003\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.columnId").value(colB))
-                .andExpect(jsonPath("$.data.order").value(3));
+                .andExpect(jsonPath("$.data.lexoRank").value("0000000003"));
 
         mvc.perform(delete("/api/workspaces/" + wsId + "/tasks/" + taskId)
                         .header("Authorization", auth))

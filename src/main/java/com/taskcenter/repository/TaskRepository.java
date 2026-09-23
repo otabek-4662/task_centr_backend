@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, String> {
-    List<Task> findByColumnIdOrderByOrderAsc(String columnId);
-    List<Task> findByWorkspaceIdOrderByOrderAsc(String workspaceId);
+    List<Task> findByColumnIdOrderByLexoRankAsc(String columnId);
+    List<Task> findByWorkspaceIdOrderByLexoRankAsc(String workspaceId);
     List<Task> findByWorkspaceId(String workspaceId);
     
     @EntityGraph(attributePaths = {"labels", "assignees"})
@@ -21,21 +21,21 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     Optional<Task> findByIdWithDetails(@Param("id") String id);
     
     @EntityGraph(attributePaths = {"labels", "assignees"})
-    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.order ASC")
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
     List<Task> findByWorkspaceIdWithDetails(@Param("workspaceId") String workspaceId);
     
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     Page<Task> findByWorkspaceIdPaginated(@Param("workspaceId") String workspaceId, Pageable pageable);
 
-    @Query("SELECT COALESCE(MAX(t.order), 0) FROM Task t WHERE t.columnId = :columnId")
-    Integer findMaxOrderByColumnId(@Param("columnId") String columnId);
+    @Query("SELECT MAX(t.lexoRank) FROM Task t WHERE t.columnId = :columnId")
+    String findMaxLexoRankByColumnId(@Param("columnId") String columnId);
 
     @EntityGraph(attributePaths = {"labels", "assignees"})
-    List<Task> findBySprintIdOrderByOrderAsc(String sprintId);
+    List<Task> findBySprintIdOrderByLexoRankAsc(String sprintId);
 
     List<Task> findBySprintId(String sprintId);
 
-    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL ORDER BY t.order ASC")
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL ORDER BY t.lexoRank ASC")
     Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
 
     long countBySprintId(String sprintId);

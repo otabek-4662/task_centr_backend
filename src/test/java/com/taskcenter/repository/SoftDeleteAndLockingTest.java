@@ -42,7 +42,7 @@ class SoftDeleteAndLockingTest {
     void task_softDelete_hidesFromFindById() {
         Task task = taskRepository.save(Task.builder()
                 .workspaceId(workspace.getId()).columnId(column.getId())
-                .publicId("SD-1").title("to-delete").order(1).build());
+                .publicId("SD-1").title("to-delete").lexoRank("0000000001").build());
         taskRepository.flush();
         em.clear();
 
@@ -88,7 +88,7 @@ class SoftDeleteAndLockingTest {
     void task_optimisticLocking_throwsOnConcurrentUpdate() {
         Task task = taskRepository.save(Task.builder()
                 .workspaceId(workspace.getId()).columnId(column.getId())
-                .publicId("LK-1").title("original").order(1).build());
+                .publicId("LK-1").title("original").lexoRank("0000000001").build());
         taskRepository.flush();
         em.clear();
 
@@ -108,7 +108,7 @@ class SoftDeleteAndLockingTest {
     void task_savedTwice_noException_withoutVersionChange() {
         Task task = taskRepository.save(Task.builder()
                 .workspaceId(workspace.getId()).columnId(column.getId())
-                .publicId("OK-1").title("ok").order(1).build());
+                .publicId("OK-1").title("ok").lexoRank("0000000001").build());
         taskRepository.flush();
         em.clear();
 

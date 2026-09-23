@@ -22,7 +22,7 @@ public class TaskCreateRequest {
     @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")
     private String description;
 
-    private Integer order;
+    private String lexoRank;
 
     private Priority priority;
 

@@ -24,7 +24,7 @@ public class ColumnWithCardsDto {
         private String id;
         private String publicId;
         private String title;
-        private Integer order;
+        private String lexoRank;
         private com.taskcenter.model.Priority priority;
         private com.taskcenter.model.IssueType issueType;
         private java.time.LocalDate dueDate;
@@ -38,7 +38,7 @@ public class ColumnWithCardsDto {
                     .id(t.getId())
                     .publicId(t.getPublicId())
                     .title(t.getTitle())
-                    .order(t.getOrder())
+                    .lexoRank(t.getLexoRank())
                     .priority(t.getPriority() != null ? t.getPriority() : com.taskcenter.model.Priority.MEDIUM)
                     .issueType(t.getIssueType() != null ? t.getIssueType() : com.taskcenter.model.IssueType.TASK)
                     .dueDate(t.getDueDate())

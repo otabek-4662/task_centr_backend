@@ -85,7 +85,7 @@ public class DataSeeder {
                     .columnId(todo.getId())
                     .title("Actual building")
                     .description("")
-                    .order(2)
+                    .lexoRank("0000000002")
                     .build();
             Task wfm375 = Task.builder()
                     .id("6a672de214e89613376ee0ca")
@@ -94,7 +94,7 @@ public class DataSeeder {
                     .columnId(inProgress.getId())
                     .title("Sxema diagrammasini chizish")
                     .description("")
-                    .order(1)
+                    .lexoRank("0000000001")
                     .build();
             Task wfm376 = Task.builder()
                     .id("6a673aa814e89613376ef8d7")
@@ -103,7 +103,7 @@ public class DataSeeder {
                     .columnId(todo.getId())
                     .title("trigger api")
                     .description("")
-                    .order(3)
+                    .lexoRank("0000000003")
                     .build();
             wfm376.getLabels().add(backend);
             wfm376.getAssignees().add(elshod);
@@ -115,7 +115,7 @@ public class DataSeeder {
                     .columnId(inProgress.getId())
                     .title("Manual assign refactor")
                     .description("1. Manual assignda end date kiritilmasa, oxirgacha o'sha branch set bo'lib qoladi. Start -required  , end - optional. \u2705\n2. Manual assign arxiv zalivka qilish - arxiv beraman - excelni bir marta zalivka qilish kerak. Cron kerakmas; \n3. Agar xodim uvolen bo'lsa (absentda), shtatda chiqmasligi kerak\n4. Manual assignni sort tashkillashtirish. fullname, start date, end date; \u2705\n5. Дата => период; front\u2705")
-                    .order(3)
+                    .lexoRank("0000000003")
                     .build();
             wfm417.getLabels().add(backend);
             wfm417.getLabels().add(frontend);

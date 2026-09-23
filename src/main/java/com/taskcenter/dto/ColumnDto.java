@@ -25,7 +25,7 @@ public class ColumnDto {
     public static ColumnDto fromEntity(BoardColumn c) {
         List<TaskDto> taskList = c.getTasks() != null
                 ? c.getTasks().stream()
-                    .sorted(Comparator.comparing(Task::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
                     .map(TaskDto::fromEntity)
                     .collect(Collectors.toList())
                 : new ArrayList<>();

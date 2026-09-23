@@ -168,7 +168,7 @@ class SprintServiceTest {
 
         Task t1 = Task.builder().id("task1").workspaceId("ws1").sprintId(null).build();
         when(taskRepository.findById("task1")).thenReturn(Optional.of(t1));
-        when(taskRepository.findBySprintIdOrderByOrderAsc("sprint1")).thenReturn(List.of(t1));
+        when(taskRepository.findBySprintIdOrderByLexoRankAsc("sprint1")).thenReturn(List.of(t1));
 
         SprintTaskMoveRequest req = new SprintTaskMoveRequest();
         req.setTaskIds(List.of("task1"));

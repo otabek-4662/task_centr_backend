@@ -251,7 +251,7 @@ public class SprintService {
 
         authorizationService.checkAccess(sprint.getWorkspaceId(), currentUser);
 
-        return taskRepository.findBySprintIdOrderByOrderAsc(sprintId)
+        return taskRepository.findBySprintIdOrderByLexoRankAsc(sprintId)
                 .stream()
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
@@ -290,7 +290,7 @@ public class SprintService {
             taskRepository.saveAll(tasksToSave);
         }
 
-        return taskRepository.findBySprintIdOrderByOrderAsc(sprintId)
+        return taskRepository.findBySprintIdOrderByLexoRankAsc(sprintId)
                 .stream()
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());

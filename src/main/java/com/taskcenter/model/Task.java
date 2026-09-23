@@ -54,7 +54,7 @@ public class Task {
     private String description;
 
     @Column(name = "task_order", nullable = false)
-    private Integer order;
+    private String lexoRank;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

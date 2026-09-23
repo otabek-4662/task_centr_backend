@@ -82,15 +82,15 @@ public class TaskController {
         return ApiResponse.success("Task yangilandi", task);
     }
 
-    @Operation(summary = "Ustun ichidagi vazifalar tartibini yangilash (oddiy task ID lar massivi: ['task1', 'task2'])")
-    @PatchMapping("/columns/{columnId}/reorder")
-    public ApiResponse<List<TaskDto>> reorderTasks(
+    @Operation(summary = "Vazifaning o'rnini (rank) va ustunini yangilash (Lexorank)")
+    @PatchMapping("/{id}/reorder")
+    public ApiResponse<TaskDto> reorderTask(
             @PathVariable String workspaceId,
-            @PathVariable String columnId,
-            @RequestBody List<String> taskIds,
+            @PathVariable String id,
+            @RequestBody com.taskcenter.dto.TaskReorderRequest request,
             @AuthenticationPrincipal User currentUser) {
-        List<TaskDto> tasks = taskService.reorderTasks(workspaceId, columnId, taskIds, currentUser);
-        return ApiResponse.success("Vazifalar tartibi yangilandi", tasks);
+        TaskDto task = taskService.reorderTask(workspaceId, id, request, currentUser);
+        return ApiResponse.success("Vazifa tartibi yangilandi", task);
     }
 
     @Operation(summary = "Vazifani o'chirish")

@@ -18,7 +18,7 @@ public class TaskUpdateRequest {
     private String description;
 
     private String columnId;
-    private Integer order;
+    private String lexoRank;
     private Priority priority;
     private IssueType issueType;
     private LocalDate dueDate;

@@ -53,7 +53,7 @@ public class TaskService {
         return cols.stream().map(c -> {
             List<Task> tasks = c.getTasks().stream()
                     .filter(t -> sprintId == null || sprintId.equals(t.getSprintId()))
-                    .sorted(Comparator.comparing(Task::getOrder))
+                    .sorted(Comparator.comparing(Task::getLexoRank))
                     .collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, tasks);
         }).collect(Collectors.toList());
@@ -108,9 +108,10 @@ public class TaskService {
             throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
         }
 
-        Integer order = req.getOrder();
-        if (order == null || order <= 0) {
-            order = taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1;
+        String lexoRank = req.getLexoRank();
+        if (lexoRank == null || lexoRank.isBlank()) {
+            String maxRank = taskRepository.findMaxLexoRankByColumnId(req.getColumnId());
+            lexoRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
         }
 
         Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
@@ -134,7 +135,7 @@ public class TaskService {
                 .columnId(req.getColumnId())
                 .title(req.getTitle())
                 .description(req.getDescription())
-                .order(order)
+                .lexoRank(lexoRank)
                 .priority(priority)
                 .issueType(issueType)
                 .dueDate(req.getDueDate())
@@ -172,8 +173,9 @@ public class TaskService {
             }
             String oldColId = task.getColumnId();
             task.setColumnId(req.getColumnId());
-            if (req.getOrder() == null) {
-                task.setOrder(taskRepository.findMaxOrderByColumnId(req.getColumnId()) + 1);
+            if (req.getLexoRank() == null) {
+                String maxRank = taskRepository.findMaxLexoRankByColumnId(req.getColumnId());
+                task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null));
             }
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
         }
@@ -188,8 +190,8 @@ public class TaskService {
             task.setDescription(req.getDescription());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.DESCRIPTION_UPDATED, "description", oldDesc, req.getDescription());
         }
-        if (req.getOrder() != null) {
-            task.setOrder(req.getOrder());
+        if (req.getLexoRank() != null) {
+            task.setLexoRank(req.getLexoRank());
         }
         if (req.getPriority() != null && req.getPriority() != task.getPriority()) {
             Priority oldPriority = task.getPriority();
@@ -242,37 +244,38 @@ public class TaskService {
     }
 
     @Transactional
-    public List<TaskDto> reorderTasks(String workspaceId, String columnId, List<String> taskIds, User currentUser) {
+    public TaskDto reorderTask(String workspaceId, String id, TaskReorderRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        BoardColumn column = columnRepository.findById(columnId)
-                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + columnId));
-        if (!workspaceId.equals(column.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
         }
 
-        List<Task> tasksToSave = new java.util.ArrayList<>();
-        for (int i = 0; i < taskIds.size(); i++) {
-            String taskId = taskIds.get(i);
-            Task task = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
-            if (!workspaceId.equals(task.getWorkspaceId())) {
-                throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas: " + taskId);
+        if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
+            BoardColumn column = columnRepository.findById(req.getColumnId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + req.getColumnId()));
+            if (!workspaceId.equals(column.getWorkspaceId())) {
+                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
             }
-            task.setColumnId(columnId);
-            task.setOrder(i + 1);
-            tasksToSave.add(task);
+            String oldColId = task.getColumnId();
+            task.setColumnId(req.getColumnId());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
         }
-        List<Task> savedTasks = taskRepository.saveAll(tasksToSave);
-        List<TaskDto> result = savedTasks.stream()
-                .map(TaskDto::fromEntity)
-                .collect(Collectors.toList());
+
+        task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(req.getPrevRank(), req.getNextRank()));
+        
+        Task saved = taskRepository.save(task);
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
-                .type("TASKS_REORDERED")
+                .type("TASK_MOVED")
                 .workspaceId(workspaceId)
-                .data(result)
+                .data(taskDto)
                 .build());
-        return result;
+                
+        return taskDto;
     }
 
     @Transactional

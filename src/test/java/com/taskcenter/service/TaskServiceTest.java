@@ -67,7 +67,7 @@ class TaskServiceTest {
                 .workspaceId("ws1")
                 .columnId("col1")
                 .title("Test Task")
-                .order(1)
+                .lexoRank("0000000001")
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -78,7 +78,7 @@ class TaskServiceTest {
     void createTask_savesAndReturnsDto() {
         doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
-        when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId("new-task");
@@ -103,7 +103,7 @@ class TaskServiceTest {
     void createTask_withCustomPriorityAndDueDate_savesCorrectly() {
         doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
-        when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId("new-task-2");
@@ -132,7 +132,7 @@ class TaskServiceTest {
     void createTask_withValidSprintId_assignsCorrectly() {
         doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
         when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
-        when(taskRepository.findMaxOrderByColumnId("col1")).thenReturn(0);
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         com.taskcenter.model.Sprint sprint = com.taskcenter.model.Sprint.builder()
                 .id("sprint-1")
                 .workspaceId("ws1")
@@ -293,8 +293,8 @@ class TaskServiceTest {
     @Test
     void getBoard_withSprintIdFilter_filtersCorrectly() {
         doNothing().when(authorizationService).checkAccess("ws1", testUser());
-        Task t1 = Task.builder().id("t1").title("Task 1").sprintId("sprint-1").order(1).build();
-        Task t2 = Task.builder().id("t2").title("Task 2").sprintId("sprint-2").order(2).build();
+        Task t1 = Task.builder().id("t1").title("Task 1").sprintId("sprint-1").lexoRank("0000000001").build();
+        Task t2 = Task.builder().id("t2").title("Task 2").sprintId("sprint-2").lexoRank("0000000002").build();
         BoardColumn col = BoardColumn.builder().id("col1").workspaceId("ws1").title("Todo").order(1).tasks(new java.util.HashSet<>(List.of(t1, t2))).build();
         when(columnRepository.findByWorkspaceIdWithTasks("ws1")).thenReturn(List.of(col));
 
@@ -303,5 +303,22 @@ class TaskServiceTest {
         assertThat(board).hasSize(1);
         assertThat(board.get(0).getCards()).hasSize(1);
         assertThat(board.get(0).getCards().get(0).getId()).isEqualTo("t1");
+    }
+
+    @Test
+    void reorderTask_updatesLexoRank() {
+        doNothing().when(authorizationService).checkCanEdit("ws1", testUser());
+        Task task = testTask();
+        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.taskcenter.dto.TaskReorderRequest req = new com.taskcenter.dto.TaskReorderRequest();
+        req.setPrevRank("0000000001");
+        req.setNextRank("0000000003");
+
+        TaskDto result = taskService.reorderTask("ws1", "task1", req, testUser());
+
+        assertThat(result.getLexoRank()).isNotNull();
+        verify(taskRepository).save(any(Task.class));
     }
 }

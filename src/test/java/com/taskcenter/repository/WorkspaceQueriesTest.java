@@ -88,16 +88,16 @@ class WorkspaceQueriesTest {
         BoardColumn col = columnRepository.save(BoardColumn.builder()
                 .workspaceId(workspace.getId()).title("A").order(1).build());
 
-        assertThat(taskRepository.findMaxOrderByColumnId(col.getId())).isZero();
+        assertThat(taskRepository.findMaxLexoRankByColumnId(col.getId())).isNull();
 
         taskRepository.save(Task.builder()
                 .workspaceId(workspace.getId()).columnId(col.getId())
-                .publicId("WFM-1").title("T1").order(1).build());
+                .publicId("WFM-1").title("T1").lexoRank("0000000001").build());
         taskRepository.save(Task.builder()
                 .workspaceId(workspace.getId()).columnId(col.getId())
-                .publicId("WFM-2").title("T2").order(4).build());
+                .publicId("WFM-2").title("T2").lexoRank("0000000004").build());
 
-        assertThat(taskRepository.findMaxOrderByColumnId(col.getId())).isEqualTo(4);
+        assertThat(taskRepository.findMaxLexoRankByColumnId(col.getId())).isEqualTo("0000000004");
     }
 
     @Test

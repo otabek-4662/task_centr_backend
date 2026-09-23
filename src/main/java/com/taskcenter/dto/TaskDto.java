@@ -20,7 +20,7 @@ public class TaskDto {
     private String workspaceId;
     private String title;
     private String description;
-    private Integer order;
+    private String lexoRank;
     private Priority priority;
     private IssueType issueType;
     private LocalDate dueDate;
@@ -37,7 +37,7 @@ public class TaskDto {
                 .workspaceId(t.getWorkspaceId())
                 .title(t.getTitle())
                 .description(t.getDescription())
-                .order(t.getOrder())
+                .lexoRank(t.getLexoRank())
                 .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
                 .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                 .dueDate(t.getDueDate())

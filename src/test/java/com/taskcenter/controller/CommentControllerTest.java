@@ -65,7 +65,7 @@ class CommentControllerTest {
                 .workspaceId(SEED_WS)
                 .columnId(col.getId())
                 .title("Comment Test Task")
-                .order(1)
+                .lexoRank("0000000001")
                 .build();
         Task saved = taskRepository.save(task);
         taskId = saved.getId();
