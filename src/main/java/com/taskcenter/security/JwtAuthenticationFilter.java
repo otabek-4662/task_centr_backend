@@ -4,26 +4,37 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 
 import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtTokenProvider tokenProvider;
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    @Autowired
-    private UserDetailsService userDetailsService;
+    private final JwtTokenProvider tokenProvider;
+    private final UserDetailsService userDetailsService;
+
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider,
+                                   UserDetailsService userDetailsService) {
+        this.tokenProvider = tokenProvider;
+        this.userDetailsService = userDetailsService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -42,8 +53,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+        } catch (ExpiredJwtException ex) {
+            log.warn("JWT token muddati tugagan: {}", ex.getMessage());
+        } catch (MalformedJwtException ex) {
+            log.warn("JWT token formati noto'g'ri: {}", ex.getMessage());
+        } catch (SignatureException ex) {
+            log.warn("JWT token imzosi yaroqsiz: {}", ex.getMessage());
+        } catch (UsernameNotFoundException ex) {
+            log.warn("JWT dagi foydalanuvchi topilmadi: {}", ex.getMessage());
         } catch (Exception ex) {
-            // Could not set user authentication in security context
+            log.error("JWT autentifikatsiyada kutilmagan xatolik: {}", ex.getMessage(), ex);
         }
 
         filterChain.doFilter(request, response);
