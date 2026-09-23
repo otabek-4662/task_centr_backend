@@ -10,6 +10,7 @@ import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
 import org.springframework.data.domain.Page;
@@ -28,15 +29,18 @@ public class WorkspaceService {
     private final WorkspaceAuthorizationService authorizationService;
     private final ColumnRepository columnRepository;
     private final TaskRepository taskRepository;
+    private final SprintRepository sprintRepository;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
                             WorkspaceAuthorizationService authorizationService,
                             ColumnRepository columnRepository,
-                            TaskRepository taskRepository) {
+                            TaskRepository taskRepository,
+                            SprintRepository sprintRepository) {
         this.workspaceRepository = workspaceRepository;
         this.authorizationService = authorizationService;
         this.columnRepository = columnRepository;
         this.taskRepository = taskRepository;
+        this.sprintRepository = sprintRepository;
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +147,7 @@ public class WorkspaceService {
             throw new ResourceNotFoundException("Workspace topilmadi: " + id);
         }
         taskRepository.deleteByWorkspaceId(id);
+        sprintRepository.deleteByWorkspaceId(id);
         columnRepository.deleteByWorkspaceId(id);
         workspaceRepository.deleteById(id);
     }

@@ -236,7 +236,7 @@ public class TaskService {
             throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
         }
 
-        List<TaskDto> result = new java.util.ArrayList<>();
+        List<Task> tasksToSave = new java.util.ArrayList<>();
         for (int i = 0; i < taskIds.size(); i++) {
             String taskId = taskIds.get(i);
             Task task = taskRepository.findById(taskId)
@@ -246,9 +246,12 @@ public class TaskService {
             }
             task.setColumnId(columnId);
             task.setOrder(i + 1);
-            result.add(TaskDto.fromEntity(taskRepository.save(task)));
+            tasksToSave.add(task);
         }
-        return result;
+        List<Task> savedTasks = taskRepository.saveAll(tasksToSave);
+        return savedTasks.stream()
+                .map(TaskDto::fromEntity)
+                .collect(Collectors.toList());
     }
 
     @Transactional

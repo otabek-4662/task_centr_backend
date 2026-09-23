@@ -8,6 +8,7 @@ import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class WorkspaceServiceTest {
     private ColumnRepository columnRepository;
     @Mock
     private TaskRepository taskRepository;
+    @Mock
+    private SprintRepository sprintRepository;
 
     @InjectMocks
     private WorkspaceService workspaceService;
@@ -148,6 +151,7 @@ class WorkspaceServiceTest {
         workspaceService.deleteWorkspace("ws1", testUser());
 
         verify(taskRepository).deleteByWorkspaceId("ws1");
+        verify(sprintRepository).deleteByWorkspaceId("ws1");
         verify(columnRepository).deleteByWorkspaceId("ws1");
         verify(workspaceRepository).deleteById("ws1");
     }

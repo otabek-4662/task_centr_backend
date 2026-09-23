@@ -88,7 +88,11 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Validatsiya xatosi"));
+                .body(ApiResponse.<Map<String, String>>builder()
+                        .success(false)
+                        .message("Validatsiya xatosi")
+                        .data(errors)
+                        .build());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
