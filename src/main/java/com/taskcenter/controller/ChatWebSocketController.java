@@ -1,5 +1,6 @@
 package com.taskcenter.controller;
 
+import com.taskcenter.dto.EditMessageRequest;
 import com.taskcenter.dto.SendDirectMessageRequest;
 import com.taskcenter.dto.SendPublicMessageRequest;
 import com.taskcenter.exception.ResourceNotFoundException;
@@ -78,6 +79,36 @@ public class ChatWebSocketController {
         Object isPublicObj = payload.get("public");
         boolean isPublic = Boolean.TRUE.equals(isPublicObj);
         chatService.sendTypingEvent(principal.getName(), recipientId, isPublic);
+    }
+
+    /**
+     * Xabarni tahrirlash (WebSocket orqali - PUT o'rniga)
+     * Frontend: client.publish({ destination: '/app/chat.edit', body: '{"messageId":"...", "content":"..."}' })
+     */
+    @MessageMapping("/chat.edit")
+    public void editMessage(@Payload Map<String, String> payload, Principal principal) {
+        if (principal == null) return;
+        User user = resolveUser(principal);
+        String messageId = payload.get("messageId");
+        String content = payload.get("content");
+        if (messageId != null && content != null) {
+            EditMessageRequest req = new EditMessageRequest(content);
+            chatService.editMessage(messageId, user.getId(), req);
+        }
+    }
+
+    /**
+     * Xabarni o'chirish (WebSocket orqali - DELETE o'rniga)
+     * Frontend: client.publish({ destination: '/app/chat.delete', body: '{"messageId":"..."}' })
+     */
+    @MessageMapping("/chat.delete")
+    public void deleteMessage(@Payload Map<String, String> payload, Principal principal) {
+        if (principal == null) return;
+        User user = resolveUser(principal);
+        String messageId = payload.get("messageId");
+        if (messageId != null) {
+            chatService.deleteMessage(messageId, user.getId());
+        }
     }
 
     private User resolveUser(Principal principal) {
