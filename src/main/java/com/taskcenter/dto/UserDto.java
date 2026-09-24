@@ -2,6 +2,7 @@ package com.taskcenter.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.taskcenter.model.User;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 @Data
@@ -10,9 +11,16 @@ import lombok.*;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
+    @Schema(description = "Foydalanuvchi UUID si", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
     private String id;
+
+    @Schema(description = "Foydalanuvchi login nomi", example = "xusanboy")
     private String name;
+
+    @Schema(description = "To'liq ismi", example = "Xusanboy Developer")
     private String fullName;
+
+    @Schema(description = "Workspacega allaqachon a'zo bo'lganmi yoki yo'q", example = "true")
     private Boolean isAdded;
 
     public static UserDto fromEntity(User user) {

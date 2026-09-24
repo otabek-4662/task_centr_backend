@@ -74,3 +74,13 @@ management:
       hikaricp: true
       jvm: true
       cache: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+    doc-expansion: none
+    filter: true
+    persist-authorization: true
+    display-request-duration: true
