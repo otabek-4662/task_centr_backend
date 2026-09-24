@@ -52,6 +52,9 @@ public class User implements UserDetails {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
