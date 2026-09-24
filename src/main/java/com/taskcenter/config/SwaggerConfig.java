@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Profile;
 public class SwaggerConfig {
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public OpenAPI customOpenAPI(@Value("${spring.profiles.active:local}") String activeProfile) {
         String renderUrl = System.getenv("RENDER_EXTERNAL_URL");
         if (renderUrl == null || renderUrl.isBlank()) {
@@ -29,7 +28,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public org.springdoc.core.models.GroupedOpenApi allOpenApi() {
         return org.springdoc.core.models.GroupedOpenApi.builder()
                 .group("0-all")
@@ -39,7 +37,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public org.springdoc.core.models.GroupedOpenApi authOpenApi() {
         return org.springdoc.core.models.GroupedOpenApi.builder()
                 .group("1-auth-users")
@@ -51,7 +48,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public org.springdoc.core.models.GroupedOpenApi workspaceOpenApi() {
         return org.springdoc.core.models.GroupedOpenApi.builder()
                 .group("2-workspaces")
@@ -63,7 +59,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public org.springdoc.core.models.GroupedOpenApi taskBoardOpenApi() {
         return org.springdoc.core.models.GroupedOpenApi.builder()
                 .group("3-tasks-board")
@@ -80,7 +75,6 @@ public class SwaggerConfig {
     }
 
     @Bean
-    @Profile({"local", "dev", "test"})
     public org.springdoc.core.models.GroupedOpenApi sprintOpenApi() {
         return org.springdoc.core.models.GroupedOpenApi.builder()
                 .group("4-sprints")
