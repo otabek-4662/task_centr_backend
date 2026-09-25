@@ -143,7 +143,29 @@ public class ChatController {
         return ApiResponse.success("ok", online);
     }
 
+    // ==================== REACTION ====================
+
+    @Operation(summary = "Xabarga reaksiya qo'shish yoki olib tashlash (toggle)")
+    @PostMapping("/{messageId}/reactions")
+    public ApiResponse<ChatMessageDto> toggleReaction(
+            @PathVariable String messageId,
+            @Valid @RequestBody ToggleReactionRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        ChatMessageDto dto = chatService.toggleReaction(messageId, currentUser.getId(), request.getEmoji());
+        return ApiResponse.success("ok", dto);
+    }
+
     // ==================== QIDIRUV ====================
+
+    @Operation(summary = "Barcha ko'rinadigan xabarlar orasidan qidirish (Public + DM)")
+    @GetMapping("/search")
+    public ApiResponse<Page<ChatMessageDto>> searchAllMessages(
+            @RequestParam String query,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal User currentUser) {
+        Page<ChatMessageDto> results = chatService.searchAllMessages(currentUser.getId(), query, pageable);
+        return ApiResponse.success("ok", results);
+    }
 
     @Operation(summary = "Umumiy chatdan xabar qidirish")
     @GetMapping("/public/search")

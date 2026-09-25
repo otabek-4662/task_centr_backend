@@ -42,6 +42,14 @@ public class ChatMessageDto {
     @Schema(description = "Yuborilgan vaqti")
     private LocalDateTime createdAt;
 
+    @Schema(description = "Fayl biriktirmalari")
+    @Builder.Default
+    private java.util.List<MessageAttachmentDto> attachments = new java.util.ArrayList<>();
+
+    @Schema(description = "Reaksiyalar (emojilar)")
+    @Builder.Default
+    private java.util.List<MessageReactionDto> reactions = new java.util.ArrayList<>();
+
     @Schema(description = "Tahrirlanganmi?")
     @Builder.Default
     private boolean edited = false;

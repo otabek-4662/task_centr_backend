@@ -83,6 +83,9 @@ public class ColumnService {
         }
 
         if (request.getTitle() != null) {
+            if (Boolean.TRUE.equals(column.getIsDefault()) && !column.getTitle().equals(request.getTitle())) {
+                throw new com.taskcenter.exception.BadRequestException("Standart (isDefault) ustunlar nomini o'zgartirish mumkin emas");
+            }
             column.setTitle(request.getTitle());
         }
         if (request.getOrder() != null) {
@@ -113,6 +116,9 @@ public class ColumnService {
         }
 
         if (request.getTitle() != null) {
+            if (Boolean.TRUE.equals(column.getIsDefault()) && !column.getTitle().equals(request.getTitle())) {
+                throw new com.taskcenter.exception.BadRequestException("Standart (isDefault) ustunlar nomini o'zgartirish mumkin emas");
+            }
             column.setTitle(request.getTitle());
         }
         if (request.getOrder() != null) {
@@ -195,6 +201,10 @@ public class ColumnService {
 
         if (!workspaceId.equals(column.getWorkspaceId())) {
             throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
+        }
+
+        if (Boolean.TRUE.equals(column.getIsDefault())) {
+            throw new com.taskcenter.exception.BadRequestException("Standart (isDefault) ustunlarni o'chirish mumkin emas");
         }
 
         taskRepository.deleteByColumnId(id);

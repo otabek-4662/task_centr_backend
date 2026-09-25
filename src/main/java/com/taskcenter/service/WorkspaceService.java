@@ -94,28 +94,26 @@ public class WorkspaceService {
 
         Workspace saved = workspaceRepository.save(workspace);
 
-        if (Boolean.TRUE.equals(request.getInitDefaultColumns())) {
-            columnRepository.save(BoardColumn.builder()
-                    .workspaceId(saved.getId())
-                    .title("Qilinishi kerak (To Do)")
-                    .order(1)
-                    .isDefault(true)
-                    .build());
+        columnRepository.save(BoardColumn.builder()
+                .workspaceId(saved.getId())
+                .title("Qilinishi kerak (To Do)")
+                .order(1)
+                .isDefault(true)
+                .build());
 
-            columnRepository.save(BoardColumn.builder()
-                    .workspaceId(saved.getId())
-                    .title("Bajarilmoqda (In Progress)")
-                    .order(2)
-                    .isDefault(false)
-                    .build());
+        columnRepository.save(BoardColumn.builder()
+                .workspaceId(saved.getId())
+                .title("Bajarilmoqda (In Progress)")
+                .order(2)
+                .isDefault(true)
+                .build());
 
-            columnRepository.save(BoardColumn.builder()
-                    .workspaceId(saved.getId())
-                    .title("Bajarildi (Done)")
-                    .order(3)
-                    .isDefault(false)
-                    .build());
-        }
+        columnRepository.save(BoardColumn.builder()
+                .workspaceId(saved.getId())
+                .title("Bajarildi (Done)")
+                .order(3)
+                .isDefault(true)
+                .build());
 
         return WorkspaceDto.fromEntity(saved);
     }

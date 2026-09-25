@@ -9,10 +9,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.util.UUID;
+import net.coobird.thumbnailator.Thumbnails;
+import com.taskcenter.dto.FileUploadResponse;
 
 @Service
 public class LocalFileStorageService implements FileStorageService {
@@ -54,6 +57,38 @@ public class LocalFileStorageService implements FileStorageService {
         } catch (IOException ex) {
             throw new RuntimeException("Faylni saqlashda xatolik yuz berdi: " + originalFilename, ex);
         }
+    }
+
+    @Override
+    public FileUploadResponse storeFileWithThumbnail(MultipartFile file, String subDirectory) {
+        String storedPath = storeFile(file, subDirectory);
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+        String fileUrl = "/api/files/" + storedPath;
+        
+        FileUploadResponse response = FileUploadResponse.builder()
+                .fileUrl(fileUrl)
+                .fileType(contentType)
+                .fileSize(file.getSize())
+                .build();
+
+        if (contentType.startsWith("image/")) {
+            try {
+                Path originalFilePath = this.fileStorageLocation.resolve(storedPath).normalize();
+                String thumbFileName = "thumb_" + originalFilePath.getFileName().toString();
+                Path thumbFilePath = originalFilePath.getParent().resolve(thumbFileName);
+                
+                Thumbnails.of(originalFilePath.toFile())
+                        .size(200, 200)
+                        .toFile(thumbFilePath.toFile());
+                        
+                String thumbStoredPath = this.fileStorageLocation.relativize(thumbFilePath).toString().replace("\\", "/");
+                response.setThumbnailUrl("/api/files/" + thumbStoredPath);
+            } catch (Exception e) {
+                // Ignore thumbnail generation errors
+            }
+        }
+        
+        return response;
     }
 
     @Override

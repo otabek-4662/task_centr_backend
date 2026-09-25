@@ -56,6 +56,14 @@ public class ChatMessage {
     @Builder.Default
     private ChatMessageType type = ChatMessageType.PUBLIC;
 
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<MessageAttachment> attachments = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<MessageReaction> reactions = new java.util.ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

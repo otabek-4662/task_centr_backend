@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.taskcenter.repository.NotificationRepository;
+import com.taskcenter.model.Notification;
+
 @Service
 public class ChatService {
 
@@ -29,17 +32,23 @@ public class ChatService {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatPresenceService presenceService;
+    private final NotificationRepository notificationRepository;
+    private final com.taskcenter.repository.MessageReactionRepository reactionRepository;
 
     public ChatService(ChatMessageRepository chatMessageRepository,
                        MessageReadStatusRepository readStatusRepository,
                        UserRepository userRepository,
                        SimpMessagingTemplate messagingTemplate,
-                       ChatPresenceService presenceService) {
+                       ChatPresenceService presenceService,
+                       NotificationRepository notificationRepository,
+                       com.taskcenter.repository.MessageReactionRepository reactionRepository) {
         this.chatMessageRepository = chatMessageRepository;
         this.readStatusRepository = readStatusRepository;
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
         this.presenceService = presenceService;
+        this.notificationRepository = notificationRepository;
+        this.reactionRepository = reactionRepository;
     }
 
     // ==================== XABAR YUBORISH ====================
@@ -48,13 +57,32 @@ public class ChatService {
     public ChatMessageDto sendPublicMessage(String senderId, SendPublicMessageRequest req) {
         User sender = getUser(senderId);
 
+        // Validate content or attachments
+        if ((req.getContent() == null || req.getContent().trim().isEmpty()) 
+            && (req.getAttachments() == null || req.getAttachments().isEmpty())) {
+            throw new BadRequestException("Xabar matni yoki fayl biriktirilgan bo'lishi shart");
+        }
+
         ChatMessage message = ChatMessage.builder()
                 .senderId(sender.getId())
                 .sender(sender)
-                .content(req.getContent().trim())
+                .content(req.getContent() != null ? req.getContent().trim() : "")
                 .type(ChatMessageType.PUBLIC)
                 .replyToId(req.getReplyToId())
                 .build();
+
+        if (req.getAttachments() != null && !req.getAttachments().isEmpty()) {
+            List<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
+                com.taskcenter.model.MessageAttachment.builder()
+                    .message(message)
+                    .fileUrl(a.getFileUrl())
+                    .fileType(a.getFileType())
+                    .fileSize(a.getFileSize())
+                    .thumbnailUrl(a.getThumbnailUrl())
+                    .build()
+            ).collect(Collectors.toList());
+            message.setAttachments(atts);
+        }
 
         // reply_to_id borligini tekshirish
         if (req.getReplyToId() != null) {
@@ -79,15 +107,34 @@ public class ChatService {
         User sender = getUser(senderId);
         User recipient = getUser(req.getRecipientId());
 
+        // Validate content or attachments
+        if ((req.getContent() == null || req.getContent().trim().isEmpty()) 
+            && (req.getAttachments() == null || req.getAttachments().isEmpty())) {
+            throw new BadRequestException("Xabar matni yoki fayl biriktirilgan bo'lishi shart");
+        }
+
         ChatMessage message = ChatMessage.builder()
                 .senderId(sender.getId())
                 .sender(sender)
                 .recipientId(recipient.getId())
                 .recipient(recipient)
-                .content(req.getContent().trim())
+                .content(req.getContent() != null ? req.getContent().trim() : "")
                 .type(ChatMessageType.DIRECT)
                 .replyToId(req.getReplyToId())
                 .build();
+
+        if (req.getAttachments() != null && !req.getAttachments().isEmpty()) {
+            List<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
+                com.taskcenter.model.MessageAttachment.builder()
+                    .message(message)
+                    .fileUrl(a.getFileUrl())
+                    .fileType(a.getFileType())
+                    .fileSize(a.getFileSize())
+                    .thumbnailUrl(a.getThumbnailUrl())
+                    .build()
+            ).collect(Collectors.toList());
+            message.setAttachments(atts);
+        }
 
         if (req.getReplyToId() != null) {
             ChatMessage replyTo = getMessage(req.getReplyToId());
@@ -99,6 +146,28 @@ public class ChatService {
 
         messagingTemplate.convertAndSendToUser(recipient.getUsername(), "/queue/private-chat", dto);
         messagingTemplate.convertAndSendToUser(sender.getUsername(), "/queue/private-chat", dto);
+
+        if (!presenceService.isOnline(recipient.getUsername())) {
+            Notification notification = Notification.builder()
+                    .userId(recipient.getId())
+                    .title("Yangi xabar")
+                    .message(sender.getFullName() + " sizga xabar yubordi")
+                    .type("NEW_DM")
+                    .referenceId(saved.getId())
+                    .build();
+            notificationRepository.save(notification);
+            
+            NotificationDto notifDto = NotificationDto.builder()
+                    .id(notification.getId())
+                    .title(notification.getTitle())
+                    .message(notification.getMessage())
+                    .read(notification.isRead())
+                    .type(notification.getType())
+                    .referenceId(notification.getReferenceId())
+                    .createdAt(notification.getCreatedAt())
+                    .build();
+            messagingTemplate.convertAndSendToUser(recipient.getUsername(), "/queue/notifications", notifDto);
+        }
 
         return dto;
     }
@@ -284,6 +353,12 @@ public class ChatService {
     }
 
     // ==================== QIDIRUV ====================
+    
+    @Transactional(readOnly = true)
+    public Page<ChatMessageDto> searchAllMessages(String currentUserId, String query, Pageable pageable) {
+        return chatMessageRepository.searchAllMessages(currentUserId, query, pageable)
+                .map(this::toDto);
+    }
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> searchPublicMessages(String query, Pageable pageable) {
@@ -310,12 +385,63 @@ public class ChatService {
         ChatEvent<Map<String, String>> event = ChatEvent.of("TYPING", payload);
 
         if (isPublic) {
-            messagingTemplate.convertAndSend("/topic/public-chat-events", event);
+            messagingTemplate.convertAndSend("/topic/typing", event);
         } else if (recipientId != null) {
             User recipient = getUser(recipientId);
             messagingTemplate.convertAndSendToUser(
-                    recipient.getUsername(), "/queue/chat-events", event);
+                    recipient.getUsername(), "/queue/typing", event);
         }
+    }
+
+    // ==================== REACTION ====================
+
+    @Transactional
+    public ChatMessageDto toggleReaction(String messageId, String userId, String emoji) {
+        ChatMessage message = getMessage(messageId);
+        User user = getUser(userId);
+
+        Optional<com.taskcenter.model.MessageReaction> existing = reactionRepository
+                .findByMessageIdAndUserId(messageId, userId);
+
+        if (existing.isPresent()) {
+            com.taskcenter.model.MessageReaction reaction = existing.get();
+            if (reaction.getEmoji().equals(emoji)) {
+                // Same emoji -> remove it (toggle off)
+                reactionRepository.delete(reaction);
+            } else {
+                // Different emoji -> update it
+                reaction.setEmoji(emoji);
+                reactionRepository.save(reaction);
+            }
+        } else {
+            // New reaction
+            com.taskcenter.model.MessageReaction reaction = com.taskcenter.model.MessageReaction.builder()
+                    .messageId(messageId)
+                    .message(message)
+                    .userId(userId)
+                    .user(user)
+                    .emoji(emoji)
+                    .build();
+            reactionRepository.save(reaction);
+        }
+
+        // Re-fetch to get updated reactions list
+        ChatMessage updated = chatMessageRepository.findWithDetailsById(messageId).orElse(message);
+        ChatMessageDto dto = toDto(updated);
+
+        ChatEvent<ChatMessageDto> event = ChatEvent.of("MESSAGE_REACTION", dto);
+        if (updated.getType() == ChatMessageType.PUBLIC) {
+            messagingTemplate.convertAndSend("/topic/public-chat-events", event);
+        } else {
+            messagingTemplate.convertAndSendToUser(
+                    getUser(updated.getSenderId()).getUsername(), "/queue/chat-events", event);
+            if (updated.getRecipientId() != null) {
+                messagingTemplate.convertAndSendToUser(
+                        getUser(updated.getRecipientId()).getUsername(), "/queue/chat-events", event);
+            }
+        }
+
+        return dto;
     }
 
     // ==================== ONLINE STATUS ====================
@@ -373,6 +499,30 @@ public class ChatService {
                 .createdAt(message.getCreatedAt())
                 .edited(message.getEditedAt() != null)
                 .editedAt(message.getEditedAt());
+
+        if (message.getAttachments() != null) {
+            builder.attachments(message.getAttachments().stream().map(a -> 
+                MessageAttachmentDto.builder()
+                    .id(a.getId())
+                    .fileUrl(a.getFileUrl())
+                    .fileType(a.getFileType())
+                    .fileSize(a.getFileSize())
+                    .thumbnailUrl(a.getThumbnailUrl())
+                    .build()
+            ).collect(Collectors.toList()));
+        }
+
+        if (message.getReactions() != null) {
+            builder.reactions(message.getReactions().stream().map(r ->
+                MessageReactionDto.builder()
+                    .id(r.getId())
+                    .userId(r.getUserId())
+                    .userName(r.getUser() != null ? r.getUser().getName() : null)
+                    .emoji(r.getEmoji())
+                    .createdAt(r.getCreatedAt())
+                    .build()
+            ).collect(Collectors.toList()));
+        }
 
         // Reply ma'lumotini qo'shish
         if (message.getReplyTo() != null) {
