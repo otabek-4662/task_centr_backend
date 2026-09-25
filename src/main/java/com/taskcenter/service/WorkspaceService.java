@@ -96,21 +96,21 @@ public class WorkspaceService {
 
         columnRepository.save(BoardColumn.builder()
                 .workspaceId(saved.getId())
-                .title("Qilinishi kerak (To Do)")
+                .title("Dushanbadan")
                 .order(1)
                 .isDefault(true)
                 .build());
 
         columnRepository.save(BoardColumn.builder()
                 .workspaceId(saved.getId())
-                .title("Bajarilmoqda (In Progress)")
+                .title("Jumagacha bitadi")
                 .order(2)
                 .isDefault(true)
                 .build());
 
         columnRepository.save(BoardColumn.builder()
                 .workspaceId(saved.getId())
-                .title("Bajarildi (Done)")
+                .title("Ko'z tegmasin")
                 .order(3)
                 .isDefault(true)
                 .build());

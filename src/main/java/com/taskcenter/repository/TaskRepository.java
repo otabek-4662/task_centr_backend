@@ -17,12 +17,19 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByWorkspaceId(String workspaceId);
     
     @EntityGraph(attributePaths = {"labels", "assignees"})
+    Optional<Task> findByPublicId(String publicId);
+    
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);
     
     @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
     List<Task> findByWorkspaceIdWithDetails(@Param("workspaceId") String workspaceId);
+
+    @EntityGraph(attributePaths = {"assignees"})
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
+    List<Task> findByWorkspaceIdWithAssignees(@Param("workspaceId") String workspaceId);
     
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     Page<Task> findByWorkspaceIdPaginated(@Param("workspaceId") String workspaceId, Pageable pageable);
