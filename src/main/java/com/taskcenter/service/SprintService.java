@@ -243,19 +243,32 @@ public class SprintService {
         // Bajarilmagan tasklarni yangi sprintga yoki backlogga ko'chirish
         List<Task> tasks = taskRepository.findBySprintId(sprintId);
         List<Task> tasksToMove = new java.util.ArrayList<>();
+        List<com.taskcenter.model.TaskActivity> activitiesToLog = new java.util.ArrayList<>();
+        
         for (Task task : tasks) {
             if (!doneColumnIds.contains(task.getColumnId())) {
                 task.setSprintId(targetSprintId);
                 tasksToMove.add(task);
-                if (targetSprintId != null) {
-                    activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_ASSIGNED, "sprint", sprint.getName(), targetSprintName);
-                } else {
-                    activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_REMOVED, "sprint", sprint.getName(), "Backlog");
-                }
+                
+                String targetName = targetSprintId != null ? targetSprintName : "Backlog";
+                com.taskcenter.model.TaskActivityType actionType = targetSprintId != null ? 
+                        com.taskcenter.model.TaskActivityType.SPRINT_ASSIGNED : 
+                        com.taskcenter.model.TaskActivityType.SPRINT_REMOVED;
+                        
+                activitiesToLog.add(com.taskcenter.model.TaskActivity.builder()
+                        .taskId(task.getId())
+                        .userId(currentUser.getId())
+                        .user(currentUser)
+                        .actionType(actionType)
+                        .fieldName("sprint")
+                        .oldValue(sprint.getName())
+                        .newValue(targetName)
+                        .build());
             }
         }
         if (!tasksToMove.isEmpty()) {
             taskRepository.saveAll(tasksToMove);
+            activityService.logActivities(activitiesToLog);
         }
 
         Sprint saved = sprintRepository.save(sprint);
@@ -281,12 +294,23 @@ public class SprintService {
 
         // Sprintdagi tasklarni backlogga qaytarish
         List<Task> tasks = taskRepository.findBySprintId(sprintId);
+        List<com.taskcenter.model.TaskActivity> activitiesToLog = new java.util.ArrayList<>();
+        
         for (Task task : tasks) {
             task.setSprintId(null);
-            activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_REMOVED, "sprint", sprint.getName(), "Backlog");
+            activitiesToLog.add(com.taskcenter.model.TaskActivity.builder()
+                    .taskId(task.getId())
+                    .userId(currentUser.getId())
+                    .user(currentUser)
+                    .actionType(com.taskcenter.model.TaskActivityType.SPRINT_REMOVED)
+                    .fieldName("sprint")
+                    .oldValue(sprint.getName())
+                    .newValue("Backlog")
+                    .build());
         }
         if (!tasks.isEmpty()) {
             taskRepository.saveAll(tasks);
+            activityService.logActivities(activitiesToLog);
         }
 
         sprintRepository.delete(sprint);

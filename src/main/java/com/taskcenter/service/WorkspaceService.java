@@ -66,6 +66,7 @@ public class WorkspaceService {
                 .collect(Collectors.toList());
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "workspaces", key = "#id")
     @Transactional(readOnly = true)
     public WorkspaceDto getWorkspaceById(String id, User currentUser) {
         authorizationService.checkAccess(id, currentUser);
@@ -118,11 +119,10 @@ public class WorkspaceService {
         return WorkspaceDto.fromEntity(saved);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "workspaces", key = "#id")
     @Transactional
     public WorkspaceDto updateWorkspace(String id, WorkspaceCreateRequest request, User currentUser) {
-        authorizationService.checkOwner(id, currentUser);
-        Workspace workspace = workspaceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Workspace topilmadi: " + id));
+        Workspace workspace = authorizationService.checkOwner(id, currentUser);
 
         if (request.getTitle() != null) {
             workspace.setTitle(request.getTitle());
@@ -138,12 +138,11 @@ public class WorkspaceService {
         return WorkspaceDto.fromEntity(updated);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "workspaces", key = "#id")
     @Transactional
     public void deleteWorkspace(String id, User currentUser) {
         authorizationService.checkOwner(id, currentUser);
-        if (!workspaceRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Workspace topilmadi: " + id);
-        }
+        
         taskRepository.deleteByWorkspaceId(id);
         sprintRepository.deleteByWorkspaceId(id);
         columnRepository.deleteByWorkspaceId(id);

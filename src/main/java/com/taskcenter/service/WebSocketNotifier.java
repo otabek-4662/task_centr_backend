@@ -13,6 +13,7 @@ public class WebSocketNotifier {
         this.messagingTemplate = messagingTemplate;
     }
 
+    @org.springframework.scheduling.annotation.Async
     public void notifyWorkspace(String workspaceId, WebSocketEvent<?> event) {
         messagingTemplate.convertAndSend("/topic/workspace/" + workspaceId, event);
     }

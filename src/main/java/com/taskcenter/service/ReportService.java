@@ -37,7 +37,7 @@ public class ReportService {
         // Ruxsatni tekshirish
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        // Workspace ustunlari
+        // Workspace ustunlarini olish (Done ustunini aniqlash uchun)
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
         
         String todoColumnId = null;
@@ -52,50 +52,42 @@ public class ReportService {
             }
         }
 
-        // Barcha vazifalar
-        List<Task> tasks = taskRepository.findByWorkspaceIdWithAssignees(workspaceId);
-
-        long totalTasks = tasks.size();
+        // Baza orqali agregatsiya (DB da sanaymiz)
+        List<com.taskcenter.dto.ColumnTaskCountProjection> taskCounts = taskRepository.getWorkspaceTaskCountsByColumn(workspaceId);
+        
+        long totalTasks = 0;
         long todoTasks = 0;
         long inProgressTasks = 0;
         long doneTasks = 0;
 
-        // Xodimlar bo'yicha hisob
-        Map<String, UserWorkloadDto> workloadMap = new HashMap<>();
+        for (com.taskcenter.dto.ColumnTaskCountProjection proj : taskCounts) {
+            long count = proj.getTaskCount() != null ? proj.getTaskCount() : 0L;
+            totalTasks += count;
+            
+            String colId = proj.getColumnId();
+            if (colId.equals(todoColumnId)) todoTasks += count;
+            else if (colId.equals(inProgressColumnId)) inProgressTasks += count;
+            else if (colId.equals(doneColumnId)) doneTasks += count;
+        }
 
-        for (Task task : tasks) {
-            String colId = task.getColumnId();
-            if (colId.equals(todoColumnId)) todoTasks++;
-            else if (colId.equals(inProgressColumnId)) inProgressTasks++;
-            else if (colId.equals(doneColumnId)) doneTasks++;
-
-            boolean isDone = colId.equals(doneColumnId);
-
-            // Har bir assigneeni hisoblash
-            for (User assignee : task.getAssignees()) {
-                UserWorkloadDto wDto = workloadMap.computeIfAbsent(assignee.getId(), id -> 
-                    UserWorkloadDto.builder()
-                        .userId(assignee.getId())
-                        .userName(assignee.getUsername())
-                        .userFullName(assignee.getFullName())
-                        .totalAssignedTasks(0)
-                        .completedTasks(0)
-                        .activeTasks(0)
-                        .build()
-                );
-
-                wDto.setTotalAssignedTasks(wDto.getTotalAssignedTasks() + 1);
-                if (isDone) {
-                    wDto.setCompletedTasks(wDto.getCompletedTasks() + 1);
-                } else {
-                    wDto.setActiveTasks(wDto.getActiveTasks() + 1);
-                }
-            }
+        // Xodimlar yuklamasini Baza orqali olish
+        List<com.taskcenter.dto.UserWorkloadProjection> workloadProjections = taskRepository.getWorkspaceWorkloadStats(workspaceId, doneColumnId);
+        List<UserWorkloadDto> workloadList = new ArrayList<>();
+        
+        for (com.taskcenter.dto.UserWorkloadProjection wp : workloadProjections) {
+            workloadList.add(UserWorkloadDto.builder()
+                    .userId(wp.getUserId())
+                    .userName(wp.getUserName())
+                    .userFullName(wp.getUserFullName())
+                    .totalAssignedTasks(wp.getTotalTasks() != null ? wp.getTotalTasks().intValue() : 0)
+                    .completedTasks(wp.getCompletedTasks() != null ? wp.getCompletedTasks().intValue() : 0)
+                    .activeTasks(wp.getActiveTasks() != null ? wp.getActiveTasks().intValue() : 0)
+                    .build());
         }
 
         double completionPercentage = 0.0;
         if (totalTasks > 0) {
-            completionPercentage = Math.round(((double) doneTasks / totalTasks) * 1000.0) / 10.0;
+            completionPercentage = Math.round(((double) doneTasks / totalTasks) * 100.0 * 10.0) / 10.0;
         }
 
         return WorkspaceReportDto.builder()
@@ -104,7 +96,7 @@ public class ReportService {
                 .inProgressTasks(inProgressTasks)
                 .doneTasks(doneTasks)
                 .completionPercentage(completionPercentage)
-                .workload(new ArrayList<>(workloadMap.values()))
+                .workload(workloadList)
                 .build();
     }
 

@@ -79,9 +79,9 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Taskka muvaffaqiyatli izoh qo'shiladi")
-    void addComment_success() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, author);
+    void addComment_success() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, author)).thenReturn(new com.taskcenter.model.Workspace());
 
         when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
             Comment c = inv.getArgument(0);
@@ -100,9 +100,9 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Task izohlari ro'yxati sahifalab olinadi")
-    void getComments_success() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, author);
+    void getComments_success() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, author)).thenReturn(new com.taskcenter.model.Workspace());
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<Comment> commentPage = new PageImpl<>(List.of(comment), pageable, 1);
@@ -116,9 +116,9 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Muallif o'z izohini muvaffaqiyatli tahrirlay oladi")
-    void updateComment_authorCanUpdate() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, author);
+    void updateComment_authorCanUpdate() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, author)).thenReturn(new com.taskcenter.model.Workspace());
         when(commentRepository.findWithAuthorById("comment-1")).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -130,9 +130,9 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Boshqa foydalanuvchi izohni tahrirlamoqchi bo'lsa ForbiddenException oladi")
-    void updateComment_strangerCannotUpdate() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, stranger);
+    void updateComment_strangerCannotUpdate() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, stranger)).thenReturn(new com.taskcenter.model.Workspace());
         when(commentRepository.findWithAuthorById("comment-1")).thenReturn(Optional.of(comment));
 
         CommentUpdateRequest request = CommentUpdateRequest.builder().content("Malicious text").build();
@@ -144,8 +144,8 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Muallif o'z izohini o'chira oladi")
-    void deleteComment_authorCanDelete() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+    void deleteComment_authorCanDelete() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
         when(commentRepository.findById("comment-1")).thenReturn(Optional.of(comment));
 
         commentService.deleteComment(taskId, "comment-1", author);
@@ -155,8 +155,8 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Workspace egasi / admini boshqa a'zoning izohini moderator sifatida o'chira oladi")
-    void deleteComment_adminCanDelete() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+    void deleteComment_adminCanDelete() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
         when(commentRepository.findById("comment-1")).thenReturn(Optional.of(comment));
         when(authorizationService.isOwnerOrAdmin(workspaceId, strangerId)).thenReturn(true);
 
@@ -167,8 +167,8 @@ class CommentServiceTest {
 
     @Test
     @DisplayName("Oddiy a'zo boshqa a'zoning izohini o'chira olmaydi (ForbiddenException)")
-    void deleteComment_regularMemberCannotDeleteOtherComment() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+    void deleteComment_regularMemberCannotDeleteOtherComment() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
         when(commentRepository.findById("comment-1")).thenReturn(Optional.of(comment));
         when(authorizationService.isOwnerOrAdmin(workspaceId, strangerId)).thenReturn(false);
 

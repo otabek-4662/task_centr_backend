@@ -72,9 +72,9 @@ class AttachmentServiceTest {
 
     @Test
     @DisplayName("Fayl muvaffaqiyatli yuklanadi")
-    void uploadAttachment_success() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, uploader);
+    void uploadAttachment_success() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, uploader)).thenReturn(new com.taskcenter.model.Workspace());
         when(fileStorageService.storeFile(any(), eq("tasks/" + taskId))).thenReturn("tasks/task-1/uuid_screenshot.png");
         when(attachmentRepository.save(any(Attachment.class))).thenAnswer(inv -> {
             Attachment a = inv.getArgument(0);
@@ -93,9 +93,9 @@ class AttachmentServiceTest {
 
     @Test
     @DisplayName("Task fayllari ro'yxatini olish")
-    void getAttachments_success() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, uploader);
+    void getAttachments_success() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, uploader)).thenReturn(new com.taskcenter.model.Workspace());
         when(attachmentRepository.findByTaskIdOrderByCreatedAtDesc(taskId)).thenReturn(List.of(attachment));
 
         List<AttachmentDto> result = attachmentService.getAttachments(taskId, uploader);
@@ -107,8 +107,8 @@ class AttachmentServiceTest {
     @Test
     @DisplayName("Yuklagan shaxs faylni o'chira oladi")
     void deleteAttachment_uploaderCanDelete() {
-        when(attachmentRepository.findById("att-1")).thenReturn(Optional.of(attachment));
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(attachmentRepository.findById("att-1")).thenReturn(Optional.of(attachment));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
 
         attachmentService.deleteAttachment("att-1", uploader);
 
@@ -119,8 +119,8 @@ class AttachmentServiceTest {
     @Test
     @DisplayName("Boshqa foydalanuvchi faylni o'chira olmaydi (ForbiddenException)")
     void deleteAttachment_strangerCannotDelete() {
-        when(attachmentRepository.findById("att-1")).thenReturn(Optional.of(attachment));
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(attachmentRepository.findById("att-1")).thenReturn(Optional.of(attachment));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
         when(authorizationService.isOwnerOrAdmin(workspaceId, strangerId)).thenReturn(false);
 
         assertThatThrownBy(() -> attachmentService.deleteAttachment("att-1", stranger))

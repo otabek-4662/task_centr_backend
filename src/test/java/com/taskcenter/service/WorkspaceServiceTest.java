@@ -92,7 +92,7 @@ class WorkspaceServiceTest {
 
     @Test
     void getWorkspaceById_returnsDto() {
-        doNothing().when(authorizationService).checkAccess("ws1", testUser());
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(workspaceRepository.findById("ws1")).thenReturn(Optional.of(testWorkspace()));
 
         WorkspaceDto result = workspaceService.getWorkspaceById("ws1", testUser());
@@ -102,7 +102,7 @@ class WorkspaceServiceTest {
 
     @Test
     void getWorkspaceById_notFound_throws() {
-        doNothing().when(authorizationService).checkAccess("ws999", testUser());
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws999", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(workspaceRepository.findById("ws999")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> workspaceService.getWorkspaceById("ws999", testUser()))
@@ -145,7 +145,7 @@ class WorkspaceServiceTest {
 
     @Test
     void deleteWorkspace_ownerCanDelete() {
-        doNothing().when(authorizationService).checkOwner("ws1", testUser());
+        org.mockito.Mockito.lenient().when(authorizationService.checkOwner("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(workspaceRepository.existsById("ws1")).thenReturn(true);
 
         workspaceService.deleteWorkspace("ws1", testUser());
@@ -158,7 +158,7 @@ class WorkspaceServiceTest {
 
     @Test
     void deleteWorkspace_notFound_throws() {
-        doNothing().when(authorizationService).checkOwner("ws999", testUser());
+        org.mockito.Mockito.lenient().when(authorizationService.checkOwner("ws999", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(workspaceRepository.existsById("ws999")).thenReturn(false);
 
         assertThatThrownBy(() -> workspaceService.deleteWorkspace("ws999", testUser()))

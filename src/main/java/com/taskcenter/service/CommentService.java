@@ -32,8 +32,8 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public Page<CommentDto> getComments(String taskId, Pageable pageable, User currentUser) {
-        Task task = getTask(taskId);
-        authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        String workspaceId = getWorkspaceId(taskId);
+        authorizationService.checkAccess(workspaceId, currentUser);
 
         return commentRepository.findByTaskIdOrderByCreatedAtAsc(taskId, pageable)
                 .map(CommentDto::fromEntity);
@@ -41,8 +41,8 @@ public class CommentService {
 
     @Transactional
     public CommentDto addComment(String taskId, CommentCreateRequest req, User currentUser) {
-        Task task = getTask(taskId);
-        authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        String workspaceId = getWorkspaceId(taskId);
+        authorizationService.checkAccess(workspaceId, currentUser);
 
         Comment comment = Comment.builder()
                 .taskId(taskId)
@@ -57,8 +57,8 @@ public class CommentService {
 
     @Transactional
     public CommentDto updateComment(String taskId, String commentId, CommentUpdateRequest req, User currentUser) {
-        Task task = getTask(taskId);
-        authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        String workspaceId = getWorkspaceId(taskId);
+        authorizationService.checkAccess(workspaceId, currentUser);
 
         Comment comment = commentRepository.findWithAuthorById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Izoh topilmadi: " + commentId));
@@ -78,7 +78,7 @@ public class CommentService {
 
     @Transactional
     public void deleteComment(String taskId, String commentId, User currentUser) {
-        Task task = getTask(taskId);
+        String workspaceId = getWorkspaceId(taskId);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Izoh topilmadi: " + commentId));
 
@@ -87,7 +87,7 @@ public class CommentService {
         }
 
         boolean isAuthor = comment.getAuthorId().equals(currentUser.getId());
-        boolean isOwnerOrAdmin = authorizationService.isOwnerOrAdmin(task.getWorkspaceId(), currentUser.getId());
+        boolean isOwnerOrAdmin = authorizationService.isOwnerOrAdmin(workspaceId, currentUser.getId());
 
         if (!isAuthor && !isOwnerOrAdmin) {
             throw new ForbiddenException("Ushbu izohni o'chirish uchun ruxsat yo'q");
@@ -96,8 +96,8 @@ public class CommentService {
         commentRepository.delete(comment);
     }
 
-    private Task getTask(String taskId) {
-        return taskRepository.findById(taskId)
+    private String getWorkspaceId(String taskId) {
+        return taskRepository.findWorkspaceIdById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
     }
 }

@@ -6,6 +6,8 @@ import lombok.*;
 @Entity
 @Table(name = "workspace_members", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"workspaceId", "userId"})
+}, indexes = {
+    @Index(name = "idx_workspace_members_user_id", columnList = "userId")
 })
 @Getter
 @Setter

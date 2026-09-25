@@ -23,6 +23,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);
     
+    @Query("SELECT t.workspaceId FROM Task t WHERE t.id = :taskId")
+    Optional<String> findWorkspaceIdById(@Param("taskId") String taskId);
+    
     @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
     List<Task> findByWorkspaceIdWithDetails(@Param("workspaceId") String workspaceId);
@@ -56,6 +59,20 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t.sprintId as sprintId, COUNT(t) as taskCount, COALESCE(SUM(t.storyPoints), 0) as totalStoryPoints " +
            "FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NOT NULL GROUP BY t.sprintId")
     List<com.taskcenter.dto.SprintStatsProjection> findSprintStatsByWorkspaceId(@Param("workspaceId") String workspaceId);
+
+    @Query("SELECT t.columnId AS columnId, COUNT(t.id) AS taskCount " +
+           "FROM Task t WHERE t.workspaceId = :workspaceId " +
+           "GROUP BY t.columnId")
+    List<com.taskcenter.dto.ColumnTaskCountProjection> getWorkspaceTaskCountsByColumn(@Param("workspaceId") String workspaceId);
+
+    @Query("SELECT u.id AS userId, u.name AS userName, u.fullName AS userFullName, " +
+           "COUNT(t.id) AS totalTasks, " +
+           "SUM(CASE WHEN t.columnId = :doneColumnId THEN 1 ELSE 0 END) AS completedTasks, " +
+           "SUM(CASE WHEN t.columnId != :doneColumnId THEN 1 ELSE 0 END) AS activeTasks " +
+           "FROM Task t JOIN t.assignees u " +
+           "WHERE t.workspaceId = :workspaceId " +
+           "GROUP BY u.id, u.name, u.fullName")
+    List<com.taskcenter.dto.UserWorkloadProjection> getWorkspaceWorkloadStats(@Param("workspaceId") String workspaceId, @Param("doneColumnId") String doneColumnId);
 
     @Transactional
     void deleteByColumnId(String columnId);

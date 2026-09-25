@@ -53,18 +53,26 @@ public class TaskService {
         String effectiveSprintId = sprintId;
         if (effectiveSprintId == null) {
             java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
-            effectiveSprintId = activeOpt.map(com.taskcenter.model.Sprint::getId).orElse("NO_ACTIVE_SPRINT");
+            if (activeOpt.isEmpty()) {
+                List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+                return cols.stream()
+                        .map(c -> ColumnWithCardsDto.fromEntity(c, java.util.Collections.emptyList()))
+                        .collect(Collectors.toList());
+            }
+            effectiveSprintId = activeOpt.get().getId();
         }
         
         final String targetSprintId = effectiveSprintId;
         
-        List<BoardColumn> cols = columnRepository.findByWorkspaceIdWithTasks(workspaceId);
+        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        List<Task> allSprintTasks = taskRepository.findBySprintId(targetSprintId);
+
         return cols.stream().map(c -> {
-            List<Task> tasks = c.getTasks().stream()
-                    .filter(t -> targetSprintId.equals(t.getSprintId()))
+            List<Task> columnTasks = allSprintTasks.stream()
+                    .filter(t -> c.getId().equals(t.getColumnId()))
                     .sorted(Comparator.comparing(Task::getLexoRank))
                     .collect(Collectors.toList());
-            return ColumnWithCardsDto.fromEntity(c, tasks);
+            return ColumnWithCardsDto.fromEntity(c, columnTasks);
         }).collect(Collectors.toList());
     }
 

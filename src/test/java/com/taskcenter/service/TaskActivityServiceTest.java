@@ -63,9 +63,9 @@ class TaskActivityServiceTest {
 
     @Test
     @DisplayName("Task faoliyatlar tarixi sahifalab olinadi")
-    void getActivities_returnsPage() {
-        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        doNothing().when(authorizationService).checkAccess(workspaceId, user);
+    void getActivities_returnsPage() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById(taskId)).thenReturn(Optional.ofNullable("ws1"));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(workspaceId, user)).thenReturn(new com.taskcenter.model.Workspace());
 
         TaskActivity activity = TaskActivity.builder()
                 .id("act-1")

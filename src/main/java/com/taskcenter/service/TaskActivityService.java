@@ -30,10 +30,10 @@ public class TaskActivityService {
 
     @Transactional(readOnly = true)
     public Page<TaskActivityDto> getActivities(String taskId, Pageable pageable, User currentUser) {
-        Task task = taskRepository.findById(taskId)
+        String workspaceId = taskRepository.findWorkspaceIdById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
 
-        authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        authorizationService.checkAccess(workspaceId, currentUser);
 
         return activityRepository.findByTaskIdOrderByCreatedAtDesc(taskId, pageable)
                 .map(TaskActivityDto::fromEntity);
@@ -53,5 +53,12 @@ public class TaskActivityService {
                 .build();
 
         activityRepository.save(activity);
+    }
+    
+    @Transactional
+    public void logActivities(java.util.List<TaskActivity> activities) {
+        if (activities != null && !activities.isEmpty()) {
+            activityRepository.saveAll(activities);
+        }
     }
 }
