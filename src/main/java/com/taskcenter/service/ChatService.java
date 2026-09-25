@@ -72,7 +72,7 @@ public class ChatService {
                 .build();
 
         if (req.getAttachments() != null && !req.getAttachments().isEmpty()) {
-            List<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
+            java.util.Set<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
                 com.taskcenter.model.MessageAttachment.builder()
                     .message(message)
                     .fileUrl(a.getFileUrl())
@@ -80,7 +80,7 @@ public class ChatService {
                     .fileSize(a.getFileSize())
                     .thumbnailUrl(a.getThumbnailUrl())
                     .build()
-            ).collect(Collectors.toList());
+            ).collect(Collectors.toSet());
             message.setAttachments(atts);
         }
 
@@ -124,7 +124,7 @@ public class ChatService {
                 .build();
 
         if (req.getAttachments() != null && !req.getAttachments().isEmpty()) {
-            List<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
+            java.util.Set<com.taskcenter.model.MessageAttachment> atts = req.getAttachments().stream().map(a -> 
                 com.taskcenter.model.MessageAttachment.builder()
                     .message(message)
                     .fileUrl(a.getFileUrl())
@@ -132,7 +132,7 @@ public class ChatService {
                     .fileSize(a.getFileSize())
                     .thumbnailUrl(a.getThumbnailUrl())
                     .build()
-            ).collect(Collectors.toList());
+            ).collect(Collectors.toSet());
             message.setAttachments(atts);
         }
 

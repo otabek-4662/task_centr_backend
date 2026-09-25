@@ -89,8 +89,8 @@ class BoardControllerTest {
                         .content("{\"title\":\"C\",\"order\":10}"))
                 .andExpect(status().isOk()).andReturn();
 
-        assert JsonPath.<Integer>read(r1.getResponse().getContentAsString(), "$.data.order") == 1;
-        assert JsonPath.<Integer>read(r2.getResponse().getContentAsString(), "$.data.order") == 2;
+        assert JsonPath.<Integer>read(r1.getResponse().getContentAsString(), "$.data.order") == 4;
+        assert JsonPath.<Integer>read(r2.getResponse().getContentAsString(), "$.data.order") == 5;
         assert JsonPath.<Integer>read(r3.getResponse().getContentAsString(), "$.data.order") == 10;
     }
 
@@ -158,13 +158,15 @@ class BoardControllerTest {
         mvc.perform(patch("/api/workspaces/" + wsId + "/columns")
                         .header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("[{\"id\":\"" + a + "\",\"order\":2},{\"id\":\"" + b + "\",\"order\":1}]"))
+                        .content("[{\"id\":\"" + a + "\",\"order\":9},{\"id\":\"" + b + "\",\"order\":8}]"))
                 .andExpect(status().isOk());
 
         mvc.perform(get("/api/workspaces/" + wsId + "/columns")
                         .header("Authorization", auth))
-                .andExpect(jsonPath("$.data[0].id").value(b))
-                .andExpect(jsonPath("$.data[1].id").value(a));
+                .andExpect(jsonPath("$.data[3].id").value(b))
+                .andExpect(jsonPath("$.data[4].id").value(a));
+
+
     }
 
     @Test

@@ -50,6 +50,12 @@ class ChatServiceTest {
     @Mock
     private ChatPresenceService presenceService;
 
+    @Mock
+    private com.taskcenter.repository.NotificationRepository notificationRepository;
+
+    @Mock
+    private com.taskcenter.repository.MessageReactionRepository reactionRepository;
+
     @InjectMocks
     private ChatService chatService;
 
@@ -78,7 +84,7 @@ class ChatServiceTest {
     @Test
     @DisplayName("Umumiy chatga xabar yuborish va broadcast qilish")
     void testSendPublicMessage() {
-        SendPublicMessageRequest request = new SendPublicMessageRequest("Hammaga salom!", null);
+        SendPublicMessageRequest request = new SendPublicMessageRequest("Hammaga salom!", null, null);
 
         when(userRepository.findById("user-1")).thenReturn(Optional.of(sender));
         when(readStatusRepository.countByMessageId(any())).thenReturn(0L);
@@ -111,7 +117,7 @@ class ChatServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        SendPublicMessageRequest request = new SendPublicMessageRequest("Javobim shu!", "original-1");
+        SendPublicMessageRequest request = new SendPublicMessageRequest("Javobim shu!", null, "original-1");
 
         when(userRepository.findById("user-1")).thenReturn(Optional.of(sender));
         when(chatMessageRepository.findById("original-1")).thenReturn(Optional.of(originalMsg));
@@ -135,7 +141,7 @@ class ChatServiceTest {
     @Test
     @DisplayName("Shaxsiy (DM) xabar yuborish")
     void testSendDirectMessage() {
-        SendDirectMessageRequest request = new SendDirectMessageRequest("user-2", "Salom Vali!", null);
+        SendDirectMessageRequest request = new SendDirectMessageRequest("user-2", "Salom Vali!", null, null);
 
         when(userRepository.findById("user-1")).thenReturn(Optional.of(sender));
         when(userRepository.findById("user-2")).thenReturn(Optional.of(recipient));
@@ -161,7 +167,7 @@ class ChatServiceTest {
     @Test
     @DisplayName("O'ziga DM yuborilganda xatolik berishi kerak")
     void testSendDirectMessageToSelf() {
-        SendDirectMessageRequest request = new SendDirectMessageRequest("user-1", "Salom o'zimga!", null);
+        SendDirectMessageRequest request = new SendDirectMessageRequest("user-1", "Salom o'zimga!", null, null);
 
         assertThatThrownBy(() -> chatService.sendDirectMessage("user-1", request))
                 .isInstanceOf(BadRequestException.class)

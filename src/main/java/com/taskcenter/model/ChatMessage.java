@@ -58,11 +58,11 @@ public class ChatMessage {
 
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private java.util.List<MessageAttachment> attachments = new java.util.ArrayList<>();
+    private java.util.Set<MessageAttachment> attachments = new java.util.HashSet<>();
 
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private java.util.List<MessageReaction> reactions = new java.util.ArrayList<>();
+    private java.util.Set<MessageReaction> reactions = new java.util.HashSet<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
