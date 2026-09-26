@@ -10,14 +10,19 @@ services:
     plan: free
     branch: master
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /v3/api-docs
+    # /actuator/health yengil (SELECT 1). /v3/api-docs esa butun OpenAPI hujjatini generatsiya qiladi
+    healthCheckPath: /actuator/health
     autoDeploy: false
     envVars:
       # Render avtomatik beradi: PORT=10000, Spring ${PORT:8080} bilan o'qiydi
-      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
-        value: create
+      # DIQQAT: SPRING_JPA_HIBERNATE_DDL_AUTO ni qo'shmang! "create" har ishga tushganda
+      # bazani o'chirib qayta yaratadi. Sxemani faqat Flyway boshqaradi (application.yml: validate)
       - key: JWT_SECRET
         generateValue: true
+      # GitHub webhook imzosi uchun. Qiymatni Render Dashboard da qo'lda kiriting
+      # (GitHub -> repo Settings -> Webhooks -> Secret bilan bir xil)
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
       - key: JWT_EXPIRATION
         value: 604800000
       # Database dan keladigan qiymatlar - quyidagi databases.taskcenter-db dan

@@ -33,13 +33,12 @@ public class GarbageCollectorService {
         try {
             int tasksDeleted = jdbcTemplate.update("DELETE FROM tasks WHERE deleted_at < ?", cutoffDate);
             int columnsDeleted = jdbcTemplate.update("DELETE FROM board_columns WHERE deleted_at < ?", cutoffDate);
-            int sprintsDeleted = jdbcTemplate.update("DELETE FROM sprints WHERE deleted_at < ?", cutoffDate);
+            // sprints jadvalida deleted_at yo'q (sprint darhol o'chiriladi), shuning uchun u bu yerda yo'q
             int workspacesDeleted = jdbcTemplate.update("DELETE FROM workspaces WHERE deleted_at < ?", cutoffDate);
             
             log.info("Garbage Collector natijasi:");
             log.info(" - Tasks o'chirildi: {}", tasksDeleted);
             log.info(" - Columns o'chirildi: {}", columnsDeleted);
-            log.info(" - Sprints o'chirildi: {}", sprintsDeleted);
             log.info(" - Workspaces o'chirildi: {}", workspacesDeleted);
         } catch (Exception e) {
             log.error("Garbage Collector ishlashida xatolik: {}", e.getMessage());

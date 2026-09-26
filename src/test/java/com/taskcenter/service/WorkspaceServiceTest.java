@@ -92,8 +92,8 @@ class WorkspaceServiceTest {
 
     @Test
     void getWorkspaceById_returnsDto() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(workspaceRepository.findById("ws1")).thenReturn(Optional.of(testWorkspace()));
+        // checkAccess ruxsatni tekshiradi va workspace ni qaytaradi
+        when(authorizationService.checkAccess(eq("ws1"), any())).thenReturn(testWorkspace());
 
         WorkspaceDto result = workspaceService.getWorkspaceById("ws1", testUser());
 
@@ -102,8 +102,8 @@ class WorkspaceServiceTest {
 
     @Test
     void getWorkspaceById_notFound_throws() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws999", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(workspaceRepository.findById("ws999")).thenReturn(Optional.empty());
+        when(authorizationService.checkAccess(eq("ws999"), any()))
+                .thenThrow(new ResourceNotFoundException("Workspace topilmadi: ws999"));
 
         assertThatThrownBy(() -> workspaceService.getWorkspaceById("ws999", testUser()))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -145,9 +145,6 @@ class WorkspaceServiceTest {
 
     @Test
     void deleteWorkspace_ownerCanDelete() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkOwner("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(workspaceRepository.existsById("ws1")).thenReturn(true);
-
         workspaceService.deleteWorkspace("ws1", testUser());
 
         verify(taskRepository).deleteByWorkspaceId("ws1");
@@ -158,8 +155,9 @@ class WorkspaceServiceTest {
 
     @Test
     void deleteWorkspace_notFound_throws() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkOwner("ws999", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(workspaceRepository.existsById("ws999")).thenReturn(false);
+        // Workspace mavjudligini endi checkOwner tekshiradi (requireWorkspace)
+        when(authorizationService.checkOwner(eq("ws999"), any()))
+                .thenThrow(new ResourceNotFoundException("Workspace topilmadi: ws999"));
 
         assertThatThrownBy(() -> workspaceService.deleteWorkspace("ws999", testUser()))
                 .isInstanceOf(ResourceNotFoundException.class);

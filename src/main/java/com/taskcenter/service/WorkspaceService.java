@@ -5,7 +5,6 @@ import com.taskcenter.dto.WorkspaceDto;
 import com.taskcenter.dto.WorkspaceListDto;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ForbiddenException;
-import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
@@ -66,12 +65,10 @@ public class WorkspaceService {
                 .collect(Collectors.toList());
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = "workspaces", key = "#id")
+    // Kesh (@Cacheable) ishlatilmaydi: kesh urilganda metod chaqirilmaydi va checkAccess o'tkazib yuboriladi
     @Transactional(readOnly = true)
     public WorkspaceDto getWorkspaceById(String id, User currentUser) {
-        authorizationService.checkAccess(id, currentUser);
-        Workspace workspace = workspaceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Workspace topilmadi: " + id));
+        Workspace workspace = authorizationService.checkAccess(id, currentUser);
         return WorkspaceDto.fromEntity(workspace);
     }
 
@@ -119,7 +116,6 @@ public class WorkspaceService {
         return WorkspaceDto.fromEntity(saved);
     }
 
-    @org.springframework.cache.annotation.CacheEvict(value = "workspaces", key = "#id")
     @Transactional
     public WorkspaceDto updateWorkspace(String id, WorkspaceCreateRequest request, User currentUser) {
         Workspace workspace = authorizationService.checkOwner(id, currentUser);
@@ -138,11 +134,10 @@ public class WorkspaceService {
         return WorkspaceDto.fromEntity(updated);
     }
 
-    @org.springframework.cache.annotation.CacheEvict(value = "workspaces", key = "#id")
     @Transactional
     public void deleteWorkspace(String id, User currentUser) {
         authorizationService.checkOwner(id, currentUser);
-        
+
         taskRepository.deleteByWorkspaceId(id);
         sprintRepository.deleteByWorkspaceId(id);
         columnRepository.deleteByWorkspaceId(id);

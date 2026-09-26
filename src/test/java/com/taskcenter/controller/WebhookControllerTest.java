@@ -22,11 +22,16 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -100,15 +105,49 @@ class WebhookControllerTest {
         payload.setCommits(List.of(commit));
         payload.setRepository(repo);
 
+        String body = objectMapper.writeValueAsString(payload);
+
         mvc.perform(post("/api/webhooks/github")
                         .header("X-GitHub-Event", "push")
+                        .header("X-Hub-Signature-256", sign(body))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(payload)))
+                        .content(body))
                 .andExpect(status().isOk());
 
         // Ma'lumotlarni bazadan tekshiramiz
         Optional<Task> updatedTaskOpt = taskRepository.findByPublicId("WFM-99");
         assertEquals(true, updatedTaskOpt.isPresent());
         assertEquals(doneColumn.getId(), updatedTaskOpt.get().getColumnId());
+    }
+
+    @Test
+    void testGitHubPushEvent_invalidSignature_rejected() throws Exception {
+        GitHubPushEventDto.Commit commit = new GitHubPushEventDto.Commit();
+        commit.setMessage("Fixes WFM-99");
+        GitHubPushEventDto payload = new GitHubPushEventDto();
+        payload.setCommits(List.of(commit));
+
+        mvc.perform(post("/api/webhooks/github")
+                        .header("X-GitHub-Event", "push")
+                        .header("X-Hub-Signature-256", "sha256=0000")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(post("/api/webhooks/github")
+                        .header("X-GitHub-Event", "push")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isForbidden());
+
+        // Task joyida qolishi kerak
+        assertNotEquals(doneColumn.getId(), taskRepository.findByPublicId("WFM-99").orElseThrow().getColumnId());
+    }
+
+    // GitHub qanday imzolasa, testda ham shunday imzolaymiz (secret: application-test.yml)
+    private String sign(String body) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("test-webhook-secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return "sha256=" + HexFormat.of().formatHex(mac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
     }
 }

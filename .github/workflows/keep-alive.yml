@@ -1,0 +1,25 @@
+# Render free plan xizmatni 15 daqiqa so'rov bo'lmasa "uxlatib" qo'yadi, keyingi so'rov esa
+# ilova qayta ishga tushguncha (1-4 daqiqa) kutib qoladi. Bu workflow har 5 daqiqada
+# /actuator/health ga so'rov yuborib, backend ni uyg'oq ushlab turadi.
+#
+# Eslatmalar:
+#  - Render free: oyiga 750 soat. Bitta xizmat 24/7 ~744 soat — sig'adi (boshqa free xizmat bo'lmasa).
+#  - GitHub 60 kun davomida repoda faollik bo'lmasa, schedule workflow larni o'chirib qo'yadi.
+#  - Boshqa URL kerak bo'lsa: repo Settings -> Secrets and variables -> Actions -> Variables -> BACKEND_URL
+name: Keep backend awake
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Ping /actuator/health
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://task-centr-backend.onrender.com' }}
+        # --max-time 300: agar xizmat baribir uxlab qolgan bo'lsa, uyg'onishini kutamiz
+        run: curl -fsS --max-time 300 --retry 2 --retry-delay 10 "$BACKEND_URL/actuator/health"

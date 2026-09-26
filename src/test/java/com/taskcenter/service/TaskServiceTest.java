@@ -77,8 +77,8 @@ class TaskServiceTest {
     @Test
     void createTask_savesAndReturnsDto() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
-        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId("new-task");
@@ -102,8 +102,8 @@ class TaskServiceTest {
     @Test
     void createTask_withCustomPriorityAndDueDate_savesCorrectly() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
-        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId("new-task-2");
@@ -131,7 +131,7 @@ class TaskServiceTest {
     @Test
     void createTask_withValidSprintId_assignsCorrectly() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
         when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
         com.taskcenter.model.Sprint sprint = com.taskcenter.model.Sprint.builder()
                 .id("sprint-1")
@@ -139,7 +139,7 @@ class TaskServiceTest {
                 .name("Sprint 1")
                 .status(com.taskcenter.model.SprintStatus.ACTIVE)
                 .build();
-        when(sprintRepository.findById("sprint-1")).thenReturn(Optional.of(sprint));
+        when(sprintRepository.findById("sprint-1")).thenReturn(Optional.of(sprint));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId("new-task-sprint");
@@ -196,7 +196,7 @@ class TaskServiceTest {
 
     @Test
     void getTaskById_returnsDto() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(testTask()));
 
         TaskDto result = taskService.getTaskById("ws1", "task1", testUser());
@@ -206,7 +206,7 @@ class TaskServiceTest {
 
     @Test
     void getTaskById_notFound_throws() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(taskRepository.findByIdWithDetails("task999")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.getTaskById("ws1", "task999", testUser()))
@@ -215,7 +215,7 @@ class TaskServiceTest {
 
     @Test
     void getTaskById_wrongWorkspace_throws() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws-other", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws-other", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(testTask()));
 
         assertThatThrownBy(() -> taskService.getTaskById("ws-other", "task1", testUser()))
@@ -228,8 +228,8 @@ class TaskServiceTest {
     @Test
     void updateTask_updatesFieldsAndSaves() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        Task task = testTask();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        Task task = testTask();
+        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskUpdateRequest req = new TaskUpdateRequest();
@@ -255,9 +255,9 @@ class TaskServiceTest {
     void updateTask_moveToAnotherColumn() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         Task task = testTask();
-        BoardColumn newCol = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
+        BoardColumn newCol = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
         when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
-        when(columnRepository.findById("col2")).thenReturn(Optional.of(newCol));
+        when(columnRepository.findById("col2")).thenReturn(Optional.of(newCol));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskUpdateRequest req = new TaskUpdateRequest();
@@ -272,7 +272,7 @@ class TaskServiceTest {
 
     @Test
     void deleteTask_deletesSuccessfully() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         when(taskRepository.findById("task1")).thenReturn(Optional.of(testTask()));
 
         taskService.deleteTask("ws1", "task1", testUser());
@@ -292,24 +292,28 @@ class TaskServiceTest {
 
     @Test
     void getBoard_withSprintIdFilter_filtersCorrectly() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        Task t1 = Task.builder().id("t1").title("Task 1").sprintId("sprint-1").lexoRank("0000000001").build();
-        Task t2 = Task.builder().id("t2").title("Task 2").sprintId("sprint-2").lexoRank("0000000002").build();
-        BoardColumn col = BoardColumn.builder().id("col1").workspaceId("ws1").title("Todo").order(1).tasks(new java.util.HashSet<>(List.of(t1, t2))).build();
-        when(columnRepository.findByWorkspaceIdWithTasks("ws1")).thenReturn(List.of(col));
+        // Sprint bo'yicha filtr endi bazada (findBySprintId), servis esa tasklarni ustunlarga taqsimlaydi
+        Task t1 = Task.builder().id("t1").title("Task 1").columnId("col1").sprintId("sprint-1").lexoRank("0000000002").build();
+        Task t2 = Task.builder().id("t2").title("Task 2").columnId("col2").sprintId("sprint-1").lexoRank("0000000001").build();
+        Task t3 = Task.builder().id("t3").title("Task 3").columnId("col1").sprintId("sprint-1").lexoRank("0000000001").build();
+        BoardColumn col1 = BoardColumn.builder().id("col1").workspaceId("ws1").title("Todo").order(1).build();
+        BoardColumn col2 = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws1")).thenReturn(List.of(col1, col2));
+        when(taskRepository.findBySprintId("sprint-1")).thenReturn(List.of(t1, t2, t3));
 
         List<com.taskcenter.dto.ColumnWithCardsDto> board = taskService.getBoard("ws1", "sprint-1", testUser());
 
-        assertThat(board).hasSize(1);
-        assertThat(board.get(0).getCards()).hasSize(1);
-        assertThat(board.get(0).getCards().get(0).getId()).isEqualTo("t1");
+        assertThat(board).hasSize(2);
+        // col1 da t3 va t1 — lexoRank bo'yicha tartiblangan
+        assertThat(board.get(0).getCards()).extracting("id").containsExactly("t3", "t1");
+        assertThat(board.get(1).getCards()).extracting("id").containsExactly("t2");
     }
 
     @Test
     void reorderTask_updatesLexoRank() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        Task task = testTask();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        Task task = testTask();
+        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         com.taskcenter.dto.TaskReorderRequest req = new com.taskcenter.dto.TaskReorderRequest();

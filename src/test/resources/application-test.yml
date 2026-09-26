@@ -24,6 +24,9 @@ jwt:
   secret: test-secret-key-that-is-at-least-256-bits-long-for-hs256-testing-only
   expiration: 604800000
 
+github:
+  webhook-secret: test-webhook-secret
+
 ratelimit:
   auth:
     enabled: false

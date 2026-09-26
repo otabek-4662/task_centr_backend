@@ -41,6 +41,10 @@ jwt:
   secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
   expiration: ${JWT_EXPIRATION:604800000} # 7 days in milliseconds
 
+github:
+  # GitHub -> Settings -> Webhooks -> Secret dagi qiymat bilan bir xil bo'lishi kerak
+  webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+
 ratelimit:
   auth:
     enabled: true
