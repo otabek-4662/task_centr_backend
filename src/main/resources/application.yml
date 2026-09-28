@@ -1,4 +1,10 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
   application:
     name: backend
   sql:
@@ -37,6 +43,19 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
 jwt:
   secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
   expiration: ${JWT_EXPIRATION:604800000} # 7 days in milliseconds
@@ -44,6 +63,11 @@ jwt:
 github:
   # GitHub -> Settings -> Webhooks -> Secret dagi qiymat bilan bir xil bo'lishi kerak
   webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+    username: ${TELEGRAM_BOT_USERNAME:}
 
 ratelimit:
   auth:
@@ -88,3 +112,6 @@ springdoc:
     filter: true
     persist-authorization: true
     display-request-duration: true
+
+storage:
+  type: ${STORAGE_TYPE:local}

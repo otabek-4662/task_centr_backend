@@ -25,9 +25,16 @@ public class TaskDto {
     private IssueType issueType;
     private LocalDate dueDate;
     private Integer storyPoints;
+    private Double estimatedHours;
+    private Double loggedHours;
+    private Boolean isOverdue;
+    private Integer totalChecklistItems;
+    private Integer completedChecklistItems;
     private String sprintId;
     private List<LabelDto> labels;
     private List<UserDto> assignees;
+    private List<UserDto> watchers;
+    private Boolean isArchived;
 
     public static TaskDto fromEntity(Task t) {
         return TaskDto.builder()
@@ -42,9 +49,16 @@ public class TaskDto {
                 .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                 .dueDate(t.getDueDate())
                 .storyPoints(t.getStoryPoints())
+                .estimatedHours(t.getEstimatedHours())
+                .loggedHours(t.getLoggedHours())
+                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(LocalDate.now()))
+                .totalChecklistItems(t.getChecklistItems() != null ? t.getChecklistItems().size() : 0)
+                .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(com.taskcenter.model.TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .watchers(t.getWatchers() != null ? t.getWatchers().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .isArchived(t.getIsArchived())
                 .build();
     }
 }

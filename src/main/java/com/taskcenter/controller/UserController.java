@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
@@ -46,5 +45,12 @@ public class UserController {
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Page<UserDto> users = userService.getUsers(workspaceId, currentUser, pageable);
         return ApiResponse.success("ok", users);
+    }
+
+    @Operation(summary = "Telegram bilan ulash uchun vaqtinchalik token olish")
+    @GetMapping("/users/me/telegram-link-token")
+    public ApiResponse<java.util.Map<String, String>> getTelegramLinkToken(@AuthenticationPrincipal User currentUser) {
+        String token = userService.generateTelegramLinkToken(currentUser);
+        return ApiResponse.success("ok", java.util.Map.of("token", token));
     }
 }

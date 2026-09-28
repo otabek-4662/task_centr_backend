@@ -40,6 +40,8 @@ class TaskServiceTest {
     private TaskActivityService activityService;
     @Mock
     private WebSocketNotifier webSocketNotifier;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private TaskService taskService;
@@ -229,7 +231,7 @@ class TaskServiceTest {
     void updateTask_updatesFieldsAndSaves() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         Task task = testTask();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskUpdateRequest req = new TaskUpdateRequest();
@@ -256,7 +258,7 @@ class TaskServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         Task task = testTask();
         BoardColumn newCol = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
         when(columnRepository.findById("col2")).thenReturn(Optional.of(newCol));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -273,7 +275,7 @@ class TaskServiceTest {
     @Test
     void deleteTask_deletesSuccessfully() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(testTask()));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(testTask()));
 
         taskService.deleteTask("ws1", "task1", testUser());
 
@@ -313,7 +315,7 @@ class TaskServiceTest {
     void reorderTask_updatesLexoRank() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         Task task = testTask();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         com.taskcenter.dto.TaskReorderRequest req = new com.taskcenter.dto.TaskReorderRequest();

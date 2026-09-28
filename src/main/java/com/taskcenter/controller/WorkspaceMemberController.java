@@ -20,7 +20,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/members")
-@CrossOrigin(origins = "*")
 public class WorkspaceMemberController {
 
     private final WorkspaceMemberService memberService;

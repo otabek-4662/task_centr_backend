@@ -46,7 +46,7 @@ public class ColumnService {
 
     @Transactional
     public ColumnDto createColumn(String workspaceId, ColumnCreateRequest request, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         Integer order = request.getOrder();
         if (order == null || order <= 0) {
@@ -73,7 +73,7 @@ public class ColumnService {
 
     @Transactional
     public ColumnDto updateColumn(String workspaceId, String id, ColumnCreateRequest request, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         BoardColumn column = columnRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
@@ -106,7 +106,7 @@ public class ColumnService {
 
     @Transactional
     public ColumnDto patchColumn(String workspaceId, String id, ColumnPatchRequest request, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         BoardColumn column = columnRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
@@ -139,7 +139,7 @@ public class ColumnService {
 
     @Transactional
     public List<ColumnDto> reorderColumns(String workspaceId, List<ColumnReorderItem> items, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         List<ColumnDto> result = new ArrayList<>();
         for (ColumnReorderItem item : items) {
@@ -167,7 +167,7 @@ public class ColumnService {
 
     @Transactional
     public List<ColumnDto> reorderColumnsByIds(String workspaceId, List<String> columnIds, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         List<ColumnDto> result = new ArrayList<>();
         for (int i = 0; i < columnIds.size(); i++) {
@@ -194,7 +194,7 @@ public class ColumnService {
 
     @Transactional
     public void deleteColumn(String workspaceId, String id, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         BoardColumn column = columnRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));

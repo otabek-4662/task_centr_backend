@@ -1,4 +1,4 @@
-package com.taskcenter.service;
+package com.taskcenter.service.storage;
 
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ResourceNotFoundException;
@@ -18,6 +18,7 @@ import net.coobird.thumbnailator.Thumbnails;
 import com.taskcenter.dto.FileUploadResponse;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalFileStorageService implements FileStorageService {
 
     private final Path fileStorageLocation;
@@ -40,6 +41,20 @@ public class LocalFileStorageService implements FileStorageService {
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file");
         if (originalFilename.contains("..")) {
             throw new BadRequestException("Fayl nomida noqonuniy belgilar mavjud: " + originalFilename);
+        }
+
+        String extension = StringUtils.getFilenameExtension(originalFilename);
+        if (extension != null) {
+            extension = extension.toLowerCase();
+            java.util.List<String> forbidden = java.util.List.of("exe", "bat", "sh", "cmd", "php", "js", "html");
+            java.util.List<String> allowed = java.util.List.of("jpg", "jpeg", "png", "gif", "webp", "svg", "pdf", "doc", "docx", "xls", "xlsx", "txt", "csv", "zip");
+            
+            if (forbidden.contains(extension)) {
+                throw new BadRequestException("Bunday turdagi fayllarni yuklash taqiqlangan!");
+            }
+            if (!allowed.contains(extension)) {
+                throw new BadRequestException("Faqat ruxsat etilgan rasm yoki hujjat formatlari qabul qilinadi!");
+            }
         }
 
         try {

@@ -2,7 +2,7 @@ package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
 import com.taskcenter.dto.FileUploadResponse;
-import com.taskcenter.service.FileStorageService;
+import com.taskcenter.service.storage.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;

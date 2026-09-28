@@ -4,11 +4,11 @@ public class LexoRankUtil {
 
     private static final String ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final int BASE = ALPHABET.length();
-    private static final String DEFAULT_RANK = "0000000000";
+    private static final String DEFAULT_RANK = "m000000000";
 
     public static String getMiddle(String prev, String next) {
         if (prev == null && next == null) {
-            return DEFAULT_RANK; // Birinchi task
+            return DEFAULT_RANK;
         }
         if (prev == null) {
             return getBefore(next);
@@ -20,69 +20,70 @@ public class LexoRankUtil {
             throw new IllegalArgumentException("prev (" + prev + ") must be less than next (" + next + ")");
         }
 
-        // Make lengths equal
         int maxLen = Math.max(prev.length(), next.length());
-        prev = padRight(prev, maxLen);
-        next = padRight(next, maxLen);
+        String p = padRight(prev, maxLen);
+        String n = padRight(next, maxLen);
 
-        String mid = calculateMiddle(prev, next);
+        int[] pDigits = new int[maxLen];
+        int[] nDigits = new int[maxLen];
+        for (int i = 0; i < maxLen; i++) {
+            pDigits[i] = ALPHABET.indexOf(p.charAt(i));
+            nDigits[i] = ALPHABET.indexOf(n.charAt(i));
+        }
+
+        int[] sum = new int[maxLen + 1];
+        int addCarry = 0;
+        for (int i = maxLen - 1; i >= 0; i--) {
+            int s = pDigits[i] + nDigits[i] + addCarry;
+            sum[i + 1] = s % BASE;
+            addCarry = s / BASE;
+        }
+        sum[0] = addCarry;
+
+        StringBuilder mid = new StringBuilder();
+        int divRem = 0;
+        for (int i = 0; i <= maxLen; i++) {
+            int s = sum[i] + divRem * BASE;
+            int midVal = s / 2;
+            divRem = s % 2;
+            if (i == 0 && midVal == 0) continue;
+            mid.append(ALPHABET.charAt(midVal));
+        }
         
-        // Agar o'rtacha qiymat prev ga teng bo'lib qolsa (yaxlitlash tufayli), bitta belgi qo'shamiz
-        if (mid.equals(prev)) {
-            mid = mid + ALPHABET.charAt(BASE / 2);
+        if (divRem > 0) {
+            mid.append(ALPHABET.charAt((divRem * BASE) / 2));
         }
-
-        return mid;
-    }
-
-    private static String getAfter(String current) {
-        // Oxirgi belgini oshiramiz, agar 'z' bo'lsa, 'm' qo'shamiz
-        int lastIndex = current.length() - 1;
-        char lastChar = current.charAt(lastIndex);
-        if (lastChar < 'z') {
-            int charIndex = ALPHABET.indexOf(lastChar);
-            return current.substring(0, lastIndex) + ALPHABET.charAt(charIndex + 1);
-        } else {
-            return current + ALPHABET.charAt(BASE / 2); // 'm'
+        
+        String result = mid.toString();
+        // Remove trailing zeros for shorter strings
+        while (result.length() > 1 && result.endsWith("0")) {
+            result = result.substring(0, result.length() - 1);
         }
+        
+        // Failsafe in case result is not strictly between
+        if (result.compareTo(prev) <= 0 || result.compareTo(next) >= 0) {
+            result = prev + ALPHABET.charAt(BASE / 2);
+        }
+        
+        return result;
     }
 
     private static String getBefore(String current) {
-        // Eng birinchi belgini kamaytiramiz, yoki agar '0' bo'lsa oldiga '0' qo'shib orqasiga qo'shamiz
-        // Bu murakkab bo'lmasligi uchun, shunchaki '0' dan keyingi harfni yarmigacha qisqartiramiz
-        return calculateMiddle(padRight("", current.length()), current);
+        if (current.equals("0")) {
+            throw new IllegalArgumentException("Cannot get rank before 0");
+        }
+        return getMiddle("0", current);
+    }
+
+    private static String getAfter(String current) {
+        return getMiddle(current, "z");
     }
 
     private static String padRight(String s, int n) {
         StringBuilder sb = new StringBuilder(s);
         while (sb.length() < n) {
-            sb.append(ALPHABET.charAt(0));
+            sb.append('0');
         }
         return sb.toString();
-    }
-
-    private static String calculateMiddle(String prev, String next) {
-        StringBuilder result = new StringBuilder();
-        int carry = 0;
-        
-        for (int i = 0; i < prev.length(); i++) {
-            int pIndex = ALPHABET.indexOf(prev.charAt(i));
-            int nIndex = ALPHABET.indexOf(next.charAt(i));
-            
-            if (pIndex == -1) pIndex = 0;
-            if (nIndex == -1) nIndex = 0;
-
-            int sum = pIndex + nIndex + carry * BASE;
-            int midIndex = sum / 2;
-            carry = sum % 2;
-            
-            result.append(ALPHABET.charAt(midIndex));
-        }
-        
-        if (carry > 0) {
-            result.append(ALPHABET.charAt((carry * BASE) / 2));
-        }
-        
-        return result.toString();
     }
 }

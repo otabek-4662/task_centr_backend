@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/tasks/{taskId}/activities")
-@CrossOrigin(origins = "*")
 public class TaskActivityController {
 
     private final TaskActivityService activityService;

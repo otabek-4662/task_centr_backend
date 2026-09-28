@@ -43,26 +43,13 @@ public class WorkspaceService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkspaceListDto> getWorkspaces(User currentUser, int page, int size) {
+    public Page<WorkspaceListDto> getWorkspaces(User currentUser, Pageable pageable) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
         }
-        if (page < 0) {
-            throw new BadRequestException("Sahifa raqami 0 yoki undan katta bo'lishi kerak");
-        }
-        if (size <= 0) {
-            throw new BadRequestException("Sahifa hajmi 1 yoki undan katta bo'lishi kerak");
-        }
-        if (size > 100) {
-            size = 100;
-        }
 
-        Pageable pageable = PageRequest.of(page, size);
         Page<Workspace> workspacePage = workspaceRepository.findByOwnerIdOrMemberUserIdPaginated(currentUser.getId(), pageable);
-        return workspacePage.getContent()
-                .stream()
-                .map(WorkspaceListDto::fromEntity)
-                .collect(Collectors.toList());
+        return workspacePage.map(WorkspaceListDto::fromEntity);
     }
 
     // Kesh (@Cacheable) ishlatilmaydi: kesh urilganda metod chaqirilmaydi va checkAccess o'tkazib yuboriladi
@@ -92,26 +79,28 @@ public class WorkspaceService {
 
         Workspace saved = workspaceRepository.save(workspace);
 
-        columnRepository.save(BoardColumn.builder()
-                .workspaceId(saved.getId())
-                .title("Dushanbadan")
-                .order(1)
-                .isDefault(true)
-                .build());
+        if (request.getInitDefaultColumns() == null || request.getInitDefaultColumns()) {
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("To Do")
+                    .order(1)
+                    .isDefault(true)
+                    .build());
 
-        columnRepository.save(BoardColumn.builder()
-                .workspaceId(saved.getId())
-                .title("Jumagacha bitadi")
-                .order(2)
-                .isDefault(true)
-                .build());
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("In Progress")
+                    .order(2)
+                    .isDefault(true)
+                    .build());
 
-        columnRepository.save(BoardColumn.builder()
-                .workspaceId(saved.getId())
-                .title("Ko'z tegmasin")
-                .order(3)
-                .isDefault(true)
-                .build());
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Done")
+                    .order(3)
+                    .isDefault(true)
+                    .build());
+        }
 
         return WorkspaceDto.fromEntity(saved);
     }

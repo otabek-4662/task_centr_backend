@@ -13,6 +13,10 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 import java.util.List;
 
@@ -20,7 +24,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces")
-@CrossOrigin(origins = "*")
 public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
@@ -31,11 +34,10 @@ public class WorkspaceController {
 
     @Operation(summary = "Foydalanuvchining workspace lari ro'yxatini olish")
     @GetMapping
-    public ApiResponse<List<WorkspaceListDto>> getWorkspaces(
+    public ApiResponse<Page<WorkspaceListDto>> getWorkspaces(
             @AuthenticationPrincipal User currentUser,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        List<WorkspaceListDto> workspaces = workspaceService.getWorkspaces(currentUser, page, size);
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<WorkspaceListDto> workspaces = workspaceService.getWorkspaces(currentUser, pageable);
         return ApiResponse.success("ok", workspaces);
     }
 

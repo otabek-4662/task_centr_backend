@@ -1,0 +1,3 @@
+ALTER TABLE tasks 
+ADD COLUMN estimated_hours DOUBLE PRECISION,
+ADD COLUMN logged_hours DOUBLE PRECISION;

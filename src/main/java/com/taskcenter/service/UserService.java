@@ -41,4 +41,13 @@ public class UserService {
         Page<User> userPage = userRepository.findByWorkspaceId(workspaceId, pageable);
         return userPage.map(UserDto::fromEntity);
     }
+
+    @Transactional
+    public String generateTelegramLinkToken(User currentUser) {
+        String token = String.format("%06d", new java.util.Random().nextInt(999999));
+        User user = userRepository.findById(currentUser.getId()).orElseThrow();
+        user.setTelegramLinkToken(token);
+        userRepository.save(user);
+        return token;
+    }
 }

@@ -36,6 +36,8 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtTokenProvider tokenProvider;
+    @Mock
+    private com.taskcenter.repository.RefreshTokenRepository refreshTokenRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -52,7 +54,11 @@ class AuthServiceTest {
         Authentication auth = new UsernamePasswordAuthenticationToken("tester", null);
         when(userRepository.existsByName("tester")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("ENC");
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId("u-123");
+            return u;
+        });
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(tokenProvider.generateToken(auth)).thenReturn("jwt-token");
 

@@ -23,7 +23,6 @@ import java.util.Set;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "*")
 public class ChatController {
 
     private final ChatService chatService;

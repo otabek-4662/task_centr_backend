@@ -22,6 +22,7 @@ docker-compose.override.yml
 # Local config
 application-local.yml
 application-local.properties
+.env
 
 # Build
 *.war

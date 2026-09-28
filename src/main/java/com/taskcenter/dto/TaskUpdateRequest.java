@@ -27,5 +27,11 @@ public class TaskUpdateRequest {
     @Max(value = 1000, message = "storyPoints 1000 dan oshmasligi kerak")
     private Integer storyPoints;
 
+    @Min(value = 0, message = "estimatedHours 0 dan kam bo'lishi mumkin emas")
+    private Double estimatedHours;
+
+    @Min(value = 0, message = "loggedHours 0 dan kam bo'lishi mumkin emas")
+    private Double loggedHours;
+
     private String sprintId;
 }

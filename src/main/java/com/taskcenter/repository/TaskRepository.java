@@ -34,8 +34,22 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     List<Task> findByWorkspaceIdWithAssignees(@Param("workspaceId") String workspaceId);
     
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     Page<Task> findByWorkspaceIdPaginated(@Param("workspaceId") String workspaceId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
+           "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
+           "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +
+           "AND (:#{#filter.status} IS NULL OR t.columnId = :#{#filter.status}) " +
+           "AND (:#{#filter.assigneeId} IS NULL OR EXISTS (SELECT 1 FROM t.assignees a WHERE a.id = :#{#filter.assigneeId})) " +
+           "AND (:#{#filter.assignedToMe} IS NULL OR (:#{#filter.assignedToMe} = true AND EXISTS (SELECT 1 FROM t.assignees a2 WHERE a2.id = :#{#filter.currentUserId}))) " +
+           "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < CURRENT_DATE)) " +
+           "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = CURRENT_DATE)) " +
+           "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= CURRENT_DATE AND t.dueDate <= :#{#filter.endOfWeek})) " +
+           "AND (:#{#filter.includeArchived} = true OR t.isArchived = false)")
+    Page<Task> findByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
 
     @Query("SELECT MAX(t.lexoRank) FROM Task t WHERE t.columnId = :columnId")
     String findMaxLexoRankByColumnId(@Param("columnId") String columnId);
@@ -43,9 +57,11 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findBySprintIdOrderByLexoRankAsc(String sprintId);
 
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findBySprintId(String sprintId);
 
-    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL ORDER BY t.lexoRank ASC")
+    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
     Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
 
     long countBySprintId(String sprintId);
@@ -79,4 +95,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     @Transactional
     void deleteByWorkspaceId(String workspaceId);
+
+    @Query("SELECT t FROM Task t JOIN t.assignees a WHERE a.id = :userId AND t.isArchived = false")
+    List<Task> findActiveTasksByUserId(@Param("userId") String userId);
 }

@@ -53,7 +53,7 @@ class SprintControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.name").value("Sprint 101"))
-                .andExpect(jsonPath("$.data.status").value("FUTURE"))
+                .andExpect(jsonPath("$.data.status").value("PLANNED"))
                 .andReturn();
 
         String sprintId = JsonPath.read(createResult.getResponse().getContentAsString(), "$.data.id");
@@ -66,18 +66,20 @@ class SprintControllerTest {
                 .andExpect(jsonPath("$.data[0].id").value(sprintId));
 
         // 3. Sprintni boshlash (ACTIVE)
-        mvc.perform(post("/api/sprints/" + sprintId + "/start")
+        mvc.perform(post("/api/workspaces/" + SEED_WS + "/sprints/" + sprintId + "/start")
                         .header("Authorization", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"));
 
         // 4. Sprintni yakunlash (CLOSED)
-        mvc.perform(post("/api/sprints/" + sprintId + "/complete")
+        mvc.perform(post("/api/workspaces/" + SEED_WS + "/sprints/" + sprintId + "/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"moveToSprintId\":null}")
                         .header("Authorization", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.status").value("CLOSED"));
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
         // 5. Backlog ro'yxatini olish
         mvc.perform(get("/api/workspaces/" + SEED_WS + "/backlog")
@@ -94,7 +96,7 @@ class SprintControllerTest {
                 .andExpect(jsonPath("$.data").isArray());
 
         // 6. Sprintni o'chirish
-        mvc.perform(delete("/api/sprints/" + sprintId)
+        mvc.perform(delete("/api/workspaces/" + SEED_WS + "/sprints/" + sprintId)
                         .header("Authorization", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));

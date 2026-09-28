@@ -6,7 +6,11 @@ import com.taskcenter.dto.RegisterRequest;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
+import com.taskcenter.model.RefreshToken;
 import com.taskcenter.repository.UserRepository;
+import com.taskcenter.repository.RefreshTokenRepository;
+import com.taskcenter.repository.WorkspaceInvitationRepository;
+import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.security.JwtTokenProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -16,6 +20,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -24,13 +31,32 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final WorkspaceInvitationRepository invitationRepository;
+    private final WorkspaceMemberRepository memberRepository;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider) {
+                       PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider,
+                       RefreshTokenRepository refreshTokenRepository,
+                       WorkspaceInvitationRepository invitationRepository,
+                       WorkspaceMemberRepository memberRepository) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.invitationRepository = invitationRepository;
+        this.memberRepository = memberRepository;
+    }
+
+    private String createRefreshToken(String userId) {
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .token(UUID.randomUUID().toString())
+                .expiryDate(LocalDateTime.now().plusDays(30)) // 30 days
+                .build();
+        refreshTokenRepository.save(refreshToken);
+        return refreshToken.getToken();
     }
 
     @CacheEvict(value = "users", key = "#request.name")
@@ -48,13 +74,31 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
+        // Auto-link pending invitations
+        java.util.List<com.taskcenter.model.WorkspaceInvitation> pendingInvites = invitationRepository.findByReceiverEmailAndStatus(request.getName(), com.taskcenter.model.InvitationStatus.PENDING);
+                
+        for (com.taskcenter.model.WorkspaceInvitation inv : pendingInvites) {
+            if (!memberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), savedUser.getId())) {
+                com.taskcenter.model.WorkspaceMember member = com.taskcenter.model.WorkspaceMember.builder()
+                        .workspaceId(inv.getWorkspaceId())
+                        .userId(savedUser.getId())
+                        .role(inv.getRole())
+                        .build();
+                memberRepository.save(member);
+            }
+            inv.setReceiverId(savedUser.getId());
+            inv.setStatus(com.taskcenter.model.InvitationStatus.ACCEPTED);
+            invitationRepository.save(inv);
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
+        String refreshToken = createRefreshToken(savedUser.getId());
 
-        return new AuthResponse(jwt, AuthResponse.UserDto.fromEntity(savedUser));
+        return new AuthResponse(jwt, refreshToken, AuthResponse.UserDto.fromEntity(savedUser));
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -64,13 +108,36 @@ public class AuthService {
 
         String jwt = tokenProvider.generateToken(authentication);
         User user = getUserByName(request.getName());
+        String refreshToken = createRefreshToken(user.getId());
 
-        return new AuthResponse(jwt, AuthResponse.UserDto.fromEntity(user));
+        return new AuthResponse(jwt, refreshToken, AuthResponse.UserDto.fromEntity(user));
     }
     
     @Cacheable(value = "users", key = "#name")
     public User getUserByName(String name) {
         return userRepository.findByName(name)
                 .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi: " + name));
+    }
+
+    @Transactional
+    public com.taskcenter.dto.TokenRefreshResponse refresh(com.taskcenter.dto.TokenRefreshRequest request) {
+        String requestRefreshToken = request.getRefreshToken();
+
+        return refreshTokenRepository.findByToken(requestRefreshToken)
+                .map(token -> {
+                    if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+                        refreshTokenRepository.delete(token);
+                        throw new com.taskcenter.exception.ForbiddenException("Refresh token muddati tugagan. Iltimos, qaytadan tizimga kiring");
+                    }
+                    return token;
+                })
+                .map(token -> {
+                    User user = userRepository.findById(token.getUserId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
+                    
+                    String newAccessToken = tokenProvider.generateTokenFromUser(user);
+                    return new com.taskcenter.dto.TokenRefreshResponse(newAccessToken, requestRefreshToken);
+                })
+                .orElseThrow(() -> new ResourceNotFoundException("Refresh token bazada topilmadi"));
     }
 }

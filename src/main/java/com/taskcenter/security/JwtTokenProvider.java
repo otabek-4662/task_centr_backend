@@ -45,11 +45,14 @@ public class JwtTokenProvider {
 
     public String generateToken(Authentication authentication) {
         User userPrincipal = (User) authentication.getPrincipal();
+        return generateTokenFromUser(userPrincipal);
+    }
 
+    public String generateTokenFromUser(User user) {
         return Jwts.builder()
-                .setSubject(userPrincipal.getName())
-                .claim("id", userPrincipal.getId())
-                .claim("role", userPrincipal.getRole().name())
+                .setSubject(user.getName())
+                .claim("id", user.getId())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

@@ -10,4 +10,5 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, String> {
     List<Notification> findByUserIdOrderByCreatedAtDesc(String userId);
     List<Notification> findByUserIdAndReadFalseOrderByCreatedAtDesc(String userId);
+    org.springframework.data.domain.Page<Notification> findByUserId(String userId, org.springframework.data.domain.Pageable pageable);
 }

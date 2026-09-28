@@ -31,19 +31,28 @@ public class TaskService {
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
     private final WebSocketNotifier webSocketNotifier;
+    private final NotificationService notificationService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.taskcenter.repository.UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private @org.springframework.context.annotation.Lazy TelegramBotService telegramBotService;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
                        com.taskcenter.repository.SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService,
-                       WebSocketNotifier webSocketNotifier) {
+                       WebSocketNotifier webSocketNotifier,
+                       NotificationService notificationService) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
         this.authorizationService = authorizationService;
         this.activityService = activityService;
         this.webSocketNotifier = webSocketNotifier;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +78,7 @@ public class TaskService {
 
         return cols.stream().map(c -> {
             List<Task> columnTasks = allSprintTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()))
+                    .filter(t -> c.getId().equals(t.getColumnId()) && Boolean.FALSE.equals(t.getIsArchived()))
                     .sorted(Comparator.comparing(Task::getLexoRank))
                     .collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, columnTasks);
@@ -82,24 +91,16 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskDto> getTasksByWorkspace(String workspaceId, User currentUser, int page, int size) {
+    public Page<TaskDto> getTasksByWorkspace(String workspaceId, User currentUser, TaskFilterRequest filter, Pageable pageable) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        if (page < 0) {
-            throw new BadRequestException("Sahifa raqami 0 yoki undan katta bo'lishi kerak");
+        if (filter != null) {
+            filter.setCurrentUserId(currentUser.getId());
+            if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
+                filter.setEndOfWeek(LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
+            }
         }
-        if (size <= 0) {
-            throw new BadRequestException("Sahifa hajmi 1 yoki undan katta bo'lishi kerak");
-        }
-        if (size > 100) {
-            size = 100;
-        }
-
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Task> taskPage = taskRepository.findByWorkspaceIdPaginated(workspaceId, pageable);
-        return taskPage.getContent()
-                .stream()
-                .map(TaskDto::fromEntity)
-                .collect(Collectors.toList());
+        Page<Task> taskPage = taskRepository.findByWorkspaceIdFiltered(workspaceId, filter, pageable);
+        return taskPage.map(TaskDto::fromEntity);
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +142,7 @@ public class TaskService {
             if (!workspaceId.equals(sprint.getWorkspaceId())) {
                 throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
             }
-            if (sprint.getStatus() == com.taskcenter.model.SprintStatus.CLOSED) {
+            if (sprint.getStatus() == com.taskcenter.model.SprintStatus.COMPLETED) {
                 throw new BadRequestException("Yopilgan sprintga yangi vazifa biriktirib bo'lmaydi");
             }
             sprintId = sprint.getId();
@@ -157,6 +158,8 @@ public class TaskService {
                 .issueType(issueType)
                 .dueDate(req.getDueDate())
                 .storyPoints(req.getStoryPoints())
+                .estimatedHours(req.getEstimatedHours())
+                .loggedHours(req.getLoggedHours())
                 .sprintId(sprintId)
                 .build();
 
@@ -175,7 +178,7 @@ public class TaskService {
     public TaskDto updateTask(String workspaceId, String id, TaskUpdateRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findById(id)
+        Task task = taskRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
 
         if (!workspaceId.equals(task.getWorkspaceId())) {
@@ -230,6 +233,12 @@ public class TaskService {
             task.setStoryPoints(req.getStoryPoints());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", String.valueOf(oldPoints), String.valueOf(req.getStoryPoints()));
         }
+        if (req.getEstimatedHours() != null && !req.getEstimatedHours().equals(task.getEstimatedHours())) {
+            task.setEstimatedHours(req.getEstimatedHours());
+        }
+        if (req.getLoggedHours() != null && !req.getLoggedHours().equals(task.getLoggedHours())) {
+            task.setLoggedHours(req.getLoggedHours());
+        }
         if (req.getSprintId() != null) {
             String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
             if (newSprintId != null && !newSprintId.equals(task.getSprintId())) {
@@ -238,7 +247,7 @@ public class TaskService {
                 if (!workspaceId.equals(sprint.getWorkspaceId())) {
                     throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
                 }
-                if (sprint.getStatus() == com.taskcenter.model.SprintStatus.CLOSED) {
+                if (sprint.getStatus() == com.taskcenter.model.SprintStatus.COMPLETED) {
                     throw new BadRequestException("Yopilgan sprintga vazifani ko'chirib bo'lmaydi");
                 }
                 String oldSprintId = task.getSprintId();
@@ -251,6 +260,7 @@ public class TaskService {
         }
 
         Task saved = taskRepository.save(task);
+        notificationService.notifyWatchers(task.getWatchers(), currentUser.getId(), "Vazifa yangilandi", task.getTitle() + " vazifasi o'zgartirildi", task.getId());
         TaskDto taskDto = TaskDto.fromEntity(saved);
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_UPDATED")
@@ -264,7 +274,7 @@ public class TaskService {
     public TaskDto reorderTask(String workspaceId, String id, TaskReorderRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findById(id)
+        Task task = taskRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
         if (!workspaceId.equals(task.getWorkspaceId())) {
             throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
@@ -299,7 +309,7 @@ public class TaskService {
     public void deleteTask(String workspaceId, String id, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findById(id)
+        Task task = taskRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
 
         if (!workspaceId.equals(task.getWorkspaceId())) {
@@ -311,7 +321,148 @@ public class TaskService {
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_DELETED")
                 .workspaceId(workspaceId)
-                .data(java.util.Map.of("taskId", id))
+                .data(java.util.Map.of("taskId", id, "columnId", task.getColumnId()))
                 .build());
+    }
+
+    @Transactional
+    public TaskDto cloneTask(String workspaceId, String id, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+
+        Task originalTask = taskRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+
+        if (!workspaceId.equals(originalTask.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
+        }
+
+        String maxRank = taskRepository.findMaxLexoRankByColumnId(originalTask.getColumnId());
+        String newRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
+
+        Task clonedTask = Task.builder()
+                .workspaceId(originalTask.getWorkspaceId())
+                .columnId(originalTask.getColumnId())
+                .title("(Copy) " + originalTask.getTitle())
+                .description(originalTask.getDescription())
+                .lexoRank(newRank)
+                .priority(originalTask.getPriority())
+                .issueType(originalTask.getIssueType())
+                .dueDate(originalTask.getDueDate())
+                .storyPoints(originalTask.getStoryPoints())
+                .estimatedHours(originalTask.getEstimatedHours())
+                .sprintId(originalTask.getSprintId())
+                .build();
+        
+        clonedTask.prePersist();
+
+        if (originalTask.getLabels() != null) {
+            clonedTask.getLabels().addAll(originalTask.getLabels());
+        }
+
+        if (originalTask.getChecklistItems() != null) {
+            for (com.taskcenter.model.TaskChecklistItem item : originalTask.getChecklistItems()) {
+                com.taskcenter.model.TaskChecklistItem clonedItem = com.taskcenter.model.TaskChecklistItem.builder()
+                        .taskId(clonedTask.getId())
+                        .title(item.getTitle())
+                        .isCompleted(item.getIsCompleted())
+                        .orderIndex(item.getOrderIndex())
+                        .build();
+                clonedTask.getChecklistItems().add(clonedItem);
+            }
+        }
+
+        Task saved = taskRepository.save(clonedTask);
+        activityService.logActivity(saved.getId(), currentUser, TaskActivityType.TASK_CREATED, "task", null, saved.getTitle());
+        
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_CREATED")
+                .workspaceId(workspaceId)
+                .data(taskDto)
+                .build());
+        return taskDto;
+    }
+
+    @Transactional
+    public void toggleWatch(String workspaceId, String id, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+
+        Task task = taskRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
+        }
+
+        boolean isWatching = task.getWatchers().stream().anyMatch(u -> u.getId().equals(currentUser.getId()));
+        if (isWatching) {
+            task.getWatchers().removeIf(u -> u.getId().equals(currentUser.getId()));
+        } else {
+            task.getWatchers().add(currentUser);
+        }
+        
+        taskRepository.save(task);
+    }
+
+    @Transactional
+    public TaskDto toggleArchive(String workspaceId, String id, boolean archive, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+
+        Task task = taskRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
+        }
+
+        task.setIsArchived(archive);
+        Task saved = taskRepository.save(task);
+        
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_UPDATED")
+                .workspaceId(workspaceId)
+                .data(taskDto)
+                .build());
+                
+        return taskDto;
+    }
+
+    @Transactional
+    public TaskDto toggleAssignee(String workspaceId, String id, String userId, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+
+        Task task = taskRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+
+        if (!workspaceId.equals(task.getWorkspaceId())) {
+            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
+        }
+
+        User assignee = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
+
+        boolean isAssigned = task.getAssignees().stream().anyMatch(u -> u.getId().equals(userId));
+        if (isAssigned) {
+            task.getAssignees().removeIf(u -> u.getId().equals(userId));
+        } else {
+            task.getAssignees().add(assignee);
+            
+            if (assignee.getTelegramChatId() != null && telegramBotService != null) {
+                telegramBotService.sendMessage(assignee.getTelegramChatId(), "🔔 Yangi vazifa: " + task.getTitle() + "\nWorkspace: " + workspaceId + "\nPrioritet: " + task.getPriority());
+            }
+        }
+        
+        Task saved = taskRepository.save(task);
+        TaskDto taskDto = TaskDto.fromEntity(saved);
+        
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_UPDATED")
+                .workspaceId(workspaceId)
+                .data(taskDto)
+                .build());
+                
+        return taskDto;
     }
 }

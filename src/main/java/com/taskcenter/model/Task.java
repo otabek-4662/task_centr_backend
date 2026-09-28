@@ -9,6 +9,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -72,8 +73,18 @@ public class Task {
     @Column(name = "story_points")
     private Integer storyPoints;
 
+    @Column(name = "estimated_hours")
+    private Double estimatedHours;
+
+    @Column(name = "logged_hours")
+    private Double loggedHours;
+
     @Column(name = "sprint_id")
     private String sprintId;
+
+    @Column(name = "is_archived")
+    @Builder.Default
+    private Boolean isArchived = false;
 
     @CreatedBy
     @Column(name = "created_by")
@@ -111,6 +122,21 @@ public class Task {
     )
     @Builder.Default
     private Set<User> assignees = new HashSet<>();
+
+    @ManyToMany
+    @org.hibernate.annotations.BatchSize(size = 25)
+    @JoinTable(
+        name = "task_watchers",
+        joinColumns = @JoinColumn(name = "task_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    private Set<User> watchers = new HashSet<>();
+
+    @OneToMany(mappedBy = "taskId", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 25)
+    @Builder.Default
+    private Set<TaskChecklistItem> checklistItems = new HashSet<>();
 
     @PrePersist
     public void prePersist() {

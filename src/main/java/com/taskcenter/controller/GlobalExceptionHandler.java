@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,9 +54,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        String msg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        log.error("Data integrity violation", ex);
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("Ma'lumotlar bazasida xatolik: " + msg));
+                .body(ApiResponse.error("Ma'lumotlar bazasida xatolik (butunlik buzilishi yoki takrorlanish yuz berdi)"));
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
@@ -88,11 +89,7 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.<Map<String, String>>builder()
-                        .success(false)
-                        .message("Validatsiya xatosi")
-                        .data(errors)
-                        .build());
+                .body(ApiResponse.error("Validatsiya xatosi", errors));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -106,6 +103,12 @@ public class GlobalExceptionHandler {
         log.error("Database access error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Ma'lumotlar bazasida ichki xatolik yuz berdi"));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error("Fayl hajmi 10 MB dan oshmasligi kerak", null));
     }
 
     @ExceptionHandler(Exception.class)

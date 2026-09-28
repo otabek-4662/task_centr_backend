@@ -63,12 +63,15 @@ class WorkspaceMemberServiceTest {
 
         owner = User.builder().id(ownerId).name("owner").email("owner@test.com").build();
         newMember = User.builder().id(memberId).name("ali").email("ali@test.com").build();
+        org.mockito.Mockito.lenient().when(authorizationService.checkAdmin(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(workspace);
+        org.mockito.Mockito.lenient().when(authorizationService.checkOwner(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(workspace);
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(workspace);
     }
 
     @Test
     @DisplayName("Yangi a'zo muvaffaqiyatli qo'shiladi")
     void addMember_success() {
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+
         when(userRepository.findByNameOrEmail("ali")).thenReturn(Optional.of(newMember));
         when(memberRepository.existsByWorkspaceIdAndUserId(workspaceId, memberId)).thenReturn(false);
 
@@ -88,7 +91,7 @@ class WorkspaceMemberServiceTest {
     @Test
     @DisplayName("Allaqachon a'zo bo'lgan foydalanuvchini qayta qo'shishda ConflictException beradi")
     void addMember_alreadyExists_throwsConflict() {
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+
         when(userRepository.findByNameOrEmail("ali")).thenReturn(Optional.of(newMember));
         when(memberRepository.existsByWorkspaceIdAndUserId(workspaceId, memberId)).thenReturn(true);
 
@@ -105,8 +108,8 @@ class WorkspaceMemberServiceTest {
     @Test
     @DisplayName("A'zoning rolini muvaffaqiyatli o'zgartirish")
     void updateMemberRole_success() {
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(authorizationService.isOwner(workspaceId, ownerId)).thenReturn(true);
+
+
 
         WorkspaceMember existing = WorkspaceMember.builder()
                 .workspaceId(workspaceId)
@@ -130,7 +133,7 @@ class WorkspaceMemberServiceTest {
     @Test
     @DisplayName("Workspace egasining rolini o'zgartirmoqchi bo'lganda BadRequestException beradi")
     void updateMemberRole_cannotChangeOwner() {
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+
 
         WorkspaceMemberRoleUpdateRequest request = WorkspaceMemberRoleUpdateRequest.builder()
                 .role(WorkspaceRole.ADMIN)
@@ -144,8 +147,8 @@ class WorkspaceMemberServiceTest {
     @Test
     @DisplayName("A'zoni jamoadan muvaffaqiyatli chiqarish")
     void removeMember_success() {
-        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
-        when(authorizationService.isOwner(workspaceId, ownerId)).thenReturn(true);
+
+
 
         WorkspaceMember existing = WorkspaceMember.builder()
                 .workspaceId(workspaceId)

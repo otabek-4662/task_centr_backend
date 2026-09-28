@@ -27,4 +27,10 @@ public class SendDirectMessageRequest {
 
     @Schema(description = "Javob beriladigan xabar IDsi (ixtiyoriy)")
     private String replyToId;
+
+    @jakarta.validation.constraints.AssertTrue(message = "Xabar matni yoki fayl biriktirilgan bo'lishi shart")
+    @Schema(hidden = true)
+    public boolean isValidMessage() {
+        return (content != null && !content.trim().isEmpty()) || (attachments != null && !attachments.isEmpty());
+    }
 }

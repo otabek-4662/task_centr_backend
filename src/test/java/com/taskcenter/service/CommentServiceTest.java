@@ -43,6 +43,9 @@ class CommentServiceTest {
     @Mock
     private WorkspaceAuthorizationService authorizationService;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private CommentService commentService;
 

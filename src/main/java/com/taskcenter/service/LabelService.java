@@ -34,7 +34,7 @@ public class LabelService {
 
     @Transactional
     public LabelDto createLabel(String workspaceId, LabelDto req, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         Label label = Label.builder()
                 .workspaceId(workspaceId)
@@ -48,7 +48,7 @@ public class LabelService {
 
     @Transactional
     public void deleteLabel(String workspaceId, String id, User currentUser) {
-        authorizationService.checkOwnerOrAdmin(workspaceId, currentUser);
+        authorizationService.checkAdmin(workspaceId, currentUser);
 
         Label label = labelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Label topilmadi: " + id));

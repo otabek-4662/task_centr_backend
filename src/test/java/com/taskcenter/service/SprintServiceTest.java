@@ -56,7 +56,7 @@ class SprintServiceTest {
                 .workspaceId("ws1")
                 .name("Sprint 1")
                 .goal("Goal 1")
-                .status(SprintStatus.FUTURE)
+                .status(SprintStatus.PLANNED)
                 .startDate(LocalDate.now())
                 .endDate(LocalDate.now().plusWeeks(2))
                 .build();
@@ -70,7 +70,8 @@ class SprintServiceTest {
         com.taskcenter.dto.SprintStatsProjection stats = mock(com.taskcenter.dto.SprintStatsProjection.class);
         when(stats.getSprintId()).thenReturn("sprint1");
         when(stats.getTaskCount()).thenReturn(3L);
-        when(stats.getTotalStoryPoints()).thenReturn(13);
+        when(stats.getTotalStoryPoints()).thenReturn(13);
+
         when(taskRepository.findSprintStatsByWorkspaceId("ws1")).thenReturn(List.of(stats));
 
         List<SprintDto> result = sprintService.getSprints("ws1", null, user);
@@ -96,7 +97,7 @@ class SprintServiceTest {
         SprintDto result = sprintService.createSprint("ws1", req, user);
 
         assertThat(result.getName()).isEqualTo("Sprint Alpha");
-        assertThat(result.getStatus()).isEqualTo(SprintStatus.FUTURE);
+        assertThat(result.getStatus()).isEqualTo(SprintStatus.PLANNED);
         assertThat(result.getTotalStoryPoints()).isEqualTo(0);
         verify(sprintRepository).save(any(Sprint.class));
     }
@@ -122,7 +123,7 @@ class SprintServiceTest {
         when(sprintRepository.findByWorkspaceIdAndStatus("ws1", SprintStatus.ACTIVE)).thenReturn(Optional.empty());
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        SprintDto result = sprintService.startSprint("sprint1", user);
+        SprintDto result = sprintService.startSprint("ws1", "sprint1", user);
 
         assertThat(result.getStatus()).isEqualTo(SprintStatus.ACTIVE);
         verify(sprintRepository).save(testSprint);
@@ -135,8 +136,8 @@ class SprintServiceTest {
         Sprint currentActive = Sprint.builder().id("sprint-active").name("Sprint 0").status(SprintStatus.ACTIVE).build();
         when(sprintRepository.findByWorkspaceIdAndStatus("ws1", SprintStatus.ACTIVE)).thenReturn(Optional.of(currentActive));
 
-        assertThatThrownBy(() -> sprintService.startSprint("sprint1", user))
-                .isInstanceOf(BadRequestException.class)
+        assertThatThrownBy(() -> sprintService.startSprint("ws1", "sprint1", user))
+                .isInstanceOf(com.taskcenter.exception.ConflictException.class)
                 .hasMessageContaining("allaqachon faol sprint mavjud");
     }
 
@@ -151,13 +152,14 @@ class SprintServiceTest {
         when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws1")).thenReturn(List.of(colTodo, colDone));
 
         Task taskDone = Task.builder().id("t1").title("Task 1").sprintId("sprint1").columnId("col-done").build();
-        Task taskUndone = Task.builder().id("t2").title("Task 2").sprintId("sprint1").columnId("col-todo").build();
+        Task taskUndone = Task.builder().id("t2").title("Task 2").sprintId("sprint1").columnId("col-todo").build();
+
         when(taskRepository.findBySprintId("sprint1")).thenReturn(List.of(taskDone, taskUndone));
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        SprintDto result = sprintService.completeSprint("sprint1", null, user);
+        SprintDto result = sprintService.completeSprint("ws1", "sprint1", null, user);
 
-        assertThat(result.getStatus()).isEqualTo(SprintStatus.CLOSED);
+        assertThat(result.getStatus()).isEqualTo(SprintStatus.COMPLETED);
         assertThat(taskDone.getSprintId()).isEqualTo("sprint1"); // remains in sprint
         assertThat(taskUndone.getSprintId()).isNull(); // moved to backlog
         verify(taskRepository).saveAll(any());
@@ -168,14 +170,16 @@ class SprintServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", user)).thenReturn(new com.taskcenter.model.Workspace());
         when(sprintRepository.findById("sprint1")).thenReturn(Optional.of(testSprint));
 
-        Task t1 = Task.builder().id("task1").workspaceId("ws1").sprintId(null).build();
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(t1));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        Task t1 = Task.builder().id("task1").workspaceId("ws1").sprintId(null).build();
+
+        when(taskRepository.findById("task1")).thenReturn(Optional.of(t1));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+
         when(taskRepository.findBySprintIdOrderByLexoRankAsc("sprint1")).thenReturn(List.of(t1));
 
         SprintTaskMoveRequest req = new SprintTaskMoveRequest();
         req.setTaskIds(List.of("task1"));
 
-        List<TaskDto> result = sprintService.addTasksToSprint("sprint1", req, user);
+        List<TaskDto> result = sprintService.addTasksToSprint("ws1", "sprint1", req, user);
 
         assertThat(t1.getSprintId()).isEqualTo("sprint1");
         verify(taskRepository).saveAll(any());
@@ -187,10 +191,11 @@ class SprintServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", user)).thenReturn(new com.taskcenter.model.Workspace());
         when(sprintRepository.findById("sprint1")).thenReturn(Optional.of(testSprint));
 
-        Task t1 = Task.builder().id("task1").sprintId("sprint1").build();
+        Task t1 = Task.builder().id("task1").sprintId("sprint1").build();
+
         when(taskRepository.findById("task1")).thenReturn(Optional.of(t1));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
 
-        sprintService.removeTaskFromSprint("sprint1", "task1", user);
+        sprintService.removeTaskFromSprint("ws1", "sprint1", "task1", user);
 
         assertThat(t1.getSprintId()).isNull();
         verify(taskRepository).save(t1);
@@ -202,8 +207,10 @@ class SprintServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", user)).thenReturn(new com.taskcenter.model.Workspace());
 
         Task bTask = Task.builder().id("bt1").title("Backlog task").storyPoints(5).build();
-        Page<Task> page = new PageImpl<>(List.of(bTask));
-        when(taskRepository.findBacklogTasks(eq("ws1"), any(Pageable.class))).thenReturn(page);
+        Page<Task> page = new PageImpl<>(List.of(bTask));
+
+        when(taskRepository.findBacklogTasks(eq("ws1"), any(Pageable.class))).thenReturn(page);
+
         when(taskRepository.sumStoryPointsInBacklog("ws1")).thenReturn(5);
 
         BacklogDto backlog = sprintService.getBacklog("ws1", 0, 20, user);

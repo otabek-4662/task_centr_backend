@@ -17,7 +17,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/labels")
-@CrossOrigin(origins = "*")
 public class LabelController {
 
     private final LabelService labelService;

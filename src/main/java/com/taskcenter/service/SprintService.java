@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -70,7 +71,7 @@ public class SprintService {
     public VelocityChartDto getVelocityChart(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        List<Sprint> closedSprints = sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtAsc(workspaceId, SprintStatus.CLOSED);
+        List<Sprint> closedSprints = sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtAsc(workspaceId, SprintStatus.COMPLETED);
 
         java.util.Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
                 .stream()
@@ -95,9 +96,8 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
-    public SprintDto getSprintById(String sprintId, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public SprintDto getSprintById(String workspaceId, String sprintId, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkAccess(sprint.getWorkspaceId(), currentUser);
 
@@ -116,7 +116,7 @@ public class SprintService {
                 .workspaceId(workspaceId)
                 .name(req.getName())
                 .goal(req.getGoal())
-                .status(SprintStatus.FUTURE)
+                .status(SprintStatus.PLANNED)
                 .startDate(req.getStartDate())
                 .endDate(req.getEndDate())
                 .build();
@@ -126,9 +126,8 @@ public class SprintService {
     }
 
     @Transactional
-    public SprintDto updateSprint(String sprintId, SprintUpdateRequest req, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public SprintDto updateSprint(String workspaceId, String sprintId, SprintUpdateRequest req, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
@@ -157,25 +156,25 @@ public class SprintService {
     }
 
     @Transactional
-    public SprintDto startSprint(String sprintId, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public SprintDto startSprint(String workspaceId, String sprintId, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
         if (sprint.getStatus() == SprintStatus.ACTIVE) {
             throw new BadRequestException("Ushbu sprint allaqachon faol");
         }
-        if (sprint.getStatus() == SprintStatus.CLOSED) {
+        if (sprint.getStatus() == SprintStatus.COMPLETED) {
             throw new BadRequestException("Yopilgan sprintni qayta boshlab bo'lmaydi");
         }
 
         Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(sprint.getWorkspaceId(), SprintStatus.ACTIVE);
         if (activeOpt.isPresent()) {
-            throw new BadRequestException("Workspaceda allaqachon faol sprint mavjud: " + activeOpt.get().getName() + ". Yangi sprint boshlashdan oldin joriy faol sprintni yakunlang.");
+            throw new com.taskcenter.exception.ConflictException("Ushbu workspaceda allaqachon faol sprint mavjud. Yangisini boshlashdan oldin uni yakunlang.");
         }
 
         sprint.setStatus(SprintStatus.ACTIVE);
+        sprint.setStartedAt(LocalDateTime.now());
         if (sprint.getStartDate() == null) {
             sprint.setStartDate(LocalDate.now());
         }
@@ -195,9 +194,8 @@ public class SprintService {
     }
 
     @Transactional
-    public SprintDto completeSprint(String sprintId, CompleteSprintRequest req, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public SprintDto completeSprint(String workspaceId, String sprintId, CompleteSprintRequest req, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
@@ -213,14 +211,15 @@ public class SprintService {
             if (!sprint.getWorkspaceId().equals(targetSprint.getWorkspaceId())) {
                 throw new BadRequestException("Ko'chiriladigan sprint bir xil workspaceda bo'lishi kerak");
             }
-            if (targetSprint.getStatus() == SprintStatus.CLOSED) {
+            if (targetSprint.getStatus() == SprintStatus.COMPLETED) {
                 throw new BadRequestException("Vazifalarni yopilgan sprintga ko'chirib bo'lmaydi");
             }
             targetSprintId = targetSprint.getId();
             targetSprintName = targetSprint.getName();
         }
 
-        sprint.setStatus(SprintStatus.CLOSED);
+        sprint.setStatus(SprintStatus.COMPLETED);
+        sprint.setCompletedAt(LocalDateTime.now());
         if (sprint.getEndDate() == null) {
             sprint.setEndDate(LocalDate.now());
         }
@@ -279,16 +278,18 @@ public class SprintService {
         webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
                 .type("SPRINT_COMPLETED")
                 .workspaceId(sprint.getWorkspaceId())
-                .data(dto)
+                .data(java.util.Map.of(
+                        "sprint", dto,
+                        "updatedTasks", tasksToMove.stream().map(TaskDto::fromEntity).collect(Collectors.toList())
+                ))
                 .build());
                 
         return dto;
     }
 
     @Transactional
-    public void deleteSprint(String sprintId, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public void deleteSprint(String workspaceId, String sprintId, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
@@ -317,9 +318,8 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskDto> getSprintTasks(String sprintId, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public List<TaskDto> getSprintTasks(String workspaceId, String sprintId, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkAccess(sprint.getWorkspaceId(), currentUser);
 
@@ -330,13 +330,12 @@ public class SprintService {
     }
 
     @Transactional
-    public List<TaskDto> addTasksToSprint(String sprintId, SprintTaskMoveRequest req, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public List<TaskDto> addTasksToSprint(String workspaceId, String sprintId, SprintTaskMoveRequest req, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
-        if (sprint.getStatus() == SprintStatus.CLOSED) {
+        if (sprint.getStatus() == SprintStatus.COMPLETED) {
             throw new BadRequestException("Yopilgan sprintga yangi vazifalar qo'shib bo'lmaydi");
         }
 
@@ -377,9 +376,8 @@ public class SprintService {
     }
 
     @Transactional
-    public void removeTaskFromSprint(String sprintId, String taskId, User currentUser) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+    public void removeTaskFromSprint(String workspaceId, String sprintId, String taskId, User currentUser) {
+        Sprint sprint = getSprintAndValidateWorkspace(workspaceId, sprintId);
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
@@ -425,6 +423,15 @@ public class SprintService {
                 .currentPage(page)
                 .totalPages(taskPage.getTotalPages())
                 .build();
+    }
+
+    private Sprint getSprintAndValidateWorkspace(String workspaceId, String sprintId) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
+        if (!sprint.getWorkspaceId().equals(workspaceId)) {
+            throw new BadRequestException("Sprint ushbu workspacega tegishli emas");
+        }
+        return sprint;
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {

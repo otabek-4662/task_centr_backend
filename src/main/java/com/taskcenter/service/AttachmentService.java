@@ -9,6 +9,7 @@ import com.taskcenter.model.User;
 import com.taskcenter.repository.AttachmentRepository;
 import com.taskcenter.repository.TaskRepository;
 import org.springframework.core.io.Resource;
+import com.taskcenter.service.storage.FileStorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;

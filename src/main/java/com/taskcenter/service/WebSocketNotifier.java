@@ -13,8 +13,23 @@ public class WebSocketNotifier {
         this.messagingTemplate = messagingTemplate;
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(WebSocketNotifier.class);
+
     @org.springframework.scheduling.annotation.Async
     public void notifyWorkspace(String workspaceId, WebSocketEvent<?> event) {
-        messagingTemplate.convertAndSend("/topic/workspace/" + workspaceId, event);
+        try {
+            messagingTemplate.convertAndSend("/topic/workspace/" + workspaceId, event);
+        } catch (Exception e) {
+            log.error("WebSocket notification failed for workspace {}: {}", workspaceId, e.getMessage());
+        }
+    }
+
+    @org.springframework.scheduling.annotation.Async
+    public void notifyUser(String userId, WebSocketEvent<?> event) {
+        try {
+            messagingTemplate.convertAndSendToUser(userId, "/queue/notifications", event);
+        } catch (Exception e) {
+            log.error("WebSocket user notification failed for user {}: {}", userId, e.getMessage());
+        }
     }
 }

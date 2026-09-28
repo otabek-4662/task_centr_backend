@@ -15,19 +15,27 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Service
 public class CommentService {
 
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final WorkspaceAuthorizationService authorizationService;
+    private final NotificationService notificationService;
 
     public CommentService(CommentRepository commentRepository,
                           TaskRepository taskRepository,
-                          WorkspaceAuthorizationService authorizationService) {
+                          WorkspaceAuthorizationService authorizationService,
+                          NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -52,6 +60,13 @@ public class CommentService {
                 .build();
 
         Comment saved = commentRepository.save(comment);
+        processMentions(req.getContent(), currentUser, taskId);
+        
+        Task task = taskRepository.findByIdWithDetails(taskId).orElse(null);
+        if (task != null) {
+            notificationService.notifyWatchers(task.getWatchers(), currentUser.getId(), "Yangi izoh", currentUser.getName() + " vazifaga izoh qoldirdi", taskId);
+        }
+        
         return CommentDto.fromEntity(saved);
     }
 
@@ -73,6 +88,7 @@ public class CommentService {
 
         comment.setContent(req.getContent());
         Comment updated = commentRepository.save(comment);
+        processMentions(req.getContent(), currentUser, taskId);
         return CommentDto.fromEntity(updated);
     }
 
@@ -99,5 +115,20 @@ public class CommentService {
     private String getWorkspaceId(String taskId) {
         return taskRepository.findWorkspaceIdById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
+    }
+
+    private void processMentions(String content, User author, String taskId) {
+        if (content == null) return;
+        Pattern pattern = Pattern.compile("@(\\w+)");
+        Matcher matcher = pattern.matcher(content);
+        Set<String> mentionedUsers = new HashSet<>();
+        while (matcher.find()) {
+            mentionedUsers.add(matcher.group(1));
+        }
+        for (String username : mentionedUsers) {
+            if (!username.equals(author.getName())) {
+                notificationService.createMentionNotification(author.getName(), username, content, taskId);
+            }
+        }
     }
 }

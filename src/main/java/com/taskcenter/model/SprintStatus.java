@@ -1,7 +1,7 @@
 package com.taskcenter.model;
 
 public enum SprintStatus {
-    FUTURE,
+    PLANNED,
     ACTIVE,
-    CLOSED
+    COMPLETED
 }

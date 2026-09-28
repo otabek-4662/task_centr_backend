@@ -41,6 +41,12 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "telegram_chat_id")
+    private Long telegramChatId;
+
+    @Column(name = "telegram_link_token")
+    private String telegramLinkToken;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

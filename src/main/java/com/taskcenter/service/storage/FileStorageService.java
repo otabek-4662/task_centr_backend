@@ -1,4 +1,4 @@
-package com.taskcenter.service;
+package com.taskcenter.service.storage;
 
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;

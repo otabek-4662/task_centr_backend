@@ -16,7 +16,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/board")
-@CrossOrigin(origins = "*")
 public class BoardController {
 
     private final TaskService taskService;

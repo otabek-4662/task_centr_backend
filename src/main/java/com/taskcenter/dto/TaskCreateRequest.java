@@ -43,6 +43,14 @@ public class TaskCreateRequest {
     @Max(value = 1000, message = "storyPoints 1000 dan oshmasligi kerak")
     private Integer storyPoints;
 
+    @Schema(description = "Taxmin qilingan soatlar", example = "5.5")
+    @Min(value = 0, message = "estimatedHours 0 dan kam bo'lishi mumkin emas")
+    private Double estimatedHours;
+
+    @Schema(description = "Sarflangan soatlar", example = "2.5")
+    @Min(value = 0, message = "loggedHours 0 dan kam bo'lishi mumkin emas")
+    private Double loggedHours;
+
     @Schema(description = "Biriktirilgan sprint ID si", example = "sprint-67890")
     private String sprintId;
 }

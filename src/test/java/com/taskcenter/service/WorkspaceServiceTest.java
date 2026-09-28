@@ -70,21 +70,21 @@ class WorkspaceServiceTest {
         when(workspaceRepository.findByOwnerIdOrMemberUserIdPaginated(eq("user1"), any(Pageable.class)))
                 .thenReturn(page);
 
-        List<WorkspaceListDto> result = workspaceService.getWorkspaces(testUser(), 0, 20);
+        org.springframework.data.domain.Page<com.taskcenter.dto.WorkspaceListDto> result = workspaceService.getWorkspaces(testUser(), org.springframework.data.domain.PageRequest.of(0, 20));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("Test Workspace");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Test Workspace");
     }
 
     @Test
     void getWorkspaces_nullUser_throwsForbidden() {
-        assertThatThrownBy(() -> workspaceService.getWorkspaces(null, 0, 20))
+        assertThatThrownBy(() -> workspaceService.getWorkspaces(null, org.springframework.data.domain.PageRequest.of(0, 20)))
                 .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void getWorkspaces_negativePage_throwsBadRequest() {
-        assertThatThrownBy(() -> workspaceService.getWorkspaces(testUser(), -1, 20))
+        assertThatThrownBy(() -> workspaceService.getWorkspaces(testUser(), org.springframework.data.domain.PageRequest.of(-1, 20)))
                 .isInstanceOf(RuntimeException.class);
     }
 

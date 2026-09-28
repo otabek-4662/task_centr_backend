@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/tasks/{taskId}/comments")
-@CrossOrigin(origins = "*")
 public class CommentController {
 
     private final CommentService commentService;

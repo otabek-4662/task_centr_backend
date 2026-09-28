@@ -24,7 +24,6 @@ import java.util.List;
 @Tag(name = "Attachments", description = "Taskka fayl va rasm biriktirish API lari")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
-@CrossOrigin(origins = "*")
 public class AttachmentController {
 
     private final AttachmentService attachmentService;

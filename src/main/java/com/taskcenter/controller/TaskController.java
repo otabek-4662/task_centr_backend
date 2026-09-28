@@ -13,6 +13,10 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 import java.util.List;
 
@@ -20,7 +24,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/tasks")
-@CrossOrigin(origins = "*")
 public class TaskController {
 
     private final TaskService taskService;
@@ -31,12 +34,12 @@ public class TaskController {
 
     @Operation(summary = "Workspace ga tegishli vazifalar ro'yxatini olish (pagination bilan)")
     @GetMapping
-    public ApiResponse<List<TaskDto>> getTasks(
+    public ApiResponse<Page<TaskDto>> getTasks(
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        List<TaskDto> tasks = taskService.getTasksByWorkspace(workspaceId, currentUser, page, size);
+            @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<TaskDto> tasks = taskService.getTasksByWorkspace(workspaceId, currentUser, filter, pageable);
         return ApiResponse.success("ok", tasks);
     }
 
@@ -93,6 +96,26 @@ public class TaskController {
         return ApiResponse.success("Vazifa tartibi yangilandi", task);
     }
 
+    @Operation(summary = "Vazifani nusxalash (Clone)")
+    @PostMapping("/{id}/clone")
+    public ApiResponse<TaskDto> cloneTask(
+            @PathVariable String workspaceId,
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        TaskDto clonedTask = taskService.cloneTask(workspaceId, id, currentUser);
+        return ApiResponse.success("Vazifa nusxalandi", clonedTask);
+    }
+
+    @Operation(summary = "Vazifani kuzatish / kuzatishni to'xtatish (Watch)")
+    @PostMapping("/{id}/watch")
+    public ApiResponse<Void> watchTask(
+            @PathVariable String workspaceId,
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        taskService.toggleWatch(workspaceId, id, currentUser);
+        return ApiResponse.success("Kuzatuv holati o'zgartirildi", null);
+    }
+
     @Operation(summary = "Vazifani o'chirish")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteTask(
@@ -101,5 +124,36 @@ public class TaskController {
             @AuthenticationPrincipal User currentUser) {
         taskService.deleteTask(workspaceId, id, currentUser);
         return ApiResponse.success("Task o'chirildi", null);
+    }
+
+    @Operation(summary = "Vazifani arxivga olish")
+    @PostMapping("/{id}/archive")
+    public ApiResponse<TaskDto> archiveTask(
+            @PathVariable String workspaceId,
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        TaskDto task = taskService.toggleArchive(workspaceId, id, true, currentUser);
+        return ApiResponse.success("Vazifa arxivlandi", task);
+    }
+
+    @Operation(summary = "Vazifani arxivdan chiqarish")
+    @PostMapping("/{id}/unarchive")
+    public ApiResponse<TaskDto> unarchiveTask(
+            @PathVariable String workspaceId,
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        TaskDto task = taskService.toggleArchive(workspaceId, id, false, currentUser);
+        return ApiResponse.success("Vazifa arxivdan chiqarildi", task);
+    }
+
+    @Operation(summary = "Vazifaga foydalanuvchini biriktirish / olib tashlash")
+    @PostMapping("/{id}/assign")
+    public ApiResponse<TaskDto> assignTask(
+            @PathVariable String workspaceId,
+            @PathVariable String id,
+            @RequestParam String userId,
+            @AuthenticationPrincipal User currentUser) {
+        TaskDto task = taskService.toggleAssignee(workspaceId, id, userId, currentUser);
+        return ApiResponse.success("Biriktirilgan foydalanuvchilar yangilandi", task);
     }
 }

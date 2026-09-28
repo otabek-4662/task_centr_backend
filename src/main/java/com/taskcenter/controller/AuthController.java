@@ -17,7 +17,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Auth", description = "Token olish — authsiz, tokensiz faqat shu 2 ta ishlaydi")
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -41,5 +40,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> authenticateUser(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Tizimga muvaffaqiyatli kirdingiz", response));
+    }
+
+    @Operation(summary = "Refresh - yangi token beradi", description = "Muddati tugagan token o'rniga yangisini olish. Body: {refreshToken}")
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<com.taskcenter.dto.TokenRefreshResponse>> refreshUser(@Valid @RequestBody com.taskcenter.dto.TokenRefreshRequest request) {
+        com.taskcenter.dto.TokenRefreshResponse response = authService.refresh(request);
+        return ResponseEntity.ok(ApiResponse.success("Token muvaffaqiyatli yangilandi", response));
     }
 }

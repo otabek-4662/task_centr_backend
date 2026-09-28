@@ -58,11 +58,11 @@ public class WebhookService {
 
     /**
      * GitHub har bir so'rovni X-Hub-Signature-256 = "sha256=" + HMAC-SHA256(secret, body) bilan imzolaydi.
-     * Imzo mos kelmasa, so'rov GitHub dan emas — uni rad etamiz.
+     * Imzo mos kelmasa, so'rov GitHub dan emas вЂ” uni rad etamiz.
      */
     public void verifySignature(byte[] rawBody, String signatureHeader) {
         if (webhookSecret == null || webhookSecret.isBlank()) {
-            log.warn("GITHUB_WEBHOOK_SECRET sozlanmagan — webhook so'rovi rad etildi");
+            log.warn("GITHUB_WEBHOOK_SECRET sozlanmagan вЂ” webhook so'rovi rad etildi");
             throw new ForbiddenException("Webhook sozlanmagan");
         }
         if (signatureHeader == null || !signatureHeader.startsWith("sha256=")) {
@@ -72,7 +72,7 @@ public class WebhookService {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             String expected = "sha256=" + HexFormat.of().formatHex(mac.doFinal(rawBody));
-            // MessageDigest.isEqual — vaqt bo'yicha xavfsiz taqqoslash (timing attack dan himoya)
+            // MessageDigest.isEqual вЂ” vaqt bo'yicha xavfsiz taqqoslash (timing attack dan himoya)
             if (!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
                     signatureHeader.getBytes(StandardCharsets.UTF_8))) {
                 throw new ForbiddenException("Webhook imzosi noto'g'ri");
@@ -141,7 +141,7 @@ public class WebhookService {
                             ? commit.getAuthor().getName() 
                             : (sender != null ? sender.getLogin() : "GitHub User");
                             
-        String commentText = String.format("🤖 **GitHub Avtomatizatsiyasi:**\nUshbu vazifa `%s` tomonidan hal qilindi.\n\n**Commit:** [%s](%s)",
+        String commentText = String.format("рџ¤– **GitHub Avtomatizatsiyasi:**\nUshbu vazifa `%s` tomonidan hal qilindi.\n\n**Commit:** [%s](%s)",
                 authorName,
                 commit.getMessage(),
                 commit.getUrl());

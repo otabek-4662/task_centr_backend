@@ -21,7 +21,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/columns")
-@CrossOrigin(origins = "*")
 public class ColumnController {
 
     private final ColumnService columnService;

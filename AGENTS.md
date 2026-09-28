@@ -3,16 +3,6 @@
 Spring Boot 3.2.5 + Java 17 + PostgreSQL + Maven backend.
 Package: `com.taskcenter`. Qatlamlar: `controller` → `service` → `repository` → `model` (+ `dto`, `config`, `security`).
 
-## O'QUV REJIMI (Mentor Mode) — MAJBURIY
-
-Loyiha egasi backend ni **o'rganayapti**. Har bir javobda:
-
-1. **O'zbekcha tushuntir** — nima yozding, nega shunday yozding, asosiy tushuncha (annotatsiya, pattern) nimani anglatadi.
-2. **Kichik qadamlar** — bitta javobda bitta funksiya/qatlam. Hamma narsani birdaniga yozma.
-3. **Avval reja, keyin kod** — katta o'zgarishdan oldin 2-3 qator reja ber va tasdiq kut.
-4. **Mustaqil urinishga unda** — oson qismlarni (masalan DTO maydoni, oddiy query method) foydalanuvchiga yozdir, keyin tekshir.
-5. **Tekshir** — har bir o'zgarishdan keyin kompilyatsiya (`mvnw -q compile`) yoki bog'liq testni ishga tushir.
-
 ## Loyiha konvensiyalari
 
 - Constructor injection (`@Autowired` field larda yo'q)
