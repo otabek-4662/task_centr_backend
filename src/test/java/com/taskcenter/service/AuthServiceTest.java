@@ -38,6 +38,8 @@ class AuthServiceTest {
     private JwtTokenProvider tokenProvider;
     @Mock
     private com.taskcenter.repository.RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private com.taskcenter.repository.WorkspaceInvitationRepository invitationRepository;
 
     @InjectMocks
     private AuthService authService;

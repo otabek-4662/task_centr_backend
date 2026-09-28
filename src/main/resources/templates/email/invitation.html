@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="uz" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Center — Taklifnoma</title>
+  <style>
+    /* Reset va mobil moslashuv */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #172b4d;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    img {
+      border: 0;
+      outline: none;
+      text-decoration: none;
+    }
+    @media only screen and (max-width: 620px) {
+      .container {
+        width: 100% !important;
+        padding: 16px !important;
+      }
+      .content-card {
+        padding: 24px 16px !important;
+      }
+    }
+  </style>
+</head>
+<body style="background-color: #f4f5f7; margin: 0; padding: 40px 0;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f5f7;">
+    <tr>
+      <td align="center">
+        <!-- Asosiy Konteyner (max 580px) -->
+        <table class="container" role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="width: 580px; margin: 0 auto;">
+          
+          <!-- Logo / Brend nomi -->
+          <tr>
+            <td align="center" style="padding-bottom: 24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-size: 22px; font-weight: 700; color: #4f46e5; letter-spacing: -0.5px;">
+                    ⚡ Task Center
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Xat Mazmuni (Card) -->
+          <tr>
+            <td class="content-card" style="background-color: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(9, 30, 66, 0.05); border: 1px solid #e2e8f0;">
+              
+              <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; line-height: 28px;">
+                Siz yangi ishchi maydonga taklif qilindingiz!
+              </h1>
+
+              <p style="font-size: 15px; color: #475569; line-height: 24px; margin: 0 0 20px 0;">
+                Assalomu alaykum! <strong th:text="${inviterName != null ? inviterName : 'Jamoa a''zosi'}">Foydalanuvchi</strong> sizni Task Center tizimidagi quyidagi ishchi maydonga (Workspace) taklif qildi:
+              </p>
+
+              <!-- Workspace Info Box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #4f46e5; margin-bottom: 28px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <div style="font-size: 16px; font-weight: 600; color: #1e293b;" th:text="${workspaceTitle}">
+                      Frontend Jamoasi
+                    </div>
+                    <div style="font-size: 13px; color: #64748b; margin-top: 4px;" th:text="${workspaceRole != null ? 'Roli: ' + workspaceRole : 'A''zo sifatida'}">
+                      Roli: Dasturchi
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Call-to-action Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 28px;">
+                <tr>
+                  <td align="center">
+                    <a th:href="${invitationLink}" href="#" target="_blank" style="display: inline-block; background-color: #4f46e5; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);">
+                      Taklifni qabul qilish
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 13px; color: #94a3b8; line-height: 20px; margin: 0 0 8px 0;">
+                Agar tugma ishlamasa, quyidagi havolani brauzeringizga nusxalab oʻting:
+              </p>
+              <p style="font-size: 12px; color: #4f46e5; word-break: break-all; margin: 0;">
+                <a th:href="${invitationLink}" th:text="${invitationLink}" style="color: #4f46e5; text-decoration: underline;">https://task-center.uz/invite/token</a>
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top: 24px;">
+              <p style="font-size: 12px; color: #94a3b8; line-height: 18px; margin: 0;">
+                © 2026 Task Center. Barcha huquqlar himoyalangan.<br>
+                Ushbu xat avtomatik ravishda yuborilgan, unga javob qaytarmang.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

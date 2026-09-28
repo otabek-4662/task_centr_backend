@@ -106,7 +106,7 @@ public class WorkspaceInvitationService {
         
         String emailToNotify = receiverEmail != null ? receiverEmail : (receiverOpt.isPresent() ? receiverOpt.get().getEmail() : null);
         if (emailToNotify != null) {
-            emailService.sendInvitationEmail(emailToNotify, workspace.getTitle(), currentUser.getName());
+            emailService.sendInvitationEmail(emailToNotify, workspace.getTitle(), currentUser.getName(), roleToAssign.name(), saved.getId());
         }
 
         return WorkspaceInvitationDto.fromEntity(saved);

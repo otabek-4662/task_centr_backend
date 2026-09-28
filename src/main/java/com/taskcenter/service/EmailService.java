@@ -25,7 +25,7 @@ public class EmailService {
     }
 
     @Async
-    public void sendInvitationEmail(String toEmail, String workspaceTitle, String senderName) {
+    public void sendInvitationEmail(String toEmail, String workspaceTitle, String senderName, String workspaceRole, String invitationToken) {
         if (fromEmail == null || fromEmail.isEmpty()) {
             System.err.println("Email konfiguratsiyasi (MAIL_USERNAME) yo'qligi sababli " + toEmail + " manziliga xat yuborilmadi.");
             return;
@@ -40,11 +40,12 @@ public class EmailService {
             helper.setSubject("Task Center - Yangi jamoaga taklif");
 
             Context context = new Context();
-            context.setVariable("senderName", senderName);
+            context.setVariable("inviterName", senderName);
             context.setVariable("workspaceTitle", workspaceTitle);
-            context.setVariable("registerLink", "http://localhost:5173/login");
+            context.setVariable("workspaceRole", workspaceRole);
+            context.setVariable("invitationLink", "https://task-center.uz/invite/" + invitationToken);
 
-            String htmlContent = templateEngine.process("invitation", context);
+            String htmlContent = templateEngine.process("email/invitation", context);
 
             helper.setText(htmlContent, true);
 

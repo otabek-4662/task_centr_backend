@@ -43,6 +43,12 @@ class WorkspaceMemberServiceTest {
     @Mock
     private WorkspaceAuthorizationService authorizationService;
 
+    @Mock
+    private com.taskcenter.repository.WorkspaceInvitationRepository invitationRepository;
+    
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private WorkspaceMemberService memberService;
 

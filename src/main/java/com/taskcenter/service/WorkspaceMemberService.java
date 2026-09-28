@@ -132,7 +132,7 @@ public class WorkspaceMemberService {
                         .build();
                 WorkspaceInvitation saved = invitationRepository.save(invitation);
                 
-                emailService.sendInvitationEmail(query, workspace.getTitle(), currentUser.getName());
+                emailService.sendInvitationEmail(query, workspace.getTitle(), currentUser.getName(), roleToAssign.name(), saved.getId());
                 
                 return WorkspaceMemberResponseDto.builder()
                         .id(saved.getId())
