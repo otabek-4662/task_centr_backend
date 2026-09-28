@@ -1,4 +1,4 @@
-package com.taskcenter.controller;
+﻿package com.taskcenter.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -8,6 +8,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import com.taskcenter.dto.ApiResponse;
 
 @RestController
 public class TestEmailController {
@@ -17,26 +18,30 @@ public class TestEmailController {
     @Value("${spring.mail.username:not_set}")
     private String mailUsername;
 
+    @Value("${spring.mail.password:not_set}")
+    private String mailPassword;
+
     public TestEmailController(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     @GetMapping("/api/test-email-direct")
-    public String testEmail() {
+    public ApiResponse<String> testEmail() {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(mailUsername.equals("not_set") ? "test@gmail.com" : mailUsername);
+            String sender = mailUsername.equals("not_set") ? "test@gmail.com" : mailUsername;
+            helper.setFrom(sender);
             helper.setTo("yusupovayubxon2010@gmail.com");
             helper.setSubject("Test Email from Render");
-            helper.setText("This is a direct test to see if SMTP is blocked on Render.");
+            helper.setText("This is a direct test. Pass length: " + mailPassword.length());
             
             mailSender.send(message);
-            return "SUCCESS! Sent from: " + mailUsername;
+            return ApiResponse.success("ok", "SUCCESS! Sent from: " + sender);
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             e.printStackTrace(new PrintWriter(sw));
-            return "FAILED! Username loaded: " + mailUsername + "\n\nError:\n" + sw.toString();
+            return ApiResponse.success("ok", "FAILED! Error: " + sw.toString());
         }
     }
 }
