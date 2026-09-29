@@ -88,6 +88,21 @@ public class WorkspaceMemberService {
             }
         }
 
+        List<WorkspaceInvitation> pendingInvitations = invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                .filter(inv -> inv.getStatus() == InvitationStatus.PENDING)
+                .collect(Collectors.toList());
+
+        for (WorkspaceInvitation inv : pendingInvitations) {
+            result.add(WorkspaceMemberResponseDto.builder()
+                    .id(inv.getId())
+                    .name("Taklif etilgan")
+                    .fullName("Taklif etilgan (" + (inv.getReceiverEmail() != null ? inv.getReceiverEmail() : "Foydalanuvchi") + ")")
+                    .email(inv.getReceiverEmail())
+                    .role(inv.getRole())
+                    .roleName(inv.getRole() != null ? inv.getRole().getDisplayName() : null)
+                    .build());
+        }
+
         return result;
     }
 
