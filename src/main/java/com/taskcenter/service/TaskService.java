@@ -93,11 +93,21 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Page<TaskDto> getTasksByWorkspace(String workspaceId, User currentUser, TaskFilterRequest filter, Pageable pageable) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        if (filter != null) {
-            filter.setCurrentUserId(currentUser.getId());
-            if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
-                filter.setEndOfWeek(LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
-            }
+        if (filter == null) {
+            filter = new TaskFilterRequest();
+        }
+        filter.setCurrentUserId(currentUser.getId());
+        String query = filter.getSearch();
+        if (query == null || query.isBlank()) {
+            query = filter.getQ();
+        }
+        if (query != null && !query.isBlank()) {
+            filter.setSearch(query.trim());
+        } else {
+            filter.setSearch(null);
+        }
+        if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
+            filter.setEndOfWeek(LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
         }
         Page<Task> taskPage = taskRepository.findByWorkspaceIdFiltered(workspaceId, filter, pageable);
         return taskPage.map(TaskDto::fromEntity);

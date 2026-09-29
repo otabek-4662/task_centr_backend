@@ -3,12 +3,15 @@ package com.taskcenter.service;
 import com.taskcenter.dto.AuthResponse;
 import com.taskcenter.dto.LoginRequest;
 import com.taskcenter.dto.RegisterRequest;
+import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.RefreshToken;
+import com.taskcenter.model.PasswordResetToken;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.RefreshTokenRepository;
+import com.taskcenter.repository.PasswordResetTokenRepository;
 import com.taskcenter.repository.WorkspaceInvitationRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.security.JwtTokenProvider;
@@ -32,21 +35,27 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final WorkspaceInvitationRepository invitationRepository;
     private final WorkspaceMemberRepository memberRepository;
+    private final EmailService emailService;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
                        PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider,
                        RefreshTokenRepository refreshTokenRepository,
+                       PasswordResetTokenRepository passwordResetTokenRepository,
                        WorkspaceInvitationRepository invitationRepository,
-                       WorkspaceMemberRepository memberRepository) {
+                       WorkspaceMemberRepository memberRepository,
+                       EmailService emailService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.invitationRepository = invitationRepository;
         this.memberRepository = memberRepository;
+        this.emailService = emailService;
     }
 
     private String createRefreshToken(String userId) {
@@ -139,5 +148,45 @@ public class AuthService {
                     return new com.taskcenter.dto.TokenRefreshResponse(newAccessToken, requestRefreshToken);
                 })
                 .orElseThrow(() -> new ResourceNotFoundException("Refresh token bazada topilmadi"));
+    }
+
+    @Transactional
+    public void forgotPassword(com.taskcenter.dto.ForgotPasswordRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        java.util.Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        User user = userOpt.get();
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user)
+                .token(token)
+                .expiryDate(LocalDateTime.now().plusMinutes(30))
+                .used(false)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
+    }
+
+    @Transactional
+    @CacheEvict(value = "users", key = "#result != null ? #result.name : ''", allEntries = true)
+    public void resetPassword(com.taskcenter.dto.ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken().trim())
+                .orElseThrow(() -> new BadRequestException("Parolni tiklash tokeni yaroqsiz yoki topilmadi"));
+
+        if (resetToken.isUsed()) {
+            throw new BadRequestException("Ushbu token allaqachon ishlatilgan");
+        }
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Ushbu tokenning amal qilish muddati tugagan. Iltimos, qaytadan so'rov yuboring");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(request.getNewPassword().trim()));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
     }
 }

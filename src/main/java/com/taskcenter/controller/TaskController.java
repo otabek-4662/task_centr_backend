@@ -32,13 +32,13 @@ public class TaskController {
         this.taskService = taskService;
     }
 
-    @Operation(summary = "Workspace ga tegishli vazifalar ro'yxatini olish (pagination bilan)")
+    @Operation(summary = "Workspace ga tegishli vazifalar ro'yxatini olish (qidiruv, filter va pagination bilan)")
     @GetMapping
     public ApiResponse<Page<TaskDto>> getTasks(
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser,
-            @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<TaskDto> tasks = taskService.getTasksByWorkspace(workspaceId, currentUser, filter, pageable);
         return ApiResponse.success("ok", tasks);
     }

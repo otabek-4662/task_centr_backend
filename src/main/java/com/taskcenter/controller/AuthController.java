@@ -48,4 +48,18 @@ public class AuthController {
         com.taskcenter.dto.TokenRefreshResponse response = authService.refresh(request);
         return ResponseEntity.ok(ApiResponse.success("Token muvaffaqiyatli yangilandi", response));
     }
+
+    @Operation(summary = "Parolni tiklash so'rovi (Email orqali havola yuborish)", description = "Body: {email}. Brevo orqali emailingizga tiklash havolasi yuboriladi.")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.taskcenter.dto.ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Agar ushbu email ro'yxatdan o'tgan bo'lsa, parolni tiklash havolasi yuborildi", null));
+    }
+
+    @Operation(summary = "Yangi parol o'rnatish", description = "Body: {token, newPassword}. Emailga kelgan token orqali yangi parol o'rnatiladi.")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody com.taskcenter.dto.ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Parol muvaffaqiyatli yangilandi. Endi yangi parol bilan tizimga kirishingiz mumkin", null));
+    }
 }

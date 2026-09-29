@@ -40,6 +40,12 @@ class AuthServiceTest {
     private com.taskcenter.repository.RefreshTokenRepository refreshTokenRepository;
     @Mock
     private com.taskcenter.repository.WorkspaceInvitationRepository invitationRepository;
+    @Mock
+    private com.taskcenter.repository.WorkspaceMemberRepository memberRepository;
+    @Mock
+    private com.taskcenter.repository.PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock
+    private EmailService emailService;
 
     @InjectMocks
     private AuthService authService;
@@ -109,5 +115,99 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BadCredentialsException.class);
+    }
+
+    @Test
+    void forgotPassword_whenUserExists_savesTokenAndSendsEmail() {
+        User user = User.builder().id("u1").name("tester").email("test@example.com").build();
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+
+        com.taskcenter.dto.ForgotPasswordRequest req = new com.taskcenter.dto.ForgotPasswordRequest();
+        req.setEmail("test@example.com");
+
+        authService.forgotPassword(req);
+
+        verify(passwordResetTokenRepository).save(any(com.taskcenter.model.PasswordResetToken.class));
+        verify(emailService).sendPasswordResetEmail(org.mockito.ArgumentMatchers.eq("test@example.com"), any(String.class));
+    }
+
+    @Test
+    void forgotPassword_whenUserNotFound_silentSuccess() {
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        com.taskcenter.dto.ForgotPasswordRequest req = new com.taskcenter.dto.ForgotPasswordRequest();
+        req.setEmail("unknown@example.com");
+
+        authService.forgotPassword(req);
+
+        org.mockito.Mockito.verifyNoInteractions(passwordResetTokenRepository);
+        org.mockito.Mockito.verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void resetPassword_withValidToken_updatesPasswordAndMarksUsed() {
+        User user = User.builder().id("u1").name("tester").password("oldEnc").build();
+        com.taskcenter.model.PasswordResetToken token = com.taskcenter.model.PasswordResetToken.builder()
+                .token("valid-token")
+                .user(user)
+                .used(false)
+                .expiryDate(java.time.LocalDateTime.now().plusMinutes(20))
+                .build();
+
+        when(passwordResetTokenRepository.findByToken("valid-token")).thenReturn(Optional.of(token));
+        when(passwordEncoder.encode("newPassword123")).thenReturn("newEnc");
+
+        com.taskcenter.dto.ResetPasswordRequest req = new com.taskcenter.dto.ResetPasswordRequest();
+        req.setToken("valid-token");
+        req.setNewPassword("newPassword123");
+
+        authService.resetPassword(req);
+
+        assertThat(user.getPassword()).isEqualTo("newEnc");
+        assertThat(token.isUsed()).isTrue();
+        verify(userRepository).save(user);
+        verify(passwordResetTokenRepository).save(token);
+    }
+
+    @Test
+    void resetPassword_withExpiredToken_throwsBadRequest() {
+        User user = User.builder().id("u1").name("tester").build();
+        com.taskcenter.model.PasswordResetToken token = com.taskcenter.model.PasswordResetToken.builder()
+                .token("expired-token")
+                .user(user)
+                .used(false)
+                .expiryDate(java.time.LocalDateTime.now().minusMinutes(5))
+                .build();
+
+        when(passwordResetTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(token));
+
+        com.taskcenter.dto.ResetPasswordRequest req = new com.taskcenter.dto.ResetPasswordRequest();
+        req.setToken("expired-token");
+        req.setNewPassword("newPassword123");
+
+        assertThatThrownBy(() -> authService.resetPassword(req))
+                .isInstanceOf(com.taskcenter.exception.BadRequestException.class)
+                .hasMessageContaining("muddati tugagan");
+    }
+
+    @Test
+    void resetPassword_withUsedToken_throwsBadRequest() {
+        User user = User.builder().id("u1").name("tester").build();
+        com.taskcenter.model.PasswordResetToken token = com.taskcenter.model.PasswordResetToken.builder()
+                .token("used-token")
+                .user(user)
+                .used(true)
+                .expiryDate(java.time.LocalDateTime.now().plusMinutes(20))
+                .build();
+
+        when(passwordResetTokenRepository.findByToken("used-token")).thenReturn(Optional.of(token));
+
+        com.taskcenter.dto.ResetPasswordRequest req = new com.taskcenter.dto.ResetPasswordRequest();
+        req.setToken("used-token");
+        req.setNewPassword("newPassword123");
+
+        assertThatThrownBy(() -> authService.resetPassword(req))
+                .isInstanceOf(com.taskcenter.exception.BadRequestException.class)
+                .hasMessageContaining("ishlatilgan");
     }
 }

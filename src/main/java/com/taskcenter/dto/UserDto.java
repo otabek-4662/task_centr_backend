@@ -20,6 +20,12 @@ public class UserDto {
     @Schema(description = "To'liq ismi", example = "Xusanboy Developer")
     private String fullName;
 
+    @Schema(description = "Elektron pochta manzili", example = "xusanboy@example.com")
+    private String email;
+
+    @Schema(description = "Foydalanuvchi roli (USER, ADMIN)", example = "USER")
+    private String role;
+
     @Schema(description = "Workspacega allaqachon a'zo bo'lganmi yoki yo'q", example = "true")
     private Boolean isAdded;
 
@@ -28,6 +34,8 @@ public class UserDto {
                 .id(user.getId())
                 .name(user.getName())
                 .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
+                .email(user.getEmail())
+                .role(user.getRole() != null ? user.getRole().name() : null)
                 .build();
     }
 

@@ -53,4 +53,22 @@ public class UserController {
         String token = userService.generateTelegramLinkToken(currentUser);
         return ApiResponse.success("ok", java.util.Map.of("token", token));
     }
+
+    @Operation(summary = "Profil ma'lumotlarini tahrirlash", description = "Foydalanuvchi to'liq ismi yoki login nomini yangilash.")
+    @PatchMapping("/users/me")
+    public ApiResponse<UserDto> updateProfile(
+            @AuthenticationPrincipal User currentUser,
+            @jakarta.validation.Valid @RequestBody com.taskcenter.dto.UpdateProfileRequest request) {
+        UserDto updated = userService.updateProfile(currentUser, request);
+        return ApiResponse.success("Profil muvaffaqiyatli yangilandi", updated);
+    }
+
+    @Operation(summary = "Parolni o'zgartirish", description = "Eski parolni tekshirib yangi parol o'rnatish.")
+    @PostMapping("/users/me/change-password")
+    public ApiResponse<Void> changePassword(
+            @AuthenticationPrincipal User currentUser,
+            @jakarta.validation.Valid @RequestBody com.taskcenter.dto.ChangePasswordRequest request) {
+        userService.changePassword(currentUser, request);
+        return ApiResponse.success("Parol muvaffaqiyatli o'zgartirildi", null);
+    }
 }

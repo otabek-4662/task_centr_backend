@@ -42,13 +42,20 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
            "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
            "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +
+           "AND (:#{#filter.issueType} IS NULL OR t.issueType = :#{#filter.issueType}) " +
+           "AND (:#{#filter.sprintId} IS NULL OR t.sprintId = :#{#filter.sprintId}) " +
            "AND (:#{#filter.status} IS NULL OR t.columnId = :#{#filter.status}) " +
            "AND (:#{#filter.assigneeId} IS NULL OR EXISTS (SELECT 1 FROM t.assignees a WHERE a.id = :#{#filter.assigneeId})) " +
            "AND (:#{#filter.assignedToMe} IS NULL OR (:#{#filter.assignedToMe} = true AND EXISTS (SELECT 1 FROM t.assignees a2 WHERE a2.id = :#{#filter.currentUserId}))) " +
            "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < CURRENT_DATE)) " +
            "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = CURRENT_DATE)) " +
            "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= CURRENT_DATE AND t.dueDate <= :#{#filter.endOfWeek})) " +
-           "AND (:#{#filter.includeArchived} = true OR t.isArchived = false)")
+           "AND (:#{#filter.includeArchived} = true OR t.isArchived = false) " +
+           "AND (:#{#filter.search} IS NULL OR (" +
+           "  LOWER(t.title) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')) OR " +
+           "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
+           "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
+           "))")
     Page<Task> findByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
 
     @Query("SELECT MAX(t.lexoRank) FROM Task t WHERE t.columnId = :columnId")

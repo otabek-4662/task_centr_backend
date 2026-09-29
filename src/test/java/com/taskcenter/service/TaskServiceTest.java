@@ -327,4 +327,61 @@ class TaskServiceTest {
         assertThat(result.getLexoRank()).isNotNull();
         verify(taskRepository).save(any(Task.class));
     }
+
+    @Test
+    void getTasksByWorkspace_withSearchFilter_normalizesAndCallsRepository() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(eq("ws1"), any(User.class)))
+                .thenReturn(new com.taskcenter.model.Workspace());
+
+        Task t1 = Task.builder().id("t1").title("Swagger documentation task").workspaceId("ws1").build();
+        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of(t1));
+
+        com.taskcenter.dto.TaskFilterRequest filter = new com.taskcenter.dto.TaskFilterRequest();
+        filter.setSearch("  Swagger  ");
+
+        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), filter, org.springframework.data.domain.PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Swagger documentation task");
+        assertThat(filter.getSearch()).isEqualTo("Swagger");
+    }
+
+    @Test
+    void getTasksByWorkspace_withQParameter_mapsToSearch() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(eq("ws1"), any(User.class)))
+                .thenReturn(new com.taskcenter.model.Workspace());
+
+        Task t1 = Task.builder().id("t1").title("Bug in login").workspaceId("ws1").build();
+        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of(t1));
+
+        com.taskcenter.dto.TaskFilterRequest filter = new com.taskcenter.dto.TaskFilterRequest();
+        filter.setQ("Bug");
+
+        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), filter, org.springframework.data.domain.PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(filter.getSearch()).isEqualTo("Bug");
+    }
+
+    @Test
+    void getTasksByWorkspace_withNullFilter_createsDefaultFilter() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess(eq("ws1"), any(User.class)))
+                .thenReturn(new com.taskcenter.model.Workspace());
+
+        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of());
+
+        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), null, org.springframework.data.domain.PageRequest.of(0, 10));
+
+        assertThat(result).isNotNull();
+        verify(taskRepository).findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class));
+    }
 }
