@@ -56,7 +56,7 @@ public class WorkspaceController {
             @Valid @RequestBody WorkspaceCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         WorkspaceDto workspace = workspaceService.createWorkspace(request, currentUser);
-        return ApiResponse.success("Workspace yaratildi", workspace);
+        return ApiResponse.success("G'alva yaratildi", workspace);
     }
 
     @Operation(summary = "Mavjud workspace ni tahrirlash")
@@ -66,7 +66,7 @@ public class WorkspaceController {
             @Valid @RequestBody WorkspaceCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         WorkspaceDto workspace = workspaceService.updateWorkspace(id, request, currentUser);
-        return ApiResponse.success("Workspace yangilandi", workspace);
+        return ApiResponse.success("G'alva yangilandi", workspace);
     }
 
     @Operation(summary = "Workspace ni o'chirish")
@@ -75,6 +75,6 @@ public class WorkspaceController {
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         workspaceService.deleteWorkspace(id, currentUser);
-        return ApiResponse.success("Workspace o'chirildi", null);
+        return ApiResponse.success("G'alva o'chirildi", null);
     }
 }

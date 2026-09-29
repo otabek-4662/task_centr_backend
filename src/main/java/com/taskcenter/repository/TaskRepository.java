@@ -73,6 +73,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     long countBySprintId(String sprintId);
 
+    @Query("SELECT COUNT(t) FROM Task t JOIN t.assignees a WHERE a.id = :userId")
+    long countAssignedTasksByUserId(@Param("userId") String userId);
+
     @Query("SELECT COALESCE(SUM(t.storyPoints), 0) FROM Task t WHERE t.sprintId = :sprintId")
     Integer sumStoryPointsBySprintId(@Param("sprintId") String sprintId);
 

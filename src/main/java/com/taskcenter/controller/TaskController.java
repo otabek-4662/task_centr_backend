@@ -60,7 +60,7 @@ public class TaskController {
             @Valid @RequestBody TaskCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.createTask(workspaceId, request, currentUser);
-        return ApiResponse.success("Task yaratildi", task);
+        return ApiResponse.success("Bosh og'riq yaratildi", task);
     }
 
     @Operation(summary = "Vazifani to'liq yangilash")
@@ -71,7 +71,7 @@ public class TaskController {
             @RequestBody TaskUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.updateTask(workspaceId, id, request, currentUser);
-        return ApiResponse.success("Task yangilandi", task);
+        return ApiResponse.success("Bosh og'riq yangilandi", task);
     }
 
     @Operation(summary = "Vazifani qisman yangilash")
@@ -123,7 +123,7 @@ public class TaskController {
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         taskService.deleteTask(workspaceId, id, currentUser);
-        return ApiResponse.success("Task o'chirildi", null);
+        return ApiResponse.success("Bosh og'riq o'chirildi", null);
     }
 
     @Operation(summary = "Vazifani arxivga olish")

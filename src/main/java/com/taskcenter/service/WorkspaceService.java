@@ -82,22 +82,36 @@ public class WorkspaceService {
         if (request.getInitDefaultColumns() == null || request.getInitDefaultColumns()) {
             columnRepository.save(BoardColumn.builder()
                     .workspaceId(saved.getId())
-                    .title("To Do")
+                    .title("Dushanbadan")
                     .order(1)
                     .isDefault(true)
                     .build());
 
             columnRepository.save(BoardColumn.builder()
                     .workspaceId(saved.getId())
-                    .title("In Progress")
+                    .title("Jumagacha bitadi")
                     .order(2)
                     .isDefault(true)
                     .build());
 
             columnRepository.save(BoardColumn.builder()
                     .workspaceId(saved.getId())
-                    .title("Done")
+                    .title("Ko'z tegmasin")
                     .order(3)
+                    .isDefault(true)
+                    .build());
+
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Ko'z tegdi")
+                    .order(4)
+                    .isDefault(true)
+                    .build());
+
+            columnRepository.save(BoardColumn.builder()
+                    .workspaceId(saved.getId())
+                    .title("Buyuk ishlar boshlanishi")
+                    .order(5)
                     .isDefault(true)
                     .build());
         }

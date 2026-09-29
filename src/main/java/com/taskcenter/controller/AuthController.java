@@ -53,13 +53,13 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.taskcenter.dto.ForgotPasswordRequest request) {
         authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Agar ushbu email ro'yxatdan o'tgan bo'lsa, parolni tiklash havolasi yuborildi", null));
+        return ResponseEntity.ok(ApiResponse.success("Agar ushbu email ro'yxatdan o'tgan bo'lsa, quloqqa aytiladigan so'zni tiklash havolasi yuborildi", null));
     }
 
     @Operation(summary = "Yangi parol o'rnatish", description = "Body: {token, newPassword}. Emailga kelgan token orqali yangi parol o'rnatiladi.")
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody com.taskcenter.dto.ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Parol muvaffaqiyatli yangilandi. Endi yangi parol bilan tizimga kirishingiz mumkin", null));
+        return ResponseEntity.ok(ApiResponse.success("Quloqqa aytiladigan so'z muvaffaqiyatli yangilandi. Endi yangi so'z bilan tizimga kirishingiz mumkin", null));
     }
 }

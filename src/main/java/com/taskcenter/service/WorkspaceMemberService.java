@@ -101,8 +101,7 @@ public class WorkspaceMemberService {
 
         if (targetUserOpt.isEmpty()) {
             if (query.contains("@")) {
-                Optional<WorkspaceInvitation> existingOpt = invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, null, InvitationStatus.PENDING)
-                        .stream().filter(inv -> query.equalsIgnoreCase(inv.getReceiverEmail())).findFirst();
+                Optional<WorkspaceInvitation> existingOpt = invitationRepository.findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(workspaceId, query, InvitationStatus.PENDING);
 
                 if (existingOpt.isPresent()) {
                     WorkspaceInvitation existing = existingOpt.get();
@@ -112,6 +111,7 @@ public class WorkspaceMemberService {
                             .fullName("Taklif etilgan (" + query + ")")
                             .email(query)
                             .role(existing.getRole())
+                            .roleName(existing.getRole() != null ? existing.getRole().getDisplayName() : null)
                             .build();
                 }
                 
@@ -140,6 +140,7 @@ public class WorkspaceMemberService {
                         .fullName("Taklif etilgan (" + query + ")")
                         .email(query)
                         .role(roleToAssign)
+                        .roleName(roleToAssign != null ? roleToAssign.getDisplayName() : null)
                         .build();
             } else {
                 throw new ResourceNotFoundException("Foydalanuvchi topilmadi: " + query);
@@ -196,6 +197,7 @@ public class WorkspaceMemberService {
                     .fullName("Taklif etilgan (" + inv.getReceiverEmail() + ")")
                     .email(inv.getReceiverEmail())
                     .role(inv.getRole())
+                    .roleName(inv.getRole() != null ? inv.getRole().getDisplayName() : null)
                     .build();
         }
 

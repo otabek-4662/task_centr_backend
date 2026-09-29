@@ -74,7 +74,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Nom yoki parol xato"));
+                .body(ApiResponse.error("Nom yoki quloqqa aytiladigan so'z xato"));
     }
 
     @ExceptionHandler(UsernameNotFoundException.class)

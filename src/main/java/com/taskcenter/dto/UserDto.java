@@ -29,6 +29,22 @@ public class UserDto {
     @Schema(description = "Workspacega allaqachon a'zo bo'lganmi yoki yo'q", example = "true")
     private Boolean isAdded;
 
+    @Schema(description = "Vazifalar soni", example = "15")
+    private Long taskCount;
+
+    @Schema(description = "Foydalanuvchining o'zbekona maqomi / unvoni", example = "O'zimizdan")
+    private String statusNickname;
+
+    public static String calculateStatusNickname(long count) {
+        if (count <= 0) return "Begona bola";
+        if (count <= 10) return "Do'konga chopuvchi";
+        if (count <= 25) return "O'zimizdan";
+        if (count <= 50) return "Ishonganimiz";
+        if (count <= 100) return "Ko'cha ko'rgan";
+        if (count <= 200) return "Katta uka";
+        return "Katta aka";
+    }
+
     public static UserDto fromEntity(User user) {
         return UserDto.builder()
                 .id(user.getId())
@@ -36,7 +52,16 @@ public class UserDto {
                 .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
                 .email(user.getEmail())
                 .role(user.getRole() != null ? user.getRole().name() : null)
+                .taskCount(0L)
+                .statusNickname("Begona bola")
                 .build();
+    }
+
+    public static UserDto fromEntity(User user, long taskCount) {
+        UserDto dto = fromEntity(user);
+        dto.setTaskCount(taskCount);
+        dto.setStatusNickname(calculateStatusNickname(taskCount));
+        return dto;
     }
 
     public static UserDto fromEntity(User user, boolean isAdded) {

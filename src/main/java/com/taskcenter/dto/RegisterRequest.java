@@ -12,7 +12,7 @@ public class RegisterRequest {
     private String name;
 
     @Schema(description = "Foydalanuvchi paroli (kamida 6 ta belgi)", example = "parol123")
-    @NotBlank(message = "password bo'sh bo'lishi mumkin emas")
-    @Size(min = 6, message = "password kamida 6 ta belgidan iborat bo'lishi kerak")
+    @NotBlank(message = "Quloqqa aytiladigan so'z bo'sh bo'lishi mumkin emas")
+    @Size(min = 6, message = "Quloqqa aytiladigan so'z kamida 6 ta belgidan iborat bo'lishi kerak")
     private String password;
 }

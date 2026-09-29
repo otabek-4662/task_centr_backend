@@ -9,11 +9,11 @@ import lombok.Data;
 public class ChangePasswordRequest {
 
     @Schema(description = "Eski parol", example = "OldPassword123!")
-    @NotBlank(message = "Eski parol kiritilishi shart")
+    @NotBlank(message = "Eski quloqqa aytiladigan so'z kiritilishi shart")
     private String oldPassword;
 
     @Schema(description = "Yangi parol (kamida 6 ta belgi)", example = "NewSecurePassword123!")
-    @NotBlank(message = "Yangi parol kiritilishi shart")
-    @Size(min = 6, max = 100, message = "Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak")
+    @NotBlank(message = "Yangi quloqqa aytiladigan so'z kiritilishi shart")
+    @Size(min = 6, max = 100, message = "Yangi quloqqa aytiladigan so'z kamida 6 ta belgidan iborat bo'lishi kerak")
     private String newPassword;
 }

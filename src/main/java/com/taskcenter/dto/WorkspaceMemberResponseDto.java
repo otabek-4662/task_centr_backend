@@ -17,6 +17,7 @@ public class WorkspaceMemberResponseDto {
     private String fullName;
     private String email;
     private WorkspaceRole role;
+    private String roleName;
 
     public static WorkspaceMemberResponseDto fromEntity(User user, WorkspaceRole role) {
         return WorkspaceMemberResponseDto.builder()
@@ -25,6 +26,7 @@ public class WorkspaceMemberResponseDto {
                 .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
                 .email(user.getEmail())
                 .role(role)
+                .roleName(role != null ? role.getDisplayName() : null)
                 .build();
     }
 }

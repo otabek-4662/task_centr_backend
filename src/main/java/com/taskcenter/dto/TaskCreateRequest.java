@@ -14,16 +14,16 @@ import java.time.LocalDate;
 @Data
 public class TaskCreateRequest {
     @Schema(description = "Vazifa joylashadigan ustun ID si", example = "col-12345")
-    @NotBlank(message = "columnId bo'sh bo'lishi mumkin emas")
+    @NotBlank(message = "Ustun tanlanishi shart")
     private String columnId;
 
     @Schema(description = "Vazifa nomi", example = "Swagger UI integratsiyasini ulash")
-    @NotBlank(message = "title bo'sh bo'lishi mumkin emas")
-    @Size(max = 255, message = "title 255 belgidan oshmasligi kerak")
+    @NotBlank(message = "Vazifa (Bosh og'riq) sarlavhasi bo'sh bo'lishi mumkin emas")
+    @Size(max = 255, message = "Sarlavha 255 belgidan oshmasligi kerak")
     private String title;
 
     @Schema(description = "Vazifa batafsil tavsifi", example = "Frontendda Swagger UI guruhlarini ko'rsatish")
-    @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")
+    @Size(max = 5000, message = "Tavsif 5000 belgidan oshmasligi kerak")
     private String description;
 
     @Schema(description = "Lexorank saralash qiymati", example = "0|hzzzzz:")
@@ -39,8 +39,8 @@ public class TaskCreateRequest {
     private LocalDate dueDate;
 
     @Schema(description = "Story Points (Agile ball)", example = "5")
-    @Min(value = 0, message = "storyPoints 0 dan kam bo'lishi mumkin emas")
-    @Max(value = 1000, message = "storyPoints 1000 dan oshmasligi kerak")
+    @Min(value = 0, message = "Vazifa bahosi 0 dan kam bo'lishi mumkin emas")
+    @Max(value = 1000, message = "Vazifa bahosi 1000 dan oshmasligi kerak")
     private Integer storyPoints;
 
     @Schema(description = "Taxmin qilingan soatlar", example = "5.5")

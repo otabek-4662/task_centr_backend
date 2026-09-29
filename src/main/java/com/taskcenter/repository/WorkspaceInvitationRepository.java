@@ -13,6 +13,8 @@ public interface WorkspaceInvitationRepository extends JpaRepository<WorkspaceIn
     
     Optional<WorkspaceInvitation> findByWorkspaceIdAndReceiverIdAndStatus(String workspaceId, String receiverId, InvitationStatus status);
     
+    Optional<WorkspaceInvitation> findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(String workspaceId, String receiverEmail, InvitationStatus status);
+    
     List<WorkspaceInvitation> findByReceiverEmailAndStatus(String receiverEmail, InvitationStatus status);
     
     List<WorkspaceInvitation> findByReceiverIdAndStatusOrderByCreatedAtDesc(String receiverId, InvitationStatus status);

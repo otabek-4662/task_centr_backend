@@ -460,7 +460,7 @@ public class TaskService {
             task.getAssignees().add(assignee);
             
             if (assignee.getTelegramChatId() != null && telegramBotService != null) {
-                telegramBotService.sendMessage(assignee.getTelegramChatId(), "🔔 Yangi vazifa: " + task.getTitle() + "\nWorkspace: " + workspaceId + "\nPrioritet: " + task.getPriority());
+                telegramBotService.sendMessage(assignee.getTelegramChatId(), "🔔 Sizga yangi bosh og'riq (vazifa) biriktirildi!\n\n📌 Nomi: " + task.getTitle() + "\n⚠️ Muhimligi: " + task.getPriority() + "\n\nQozonda qaynatish vaqti keldi! ☕️");
             }
         }
         

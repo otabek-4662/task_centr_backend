@@ -69,6 +69,6 @@ public class UserController {
             @AuthenticationPrincipal User currentUser,
             @jakarta.validation.Valid @RequestBody com.taskcenter.dto.ChangePasswordRequest request) {
         userService.changePassword(currentUser, request);
-        return ApiResponse.success("Parol muvaffaqiyatli o'zgartirildi", null);
+        return ApiResponse.success("Quloqqa aytiladigan so'z muvaffaqiyatli o'zgartirildi", null);
     }
 }
