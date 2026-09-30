@@ -11,18 +11,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final WebSocketNotifier webSocketNotifier;
-    private final TelegramBotService telegramBotService;
 
-    public NotificationService(NotificationRepository notificationRepository, UserRepository userRepository, WebSocketNotifier webSocketNotifier, @org.springframework.lang.Nullable TelegramBotService telegramBotService) {
+    public NotificationService(NotificationRepository notificationRepository, UserRepository userRepository, WebSocketNotifier webSocketNotifier) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.webSocketNotifier = webSocketNotifier;
-        this.telegramBotService = telegramBotService;
     }
 
     @Transactional(readOnly = true)
@@ -64,16 +65,16 @@ public class NotificationService {
                     .type("NEW_NOTIFICATION")
                     .data(toDto(saved))
                     .build());
-                    
-            if (recipient.getTelegramChatId() != null && telegramBotService != null) {
-                telegramBotService.sendMessage(recipient.getTelegramChatId(), "🔔 " + saved.getTitle() + "\n" + saved.getMessage());
-            }
         });
     }
 
     @Transactional
     public void notifyWatchers(java.util.Set<User> watchers, String actorId, String title, String message, String refId) {
         if (watchers == null) return;
+        
+        List<Notification> notifications = new ArrayList<>();
+        List<User> targetWatchers = new ArrayList<>();
+        
         for (User watcher : watchers) {
             if (watcher.getId().equals(actorId)) continue;
             
@@ -84,16 +85,22 @@ public class NotificationService {
                     .type("WATCH")
                     .referenceId(refId)
                     .build();
-            Notification saved = notificationRepository.save(notification);
+            notifications.add(notification);
+            targetWatchers.add(watcher);
+        }
+        
+        if (notifications.isEmpty()) return;
+        
+        List<Notification> savedList = notificationRepository.saveAll(notifications);
+        
+        for (int i = 0; i < savedList.size(); i++) {
+            Notification saved = savedList.get(i);
+            User watcher = targetWatchers.get(i);
             
             webSocketNotifier.notifyUser(watcher.getId(), WebSocketEvent.builder()
                     .type("NEW_NOTIFICATION")
                     .data(toDto(saved))
                     .build());
-                    
-            if (watcher.getTelegramChatId() != null && telegramBotService != null) {
-                telegramBotService.sendMessage(watcher.getTelegramChatId(), "🔔 " + saved.getTitle() + "\n" + saved.getMessage());
-            }
         }
     }
 
@@ -112,10 +119,6 @@ public class NotificationService {
                     .type("NEW_NOTIFICATION")
                     .data(toDto(saved))
                     .build());
-
-            if (user.getTelegramChatId() != null && telegramBotService != null) {
-                telegramBotService.sendMessage(user.getTelegramChatId(), "🔔 " + saved.getTitle() + "\n" + saved.getMessage());
-            }
         });
     }
 

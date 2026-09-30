@@ -1,0 +1,3 @@
+ALTER TABLE users
+ADD COLUMN telegram_notify_moves BOOLEAN NOT NULL DEFAULT TRUE,
+ADD COLUMN telegram_notify_invites BOOLEAN NOT NULL DEFAULT TRUE;

@@ -41,6 +41,10 @@ public class BoardColumn {
     @Builder.Default
     private Boolean isDefault = false;
 
+    @Column(name = "is_done", nullable = false)
+    @Builder.Default
+    private Boolean isDone = false;
+
     @CreatedBy
     @Column(name = "created_by")
     private String createdBy;

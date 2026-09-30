@@ -85,6 +85,7 @@ public class WorkspaceService {
                     .title("Dushanbadan")
                     .order(1)
                     .isDefault(true)
+                    .isDone(false)
                     .build());
 
             columnRepository.save(BoardColumn.builder()
@@ -92,6 +93,7 @@ public class WorkspaceService {
                     .title("Jumagacha bitadi")
                     .order(2)
                     .isDefault(true)
+                    .isDone(false)
                     .build());
 
             columnRepository.save(BoardColumn.builder()
@@ -99,20 +101,7 @@ public class WorkspaceService {
                     .title("Ko'z tegmasin")
                     .order(3)
                     .isDefault(true)
-                    .build());
-
-            columnRepository.save(BoardColumn.builder()
-                    .workspaceId(saved.getId())
-                    .title("Ko'z tegdi")
-                    .order(4)
-                    .isDefault(true)
-                    .build());
-
-            columnRepository.save(BoardColumn.builder()
-                    .workspaceId(saved.getId())
-                    .title("Buyuk ishlar boshlanishi")
-                    .order(5)
-                    .isDefault(true)
+                    .isDone(true)
                     .build());
         }
 

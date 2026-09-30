@@ -13,10 +13,10 @@ import java.util.List;
 public interface WorkspaceRepository extends JpaRepository<Workspace, String> {
     List<Workspace> findAllByOwnerId(String ownerId);
 
-    @Query("SELECT w FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    // JOIN bilan — subquery dan ancha tezroq (idx_workspace_members_user_id ishlatiladi)
+    @Query("SELECT DISTINCT w FROM Workspace w LEFT JOIN WorkspaceMember wm ON wm.workspaceId = w.id WHERE w.ownerId = :userId OR wm.userId = :userId")
     List<Workspace> findByOwnerIdOrMemberUserId(@Param("userId") String userId);
-    
 
-    @Query("SELECT w FROM Workspace w WHERE w.ownerId = :userId OR w.id IN (SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId)")
+    @Query("SELECT DISTINCT w FROM Workspace w LEFT JOIN WorkspaceMember wm ON wm.workspaceId = w.id WHERE w.ownerId = :userId OR wm.userId = :userId")
     Page<Workspace> findByOwnerIdOrMemberUserIdPaginated(@Param("userId") String userId, Pageable pageable);
 }

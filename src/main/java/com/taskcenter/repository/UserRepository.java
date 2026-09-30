@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Query("SELECT u FROM User u WHERE u.id IN :ids")
     List<User> findByIdIn(@Param("ids") Set<String> ids);
 
+    List<User> findByNameIn(java.util.Collection<String> names);
+
     @Query("SELECT DISTINCT u FROM User u WHERE u.id = (" +
            "SELECT w.ownerId FROM Workspace w WHERE w.id = :workspaceId" +
            ") OR u.id IN (" +

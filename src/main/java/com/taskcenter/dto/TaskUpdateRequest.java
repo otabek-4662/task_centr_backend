@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 @Data
 public class TaskUpdateRequest {
-    @Size(max = 255, message = "title 255 belgidan oshmasligi kerak")
+    @Size(min = 1, max = 255, message = "title bo'sh bo'lmasligi va 255 belgidan oshmasligi kerak")
     private String title;
 
     @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")
@@ -22,6 +22,7 @@ public class TaskUpdateRequest {
     private Priority priority;
     private IssueType issueType;
     private LocalDate dueDate;
+    private Boolean clearDueDate;
 
     @Min(value = 0, message = "storyPoints 0 dan kam bo'lishi mumkin emas")
     @Max(value = 1000, message = "storyPoints 1000 dan oshmasligi kerak")

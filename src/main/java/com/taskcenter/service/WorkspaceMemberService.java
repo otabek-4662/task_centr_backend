@@ -88,9 +88,8 @@ public class WorkspaceMemberService {
             }
         }
 
-        List<WorkspaceInvitation> pendingInvitations = invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
-                .filter(inv -> inv.getStatus() == InvitationStatus.PENDING)
-                .collect(Collectors.toList());
+        // DB darajasida faqat PENDING takliflarni olish (barcha tarixni tortmaydi)
+        List<WorkspaceInvitation> pendingInvitations = invitationRepository.findByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
 
         for (WorkspaceInvitation inv : pendingInvitations) {
             result.add(WorkspaceMemberResponseDto.builder()
@@ -130,9 +129,8 @@ public class WorkspaceMemberService {
                             .build();
                 }
                 
-                long pendingCount = invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
-                        .filter(inv -> inv.getStatus() == InvitationStatus.PENDING)
-                        .count();
+                // DB darajasida COUNT — barcha tarixni tortib filter qilish o'rniga
+                long pendingCount = invitationRepository.countByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
                 if (pendingCount >= 50) {
                     throw new BadRequestException("Ushbu loyihada kutilayotgan takliflar soni 50 tadan oshib ketdi. Eski takliflarni bekor qiling.");
                 }

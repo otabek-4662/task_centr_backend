@@ -6,4 +6,5 @@ import lombok.Data;
 public class ColumnPatchRequest {
     private String title;
     private Integer order;
+    private Boolean isDone;
 }

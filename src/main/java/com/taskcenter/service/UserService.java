@@ -16,8 +16,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+
 @Service
 public class UserService {
+
+    // Kriptografik jihatdan xavfsiz random generator (java.util.Random o'rniga)
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    // 8 belgili token: 36^8 ≈ 2.8 trillion kombinatsiya (6 xonali raqam = 1 million)
+    private static final String TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final int TOKEN_LENGTH = 8;
+    private static final int TOKEN_TTL_MINUTES = 15;
 
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
@@ -57,9 +67,16 @@ public class UserService {
 
     @Transactional
     public String generateTelegramLinkToken(User currentUser) {
-        String token = String.format("%06d", new java.util.Random().nextInt(999999));
+        // SecureRandom bilan kriptografik jihatdan xavfsiz token yaratish
+        StringBuilder sb = new StringBuilder(TOKEN_LENGTH);
+        for (int i = 0; i < TOKEN_LENGTH; i++) {
+            sb.append(TOKEN_CHARS.charAt(SECURE_RANDOM.nextInt(TOKEN_CHARS.length())));
+        }
+        String token = sb.toString();
+
         User user = userRepository.findById(currentUser.getId()).orElseThrow();
         user.setTelegramLinkToken(token);
+        user.setTelegramLinkTokenExpiresAt(LocalDateTime.now().plusMinutes(TOKEN_TTL_MINUTES));
         userRepository.save(user);
         return token;
     }

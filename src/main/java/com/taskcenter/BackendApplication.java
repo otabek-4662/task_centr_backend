@@ -41,4 +41,9 @@ public class BackendApplication {
 		}
 		SpringApplication.run(BackendApplication.class, args);
 	}
+
+	@org.springframework.context.annotation.Bean
+	public java.time.Clock clock() {
+		return java.time.Clock.system(java.time.ZoneId.of("Asia/Tashkent"));
+	}
 }

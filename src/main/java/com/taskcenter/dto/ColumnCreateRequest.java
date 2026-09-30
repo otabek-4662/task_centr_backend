@@ -10,4 +10,5 @@ public class ColumnCreateRequest {
     @Size(max = 255, message = "title 255 belgidan oshmasligi kerak")
     private String title;
     private Integer order;
+    private Boolean isDone;
 }

@@ -11,6 +11,7 @@ import com.taskcenter.model.TaskActivityType;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,12 +33,9 @@ public class TaskService {
     private final TaskActivityService activityService;
     private final WebSocketNotifier webSocketNotifier;
     private final NotificationService notificationService;
-
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.taskcenter.repository.UserRepository userRepository;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private @org.springframework.context.annotation.Lazy TelegramBotService telegramBotService;
+    private final com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository;
+    private final TelegramNotificationService telegramNotificationService;
+    private final UserRepository userRepository;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
@@ -45,7 +43,10 @@ public class TaskService {
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService,
                        WebSocketNotifier webSocketNotifier,
-                       NotificationService notificationService) {
+                       NotificationService notificationService,
+                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramNotificationService telegramNotificationService,
+                       UserRepository userRepository) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
@@ -53,6 +54,9 @@ public class TaskService {
         this.activityService = activityService;
         this.webSocketNotifier = webSocketNotifier;
         this.notificationService = notificationService;
+        this.telegramReminderLogRepository = telegramReminderLogRepository;
+        this.telegramNotificationService = telegramNotificationService;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
@@ -195,6 +199,9 @@ public class TaskService {
             throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
         }
 
+        boolean columnChanged = false;
+        String oldColumnTitle = null;
+        String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
             BoardColumn newColumn = columnRepository.findById(req.getColumnId())
                     .orElseThrow(() -> new ResourceNotFoundException("Yangi column topilmadi: " + req.getColumnId()));
@@ -202,6 +209,10 @@ public class TaskService {
                 throw new ResourceNotFoundException("Yangi column ushbu workspace ga tegishli emas");
             }
             String oldColId = task.getColumnId();
+            BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
+            oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
+            newColumnTitle = newColumn.getTitle();
+            columnChanged = true;
             task.setColumnId(req.getColumnId());
             if (req.getLexoRank() == null) {
                 String maxRank = taskRepository.findMaxLexoRankByColumnId(req.getColumnId());
@@ -233,10 +244,16 @@ public class TaskService {
             task.setIssueType(req.getIssueType());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.ISSUE_TYPE_UPDATED, "issueType", String.valueOf(oldType), String.valueOf(req.getIssueType()));
         }
-        if (req.getDueDate() != null && !req.getDueDate().equals(task.getDueDate())) {
+        if (Boolean.TRUE.equals(req.getClearDueDate())) {
+            LocalDate oldDate = task.getDueDate();
+            task.setDueDate(null);
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), "null");
+            clearReminderLogsForTask(task.getId());
+        } else if (req.getDueDate() != null && !req.getDueDate().equals(task.getDueDate())) {
             LocalDate oldDate = task.getDueDate();
             task.setDueDate(req.getDueDate());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), String.valueOf(req.getDueDate()));
+            clearReminderLogsForTask(task.getId());
         }
         if (req.getStoryPoints() != null && !req.getStoryPoints().equals(task.getStoryPoints())) {
             Integer oldPoints = task.getStoryPoints();
@@ -270,6 +287,9 @@ public class TaskService {
         }
 
         Task saved = taskRepository.save(task);
+        if (columnChanged) {
+            telegramNotificationService.sendTaskMovedNotification(saved, currentUser, oldColumnTitle, newColumnTitle);
+        }
         notificationService.notifyWatchers(task.getWatchers(), currentUser.getId(), "Vazifa yangilandi", task.getTitle() + " vazifasi o'zgartirildi", task.getId());
         TaskDto taskDto = TaskDto.fromEntity(saved);
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
@@ -290,6 +310,9 @@ public class TaskService {
             throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
         }
 
+        boolean columnChanged = false;
+        String oldColumnTitle = null;
+        String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
             BoardColumn column = columnRepository.findById(req.getColumnId())
                     .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + req.getColumnId()));
@@ -297,6 +320,10 @@ public class TaskService {
                 throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
             }
             String oldColId = task.getColumnId();
+            BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
+            oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
+            newColumnTitle = column.getTitle();
+            columnChanged = true;
             task.setColumnId(req.getColumnId());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
         }
@@ -304,6 +331,9 @@ public class TaskService {
         task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(req.getPrevRank(), req.getNextRank()));
         
         Task saved = taskRepository.save(task);
+        if (columnChanged) {
+            telegramNotificationService.sendTaskMovedNotification(saved, currentUser, oldColumnTitle, newColumnTitle);
+        }
         TaskDto taskDto = TaskDto.fromEntity(saved);
         
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
@@ -454,17 +484,19 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
 
         boolean isAssigned = task.getAssignees().stream().anyMatch(u -> u.getId().equals(userId));
+        boolean newlyAssigned = false;
         if (isAssigned) {
             task.getAssignees().removeIf(u -> u.getId().equals(userId));
         } else {
             task.getAssignees().add(assignee);
-            
-            if (assignee.getTelegramChatId() != null && telegramBotService != null) {
-                telegramBotService.sendMessage(assignee.getTelegramChatId(), "🔔 Sizga yangi bosh og'riq (vazifa) biriktirildi!\n\n📌 Nomi: " + task.getTitle() + "\n⚠️ Muhimligi: " + task.getPriority() + "\n\nQozonda qaynatish vaqti keldi! ☕️");
-            }
+            newlyAssigned = true;
         }
         
         Task saved = taskRepository.save(task);
+
+        if (newlyAssigned) {
+            telegramNotificationService.sendTaskAssignedNotification(saved, assignee, currentUser);
+        }
         TaskDto taskDto = TaskDto.fromEntity(saved);
         
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
@@ -475,4 +507,12 @@ public class TaskService {
                 
         return taskDto;
     }
+
+    @Transactional
+    public void clearReminderLogsForTask(String taskId) {
+        if (taskId != null) {
+            telegramReminderLogRepository.deleteByTaskId(taskId);
+        }
+    }
 }
+

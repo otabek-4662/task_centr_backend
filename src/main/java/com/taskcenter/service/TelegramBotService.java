@@ -13,6 +13,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.task.TaskExecutor;
+import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -26,6 +35,12 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import jakarta.annotation.PostConstruct;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import com.taskcenter.util.TelegramUtil;
 
 @Slf4j
 @Service
@@ -37,6 +52,15 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final TaskRepository taskRepository;
     private final ColumnRepository columnRepository;
     private final WorkspaceRepository workspaceRepository;
+    private final WorkspaceAuthorizationService authorizationService;
+    private final TaskExecutor taskExecutor;
+
+    private static class RateLimit {
+        int attempts;
+        LocalDateTime windowStart;
+        RateLimit(int a, LocalDateTime w) { this.attempts = a; this.windowStart = w; }
+    }
+    private final Map<Long, RateLimit> startRateLimits = new ConcurrentHashMap<>();
 
     public TelegramBotService(
             @Value("${telegram.bot.token:}") String botToken,
@@ -44,13 +68,17 @@ public class TelegramBotService extends TelegramLongPollingBot {
             UserRepository userRepository,
             TaskRepository taskRepository,
             ColumnRepository columnRepository,
-            WorkspaceRepository workspaceRepository) {
+            WorkspaceRepository workspaceRepository,
+            WorkspaceAuthorizationService authorizationService,
+            TaskExecutor taskExecutor) {
         super(botToken);
         this.botUsername = botUsername;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.workspaceRepository = workspaceRepository;
+        this.authorizationService = authorizationService;
+        this.taskExecutor = taskExecutor;
     }
 
     @Override
@@ -58,12 +86,40 @@ public class TelegramBotService extends TelegramLongPollingBot {
         return botUsername;
     }
 
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
+    public void initCommands() {
+        try {
+            List<BotCommand> commands = List.of(
+                new BotCommand("start", "Botni ishga tushirish"),
+                new BotCommand("my_tasks", "Bosh og'riqlarim"),
+                new BotCommand("status", "Mening maqomim"),
+                new BotCommand("help", "Yordam"),
+                new BotCommand("unlink", "Akkauntni uzish")
+            );
+            execute(new SetMyCommands(commands, new BotCommandScopeDefault(), null));
+            log.info("Telegram bot commands registered successfully");
+        } catch (Exception e) {
+            log.error("Failed to register telegram bot commands", e);
+        }
+    }
+
     @Override
     @Transactional
     public void onUpdateReceived(Update update) {
         if (update.hasCallbackQuery()) {
+            if (update.getCallbackQuery().getMessage() == null || 
+                update.getCallbackQuery().getMessage().getChat() == null || 
+                !"private".equals(update.getCallbackQuery().getMessage().getChat().getType())) {
+                return;
+            }
             handleCallbackQuery(update.getCallbackQuery());
         } else if (update.hasMessage() && update.getMessage().hasText()) {
+            if (update.getMessage().getChat() == null || 
+                !"private".equals(update.getMessage().getChat().getType())) {
+                sendMessage(update.getMessage().getChatId(), "Ushbu bot faqat shaxsiy chatda ishlaydi.");
+                return;
+            }
             String text = update.getMessage().getText().trim();
             Long chatId = update.getMessage().getChatId();
 
@@ -86,15 +142,42 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private void handleStart(Long chatId, String text) {
         String[] parts = text.split(" ");
         if (parts.length > 1) {
+            RateLimit limit = startRateLimits.compute(chatId, (k, v) -> {
+                LocalDateTime now = LocalDateTime.now();
+                if (v == null || v.windowStart.isBefore(now.minusMinutes(15))) {
+                    return new RateLimit(1, now);
+                }
+                v.attempts++;
+                return v;
+            });
+
+            if (limit.attempts > 5) {
+                sendMessage(chatId, "⚠️ Siz juda ko'p marotaba noto'g'ri urinish qildingiz. Iltimos, 15 daqiqadan so'ng qayta urinib ko'ring.");
+                return;
+            }
+
             String token = parts[1].trim();
             Optional<User> userOpt = userRepository.findByTelegramLinkToken(token);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
+                if (user.getTelegramLinkTokenExpiresAt() != null && user.getTelegramLinkTokenExpiresAt().isBefore(LocalDateTime.now())) {
+                    sendMessage(chatId, "⚠️ Token muddati eskirgan (15 daqiqa o'tib ketgan). Iltimos, web ilovadan yangi token oling.");
+                    return;
+                }
+
+                Optional<User> alreadyLinked = userRepository.findByTelegramChatId(chatId);
+                if (alreadyLinked.isPresent() && !alreadyLinked.get().getId().equals(user.getId())) {
+                    sendMessage(chatId, "⚠️ Ushbu Telegram raqam allaqachon boshqa akkauntga ulangan. Bitta raqam faqat bitta akkauntga ulanishi mumkin.");
+                    return;
+                }
+
                 user.setTelegramChatId(chatId);
                 user.setTelegramLinkToken(null);
+                user.setTelegramLinkTokenExpiresAt(null);
                 userRepository.save(user);
+                startRateLimits.remove(chatId);
 
-                String welcomeMsg = "🎉 Davraga xush kelibsiz, " + (user.getFullName() != null ? user.getFullName() : user.getName()) + "!\n\n"
+                String welcomeMsg = "🎉 Davraga xush kelibsiz, <b>" + TelegramUtil.escapeHtml(user.getFullName() != null ? user.getFullName() : user.getName()) + "</b>!\n\n"
                         + "Akkauntingiz muvaffaqiyatli ulandi ☕️\n"
                         + "Endi barcha g'alva va bosh og'riqlardan (vazifalardan) xabardor bo'lib turasiz hamda ularni shu yerdan boshqara olasiz!";
                 sendMessageWithMainKeyboard(chatId, welcomeMsg);
@@ -105,13 +188,13 @@ public class TelegramBotService extends TelegramLongPollingBot {
             Optional<User> linkedOpt = userRepository.findByTelegramChatId(chatId);
             if (linkedOpt.isPresent()) {
                 User user = linkedOpt.get();
-                sendMessageWithMainKeyboard(chatId, "Assalomu alaykum, " + user.getName() + "! 'Choylashamiz' botiga xush kelibsiz. Nima qilamiz?");
+                sendMessageWithMainKeyboard(chatId, "Assalomu alaykum, <b>" + TelegramUtil.escapeHtml(user.getName()) + "</b>! 'Choylashamiz' botiga xush kelibsiz. Nima qilamiz?");
             } else {
                 String help = "☕️ Assalomu alaykum! 'Choylashamiz' tizimining rasmiy botiga xush kelibsiz.\n\n"
                         + "Telegram orqali bildirishnomalarni olish va vazifalaringizni boshqarish uchun akkauntingizni ulang:\n"
                         + "1. Web ilovadagi 'Hujram' (Profil) sahifasiga kiring.\n"
                         + "2. 'Telegramni ulash' tugmasini bosing.\n"
-                        + "3. Botga yuboriladigan havolani oching yoki berilgan 6 xonali kodni `/start <kod>` ko'rinishida yuboring.";
+                        + "3. Botga yuboriladigan havolani oching yoki berilgan 6 xonali kodni <code>/start &lt;kod&gt;</code> ko'rinishida yuboring.";
                 sendMessage(chatId, help);
             }
         }
@@ -168,8 +251,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
             tasksNeeded = 0;
         }
 
-        String msg = "👤 Foydalanuvchi: " + (user.getFullName() != null ? user.getFullName() : user.getName()) + "\n"
-                + "🏆 Maqomingiz: " + statusNickname + "\n"
+        String msg = "👤 Foydalanuvchi: <b>" + TelegramUtil.escapeHtml(user.getFullName() != null ? user.getFullName() : user.getName()) + "</b>\n"
+                + "🏆 Maqomingiz: <b>" + TelegramUtil.escapeHtml(statusNickname) + "</b>\n"
                 + "📌 Jami biriktirilgan vazifalar: " + taskCount + " ta\n";
 
         if (tasksNeeded > 0) {
@@ -194,9 +277,27 @@ public class TelegramBotService extends TelegramLongPollingBot {
         Optional<User> userOpt = userRepository.findByTelegramChatId(chatId);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            user.setTelegramChatId(null);
-            userRepository.save(user);
-            sendMessage(chatId, "Telegram akkauntingiz tizimdan muvaffaqiyatli uzildi. Qayta ulash uchun web ilovadan token oling.");
+            SendMessage message = new SendMessage();
+            message.setChatId(String.valueOf(chatId));
+            message.setText("Haqiqatan ham akkauntingizni tizimdan uzmoqchimisiz?");
+            message.setParseMode("HTML");
+            
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton yesBtn = new InlineKeyboardButton();
+            yesBtn.setText("Ha, uzish");
+            yesBtn.setCallbackData("UNLINK_YES_" + user.getId());
+            
+            InlineKeyboardButton noBtn = new InlineKeyboardButton();
+            noBtn.setText("Bekor qilish");
+            noBtn.setCallbackData("UNLINK_NO");
+            
+            row.add(yesBtn);
+            row.add(noBtn);
+            markup.setKeyboard(List.of(row));
+            message.setReplyMarkup(markup);
+            
+            executeWithRetry(message, chatId, 0);
         } else {
             sendMessage(chatId, "Sizning akkauntingiz allaqachon ulanmagan.");
         }
@@ -221,17 +322,21 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         markupInline.setKeyboard(rowsInline);
         message.setReplyMarkup(markupInline);
+        message.setParseMode("HTML");
 
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Telegram xabar yuborishda xatolik", e);
-        }
+        executeWithRetry(message, chatId, 0);
     }
 
     private void handleCallbackQuery(CallbackQuery callbackQuery) {
         String callData = callbackQuery.getData();
         Long chatId = callbackQuery.getMessage().getChatId();
+
+        Optional<User> userOpt = userRepository.findByTelegramChatId(chatId);
+        if (userOpt.isEmpty()) {
+            sendMessage(chatId, "Sizning akkauntingiz hali ulanmagan. Iltimos, ulanish uchun web ilovadan token oling.");
+            return;
+        }
+        User user = userOpt.get();
 
         if (callData.startsWith("TASK_VIEW_")) {
             String taskId = callData.substring(10);
@@ -239,6 +344,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             if (taskOpt.isPresent()) {
                 Task task = taskOpt.get();
+                
+                try {
+                    authorizationService.checkAccess(task.getWorkspaceId(), user);
+                } catch (Exception e) {
+                    sendMessage(chatId, "⚠️ Ushbu vazifa bo'yicha ruxsatingiz yo'q (Loyihaga a'zo emassiz).");
+                    return;
+                }
+
                 Optional<BoardColumn> colOpt = columnRepository.findById(task.getColumnId());
                 String colName = colOpt.isPresent() ? colOpt.get().getTitle() : "Noma'lum";
 
@@ -250,15 +363,16 @@ public class TelegramBotService extends TelegramLongPollingBot {
                     }
                 }
 
-                String details = "📋 Bosh og'riq: " + task.getTitle() + "\n"
-                        + "🏢 G'alva (Loyiha): " + workspaceName + "\n"
-                        + "📊 Holati (Ustun): " + colName + "\n"
-                        + "⚠️ Muhimligi: " + (task.getPriority() != null ? task.getPriority() : "O'rtacha") + "\n"
-                        + (task.getDescription() != null && !task.getDescription().isBlank() ? "📝 Tafsilot: " + task.getDescription() : "");
+                String details = "📋 Bosh og'riq: <b>" + TelegramUtil.escapeHtml(task.getTitle()) + "</b>\n"
+                        + "🏢 G'alva (Loyiha): <b>" + TelegramUtil.escapeHtml(workspaceName) + "</b>\n"
+                        + "📊 Holati (Ustun): <b>" + TelegramUtil.escapeHtml(colName) + "</b>\n"
+                        + "⚠️ Muhimligi: <b>" + TelegramUtil.escapeHtml(task.getPriority() != null ? task.getPriority().name() : "O'rtacha") + "</b>\n"
+                        + (task.getDescription() != null && !task.getDescription().isBlank() ? "📝 Tafsilot: " + TelegramUtil.escapeHtml(task.getDescription()) : "");
 
                 SendMessage message = new SendMessage();
                 message.setChatId(String.valueOf(chatId));
                 message.setText(details);
+                message.setParseMode("HTML");
 
                 InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
@@ -273,11 +387,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 markupInline.setKeyboard(rowsInline);
                 message.setReplyMarkup(markupInline);
 
-                try {
-                    execute(message);
-                } catch (TelegramApiException e) {
-                    log.error("Telegram xabar yuborishda xatolik", e);
-                }
+                executeWithRetry(message, chatId, 0);
             } else {
                 sendMessage(chatId, "Bosh og'riq (vazifa) topilmadi.");
             }
@@ -287,6 +397,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             if (taskOpt.isPresent()) {
                 Task task = taskOpt.get();
+                
+                try {
+                    authorizationService.checkAccess(task.getWorkspaceId(), user);
+                } catch (Exception e) {
+                    sendMessage(chatId, "⚠️ Ushbu loyihaga a'zo emassiz, ruxsat yo'q.");
+                    return;
+                }
+
                 List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(task.getWorkspaceId());
 
                 SendMessage message = new SendMessage();
@@ -296,47 +414,110 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
 
-                for (BoardColumn col : columns) {
+                for (int i = 0; i < columns.size(); i++) {
+                    BoardColumn col = columns.get(i);
                     List<InlineKeyboardButton> rowInline = new ArrayList<>();
                     InlineKeyboardButton btn = new InlineKeyboardButton();
                     btn.setText(col.getTitle());
-                    btn.setCallbackData("TASK_STATUS_CHANGE_" + taskId + "_" + col.getId());
+                    int orderVal = col.getOrder() != null ? col.getOrder() : (i + 1);
+                    btn.setCallbackData("TASK_STATUS_CHANGE_" + taskId + "_" + orderVal);
                     rowInline.add(btn);
                     rowsInline.add(rowInline);
                 }
 
                 markupInline.setKeyboard(rowsInline);
                 message.setReplyMarkup(markupInline);
+                message.setParseMode("HTML");
 
-                try {
-                    execute(message);
-                } catch (TelegramApiException e) {
-                    log.error("Telegram xabar yuborishda xatolik", e);
-                }
+                executeWithRetry(message, chatId, 0);
             } else {
                 sendMessage(chatId, "Vazifa topilmadi.");
             }
         } else if (callData.startsWith("TASK_STATUS_CHANGE_")) {
             String remainder = callData.substring(19);
-            int underscoreIndex = remainder.indexOf('_');
-            if (underscoreIndex != -1) {
-                String taskId = remainder.substring(0, underscoreIndex);
-                String newColId = remainder.substring(underscoreIndex + 1);
+            int lastUnderscore = remainder.lastIndexOf('_');
+            if (lastUnderscore == -1) {
+                sendMessage(chatId, "Bu tugma eskirgan, xabarni qayta oching");
+                return;
+            }
+            String taskId = remainder.substring(0, lastUnderscore);
+            String orderStr = remainder.substring(lastUnderscore + 1);
 
-                Optional<Task> taskOpt = taskRepository.findById(taskId);
-                if (taskOpt.isPresent()) {
-                    Task task = taskOpt.get();
-                    task.setColumnId(newColId);
-                    taskRepository.save(task);
+            int orderNum;
+            try {
+                orderNum = Integer.parseInt(orderStr);
+            } catch (NumberFormatException e) {
+                sendMessage(chatId, "Bu tugma eskirgan, xabarni qayta oching");
+                return;
+            }
 
-                    Optional<BoardColumn> newColOpt = columnRepository.findById(newColId);
-                    String colName = newColOpt.isPresent() ? newColOpt.get().getTitle() : "Noma'lum";
+            Optional<Task> taskOpt = taskRepository.findById(taskId);
+            if (taskOpt.isEmpty()) {
+                sendMessage(chatId, "Vazifa topilmadi.");
+                return;
+            }
+            Task task = taskOpt.get();
 
-                    sendMessage(chatId, "✅ Vazifa holati muvaffaqiyatli o'zgartirildi: " + colName);
-                } else {
-                    sendMessage(chatId, "Vazifa topilmadi.");
+            try {
+                authorizationService.checkAccess(task.getWorkspaceId(), user);
+                authorizationService.checkCanEdit(task.getWorkspaceId(), user);
+            } catch (Exception e) {
+                sendMessage(chatId, "⚠️ Ruxsat yo'q.");
+                return;
+            }
+
+            List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(task.getWorkspaceId());
+            BoardColumn targetCol = null;
+            for (BoardColumn col : columns) {
+                if (col.getOrder() != null && col.getOrder().equals(orderNum)) {
+                    targetCol = col;
+                    break;
                 }
             }
+            if (targetCol == null) {
+                if (orderNum >= 1 && orderNum <= columns.size()) {
+                    targetCol = columns.get(orderNum - 1);
+                } else if (orderNum >= 0 && orderNum < columns.size()) {
+                    targetCol = columns.get(orderNum);
+                }
+            }
+
+            if (targetCol == null) {
+                sendMessage(chatId, "Yangi ustun topilmadi.");
+                return;
+            }
+
+            if (targetCol.getWorkspaceId() == null || !targetCol.getWorkspaceId().equals(task.getWorkspaceId())) {
+                sendMessage(chatId, "⚠️ Noto'g'ri ustun (boshqa loyihaga tegishli).");
+                return;
+            }
+
+            task.setColumnId(targetCol.getId());
+            taskRepository.save(task);
+            sendMessage(chatId, "✅ Vazifa holati muvaffaqiyatli o'zgartirildi: " + targetCol.getTitle());
+        } else if (callData.startsWith("UNLINK_YES_")) {
+            String targetUserId = callData.substring(11);
+            if (targetUserId.isBlank() || !user.getId().equals(targetUserId)) {
+                sendMessage(chatId, "⚠️ Xatolik: Ruxsat yo'q.");
+                return;
+            }
+            user.setTelegramChatId(null);
+            userRepository.save(user);
+            sendMessage(chatId, "Telegram akkauntingiz tizimdan muvaffaqiyatli uzildi. Qayta ulash uchun web ilovadan token oling.");
+        } else if (callData.equals("UNLINK_NO")) {
+            sendMessage(chatId, "Amaliyot bekor qilindi.");
+        } else {
+            sendMessage(chatId, "Bu tugma eskirgan, xabarni qayta oching");
+        }
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleTelegramMessageEvent(TelegramMessageEvent event) {
+        if (event.keyboard() != null) {
+            sendMessageWithInlineKeyboard(event.chatId(), event.message(), event.keyboard());
+        } else {
+            sendMessage(event.chatId(), event.message());
         }
     }
 
@@ -345,11 +526,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(text);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Telegram xabar yuborishda xatolik", e);
-        }
+        message.setParseMode("HTML");
+        executeWithRetry(message, chatId, 0);
     }
 
     public void sendMessageWithMainKeyboard(Long chatId, String text) {
@@ -357,11 +535,54 @@ public class TelegramBotService extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(text);
+        message.setParseMode("HTML");
         message.setReplyMarkup(getMainKeyboard());
+        executeWithRetry(message, chatId, 0);
+    }
+
+    public void sendMessageWithInlineKeyboard(Long chatId, String text, InlineKeyboardMarkup keyboard) {
+        if (chatId == null) return;
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("HTML");
+        message.setReplyMarkup(keyboard);
+        executeWithRetry(message, chatId, 0);
+    }
+
+    private void executeWithRetry(SendMessage message, Long chatId, int attempt) {
         try {
             execute(message);
+        } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException e) {
+            if (e.getErrorCode() != null && e.getErrorCode() == 429 && attempt == 0) {
+                int retryAfter = (e.getParameters() != null && e.getParameters().getRetryAfter() != null) 
+                        ? e.getParameters().getRetryAfter() : 5;
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        executeWithRetry(message, chatId, attempt + 1);
+                    } catch (Exception ex) {
+                        handleTelegramError(chatId, ex.getMessage());
+                    }
+                }, CompletableFuture.delayedExecutor(retryAfter, java.util.concurrent.TimeUnit.SECONDS, taskExecutor));
+            } else {
+                handleTelegramError(chatId, e.getMessage());
+            }
         } catch (TelegramApiException e) {
-            log.error("Telegram xabar yuborishda xatolik", e);
+            handleTelegramError(chatId, e.getMessage());
+        }
+    }
+
+    private void handleTelegramError(Long chatId, String msg) {
+        if (msg == null) msg = "";
+        msg = msg.toLowerCase();
+        if (msg.contains("forbidden") || msg.contains("403") || msg.contains("chat not found")) {
+            log.warn("Foydalanuvchi botni bloklagan yoki chat topilmadi. chatId={} o'chirilmoqda. {}", chatId, msg);
+            userRepository.findByTelegramChatId(chatId).ifPresent(u -> {
+                u.setTelegramChatId(null);
+                userRepository.save(u);
+            });
+        } else {
+            log.error("Telegram xabar yuborishda xatolik: {}", msg);
         }
     }
 

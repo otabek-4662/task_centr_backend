@@ -46,6 +46,9 @@ class CommentServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private TelegramNotificationService telegramNotificationService;
+
     @InjectMocks
     private CommentService commentService;
 
@@ -92,6 +95,8 @@ class CommentServiceTest {
             return c;
         });
 
+        when(taskRepository.findByIdWithDetails(taskId)).thenReturn(Optional.of(task));
+
         CommentCreateRequest request = CommentCreateRequest.builder().content("Awesome feature!").build();
         CommentDto result = commentService.addComment(taskId, request, author);
 
@@ -99,6 +104,7 @@ class CommentServiceTest {
         assertThat(result.getContent()).isEqualTo("Awesome feature!");
         assertThat(result.getAuthorName()).isEqualTo("author");
         verify(commentRepository).save(any(Comment.class));
+        verify(telegramNotificationService).sendCommentAndMentionNotifications(eq(task), eq(author), eq("Awesome feature!"));
     }
 
     @Test

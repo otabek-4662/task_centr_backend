@@ -19,6 +19,7 @@ public class ColumnDto {
     private String title;
     private Integer order;
     private Boolean isDefault;
+    private Boolean isDone;
     @Builder.Default
     private List<TaskDto> tasks = new ArrayList<>();
 
@@ -36,6 +37,7 @@ public class ColumnDto {
                 .title(c.getTitle())
                 .order(c.getOrder())
                 .isDefault(c.getIsDefault())
+                .isDone(c.getIsDone())
                 .tasks(taskList)
                 .build();
     }

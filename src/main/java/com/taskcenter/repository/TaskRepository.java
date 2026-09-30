@@ -22,6 +22,10 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);
+
+    @EntityGraph(attributePaths = {"assignees", "watchers"})
+    @Query("SELECT t FROM Task t WHERE t.id = :id")
+    Optional<Task> findByIdWithAssigneesAndWatchers(@Param("id") String id);
     
     @Query("SELECT t.workspaceId FROM Task t WHERE t.id = :taskId")
     Optional<String> findWorkspaceIdById(@Param("taskId") String taskId);
@@ -108,4 +112,36 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     @Query("SELECT t FROM Task t JOIN t.assignees a WHERE a.id = :userId AND t.isArchived = false")
     List<Task> findActiveTasksByUserId(@Param("userId") String userId);
+
+    @Query("SELECT new com.taskcenter.dto.TelegramReminderTaskDto(" +
+           "t.id, t.title, t.workspaceId, t.dueDate, u.id, u.telegramChatId) " +
+           "FROM Task t " +
+           "JOIN t.assignees u " +
+           "JOIN BoardColumn bc ON bc.id = t.columnId " +
+           "WHERE t.deletedAt IS NULL " +
+           "AND (t.isArchived = false OR t.isArchived IS NULL) " +
+           "AND t.dueDate >= :startDate AND t.dueDate <= :endDate " +
+           "AND bc.isDone = false " +
+           "AND u.deletedAt IS NULL " +
+           "AND u.telegramChatId IS NOT NULL " +
+           "AND u.telegramNotifyDeadlines = true")
+    List<com.taskcenter.dto.TelegramReminderTaskDto> findTasksWithAssigneesForTelegramReminder(
+            @Param("startDate") java.time.LocalDate startDate,
+            @Param("endDate") java.time.LocalDate endDate);
+
+    @Query("SELECT new com.taskcenter.dto.TelegramReminderTaskDto(" +
+           "t.id, t.title, t.workspaceId, t.dueDate, u.id, u.telegramChatId) " +
+           "FROM Task t " +
+           "JOIN t.assignees u " +
+           "JOIN BoardColumn bc ON bc.id = t.columnId " +
+           "WHERE t.deletedAt IS NULL " +
+           "AND (t.isArchived = false OR t.isArchived IS NULL) " +
+           "AND t.dueDate <= :today " +
+           "AND bc.isDone = false " +
+           "AND u.deletedAt IS NULL " +
+           "AND u.telegramChatId IS NOT NULL " +
+           "AND u.telegramDailyDigest = true")
+    List<com.taskcenter.dto.TelegramReminderTaskDto> findTasksForTelegramDigest(
+            @Param("today") java.time.LocalDate today);
 }
+

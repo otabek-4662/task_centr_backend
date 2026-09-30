@@ -11,6 +11,7 @@ import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
+import com.taskcenter.model.BoardColumn;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -138,7 +139,41 @@ class WorkspaceServiceTest {
 
         assertThat(result.getTitle()).isEqualTo("New WS");
         verify(workspaceRepository).save(any(Workspace.class));
+        // WorkspaceService 3 ta default ustun yaratadi
         verify(columnRepository, times(3)).save(any());
+    }
+
+    @Test
+    void createWorkspace_createsExactThreeDefaultColumns() {
+        WorkspaceCreateRequest req = new WorkspaceCreateRequest();
+        req.setTitle("New WS");
+        req.setInitDefaultColumns(true);
+
+        when(workspaceRepository.save(any(Workspace.class))).thenAnswer(inv -> {
+            Workspace ws = inv.getArgument(0);
+            ws.setId("new-ws-id");
+            return ws;
+        });
+
+        workspaceService.createWorkspace(req, testUser());
+
+        org.mockito.ArgumentCaptor<BoardColumn> columnCaptor = org.mockito.ArgumentCaptor.forClass(BoardColumn.class);
+        verify(columnRepository, times(3)).save(columnCaptor.capture());
+
+        List<BoardColumn> capturedColumns = columnCaptor.getAllValues();
+        assertThat(capturedColumns).hasSize(3);
+
+        assertThat(capturedColumns.get(0).getTitle()).isEqualTo("Dushanbadan");
+        assertThat(capturedColumns.get(0).getOrder()).isEqualTo(1);
+        assertThat(capturedColumns.get(0).getIsDone()).isFalse();
+        
+        assertThat(capturedColumns.get(1).getTitle()).isEqualTo("Jumagacha bitadi");
+        assertThat(capturedColumns.get(1).getOrder()).isEqualTo(2);
+        assertThat(capturedColumns.get(1).getIsDone()).isFalse();
+
+        assertThat(capturedColumns.get(2).getTitle()).isEqualTo("Ko'z tegmasin");
+        assertThat(capturedColumns.get(2).getOrder()).isEqualTo(3);
+        assertThat(capturedColumns.get(2).getIsDone()).isTrue();
     }
 
     // ===== deleteWorkspace =====

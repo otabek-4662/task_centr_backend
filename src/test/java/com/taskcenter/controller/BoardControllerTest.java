@@ -89,6 +89,7 @@ class BoardControllerTest {
                         .content("{\"title\":\"C\",\"order\":10}"))
                 .andExpect(status().isOk()).andReturn();
 
+        // 3 ta default ustun bor (order 1-3), yangi ustunlar 4,5,10 tartibida qo'shiladi
         assert JsonPath.<Integer>read(r1.getResponse().getContentAsString(), "$.data.order") == 4;
         assert JsonPath.<Integer>read(r2.getResponse().getContentAsString(), "$.data.order") == 5;
         assert JsonPath.<Integer>read(r3.getResponse().getContentAsString(), "$.data.order") == 10;
@@ -161,6 +162,7 @@ class BoardControllerTest {
                         .content("[{\"id\":\"" + a + "\",\"order\":9},{\"id\":\"" + b + "\",\"order\":8}]"))
                 .andExpect(status().isOk());
 
+        // 3 ta default ustun + a(order=9) va b(order=8): b [3], a [4] bo'ladi
         mvc.perform(get("/api/workspaces/" + wsId + "/columns")
                         .header("Authorization", auth))
                 .andExpect(jsonPath("$.data[3].id").value(b))

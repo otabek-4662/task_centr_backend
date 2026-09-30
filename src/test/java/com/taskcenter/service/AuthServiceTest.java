@@ -210,4 +210,76 @@ class AuthServiceTest {
                 .isInstanceOf(com.taskcenter.exception.BadRequestException.class)
                 .hasMessageContaining("ishlatilgan");
     }
+
+    // === FIX #4 — register() @Transactional: invitation auto-link ===
+
+    @Test
+    void register_withPendingInvitation_autoLinksToWorkspace() {
+        // ARRANGE
+        com.taskcenter.model.WorkspaceInvitation inv = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv-1")
+                .workspaceId("ws-1")
+                .receiverEmail("newuser")
+                .role(com.taskcenter.model.WorkspaceRole.MEMBER)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .expiresAt(java.time.LocalDateTime.now().plusDays(7))
+                .build();
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("newuser", null);
+        when(userRepository.existsByName("newuser")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("ENC");
+        when(userRepository.save(any(User.class))).thenAnswer(i -> {
+            User u = i.getArgument(0);
+            u.setId("u-new");
+            return u;
+        });
+        when(invitationRepository.findByReceiverEmailAndStatus("newuser",
+                com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(java.util.List.of(inv));
+        when(memberRepository.existsByWorkspaceIdAndUserId("ws-1", "u-new")).thenReturn(false);
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(tokenProvider.generateToken(auth)).thenReturn("jwt");
+
+        // ACT
+        AuthResponse response = authService.register(registerRequest("newuser"));
+
+        // ASSERT: workspace member yaratilishi kerak
+        verify(memberRepository).save(any(com.taskcenter.model.WorkspaceMember.class));
+        // invitation ACCEPTED holatga o'tishi kerak
+        verify(invitationRepository).save(any(com.taskcenter.model.WorkspaceInvitation.class));
+        assertThat(response.getToken()).isEqualTo("jwt");
+    }
+
+    @Test
+    void register_invitationSaveFails_exceptionPropagates() {
+        // @Transactional bo'lmaganda user DB da qolardi, lekin member qo'shilmasdi
+        // Endi @Transactional bilan exception propagate bo'ladi (rollback Spring ta'minlaydi)
+        com.taskcenter.model.WorkspaceInvitation inv = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv-2")
+                .workspaceId("ws-2")
+                .receiverEmail("failuser")
+                .role(com.taskcenter.model.WorkspaceRole.MEMBER)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .expiresAt(java.time.LocalDateTime.now().plusDays(7))
+                .build();
+
+        when(userRepository.existsByName("failuser")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("ENC");
+        when(userRepository.save(any(User.class))).thenAnswer(i -> {
+            User u = i.getArgument(0);
+            u.setId("u-fail");
+            return u;
+        });
+        when(invitationRepository.findByReceiverEmailAndStatus("failuser",
+                com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(java.util.List.of(inv));
+        when(memberRepository.existsByWorkspaceIdAndUserId("ws-2", "u-fail")).thenReturn(false);
+        // invitation save chaqiruvida DB xatosi simulatsiya
+        when(invitationRepository.save(any())).thenThrow(new RuntimeException("DB constraint violation"));
+
+        // @Transactional bo'lgani uchun exception tashqariga chiqadi (rollback bo'ladi)
+        assertThatThrownBy(() -> authService.register(registerRequest("failuser")))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("DB constraint violation");
+    }
 }

@@ -30,12 +30,24 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        # N+1 tekshiruvi uchun show_sql: true qiling va loglarni ko'ring
+        # generate_statistics: true qo'shsangiz har endpoint uchun SQL sonini ko'rasiz
         format_sql: false
         show_sql: false
         jdbc:
           batch_size: 20
         order_inserts: true
         order_updates: true
+
+logging:
+  level:
+    # SQL so'rovlarni debug qilish uchun quyidagi ikki satrni yoqing:
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
+    # N+1 statistikasi uchun:
+    # org.hibernate.stat: DEBUG
+    com.taskcenter: INFO
+    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
 
   flyway:
     enabled: true
@@ -71,6 +83,9 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
+  scheduler:
+    reminder-cron: ${TELEGRAM_REMINDER_CRON:0 0 18 * * *}
+    digest-cron: ${TELEGRAM_DIGEST_CRON:0 0 8 * * *}
 
 ratelimit:
   auth:
@@ -97,6 +112,9 @@ management:
       show-details: when-authorized
     metrics:
       enabled: true
+  health:
+    mail:
+      enabled: false
   metrics:
     export:
       prometheus:

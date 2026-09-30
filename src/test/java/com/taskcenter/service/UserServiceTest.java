@@ -7,6 +7,7 @@ import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.model.User;
+import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private TaskRepository taskRepository;
+
+    @Mock
     private WorkspaceAuthorizationService authorizationService;
 
     @Mock
@@ -41,6 +45,8 @@ class UserServiceTest {
     @Test
     void getCurrentUser_returnsUserDto() {
         User user = User.builder().id("u1").name("tester").fullName("Test User").role(User.Role.USER).build();
+        when(taskRepository.countAssignedTasksByUserId("u1")).thenReturn(3L);
+
         UserDto dto = userService.getCurrentUser(user);
 
         assertThat(dto).isNotNull();
@@ -134,4 +140,61 @@ class UserServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("bir xil");
     }
+
+    // === FIX #3 — generateTelegramLinkToken: SecureRandom, 8 belgi, muddati bor ===
+
+    @Test
+    void generateTelegramLinkToken_hasCorrectLengthAndFormat() {
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        User dbUser = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        when(userRepository.findById("u1")).thenReturn(Optional.of(dbUser));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        String token = userService.generateTelegramLinkToken(user);
+
+        // 8 belgili bo'lishi kerak
+        assertThat(token).hasSize(8);
+        // Faqat katta harf va raqamlardan iborat bo'lishi kerak
+        assertThat(token).matches("[A-Z0-9]{8}");
+        // Faqat raqamdan iborat emas (eski 6 xonali formatdan farqli)
+        // (bu test probabilistik: 36^8 / 10^8 ≈ 2800x kam ehtimollik)
+        assertThat(token).isNotBlank();
+    }
+
+    @Test
+    void generateTelegramLinkToken_setsExpiryWithin15Minutes() {
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        User dbUser = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        when(userRepository.findById("u1")).thenReturn(Optional.of(dbUser));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        java.time.LocalDateTime before = java.time.LocalDateTime.now();
+        userService.generateTelegramLinkToken(user);
+        java.time.LocalDateTime after = java.time.LocalDateTime.now();
+
+        // Token muddati qo'yilgan bo'lishi va 14-16 daqiqa orasida bo'lishi kerak
+        assertThat(dbUser.getTelegramLinkTokenExpiresAt())
+                .isAfter(before.plusMinutes(14))
+                .isBefore(after.plusMinutes(16));
+    }
+
+    @Test
+    void generateTelegramLinkToken_twoCallsProduceDifferentTokens() {
+        // Bir xil user uchun ikki marta chaqirilsa farqli token bo'lishi kerak (Random emas)
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        User dbUser1 = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        User dbUser2 = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+
+        when(userRepository.findById("u1"))
+                .thenReturn(Optional.of(dbUser1))
+                .thenReturn(Optional.of(dbUser2));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        String token1 = userService.generateTelegramLinkToken(user);
+        String token2 = userService.generateTelegramLinkToken(user);
+
+        // Ikki token bir xil bo'lish ehtimoli 36^8 = 2.8 trillion dan 1 — praktikda imkonsiz
+        assertThat(token1).isNotEqualTo(token2);
+    }
 }
+

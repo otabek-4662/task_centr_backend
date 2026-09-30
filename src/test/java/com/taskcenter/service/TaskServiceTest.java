@@ -42,6 +42,12 @@ class TaskServiceTest {
     private WebSocketNotifier webSocketNotifier;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository;
+    @Mock
+    private TelegramNotificationService telegramNotificationService;
+    @Mock
+    private com.taskcenter.repository.UserRepository userRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -251,6 +257,51 @@ class TaskServiceTest {
         assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 11, 15));
         assertThat(result.getStoryPoints()).isEqualTo(5);
         verify(activityService).logActivity("task1", testUser(), com.taskcenter.model.TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", "null", "5");
+        verify(telegramReminderLogRepository).deleteByTaskId("task1");
+    }
+
+    @Test
+    void updateTask_dueDateChangedToNull_clearsReminderLogs() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        Task task = testTask();
+        task.setDueDate(java.time.LocalDate.of(2026, 10, 20));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskUpdateRequest req = new TaskUpdateRequest();
+        req.setClearDueDate(true);
+
+        TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
+
+        assertThat(result.getDueDate()).isNull();
+        verify(telegramReminderLogRepository).deleteByTaskId("task1");
+    }
+
+    @Test
+    void updateTask_clearDueDateNullOrFalse_preservesDueDate() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        Task task = testTask();
+        task.setDueDate(java.time.LocalDate.of(2026, 10, 20));
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // When clearDueDate is not provided (null) and dueDate is null
+        TaskUpdateRequest req = new TaskUpdateRequest();
+        req.setTitle("Updated Title Only");
+
+        TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
+
+        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 20));
+        verify(telegramReminderLogRepository, never()).deleteByTaskId("task1");
+
+        // When clearDueDate is explicitly false and dueDate is null
+        req.setClearDueDate(false);
+        req.setDueDate(null);
+
+        TaskDto result2 = taskService.updateTask("ws1", "task1", req, testUser());
+
+        assertThat(result2.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 20));
+        verify(telegramReminderLogRepository, never()).deleteByTaskId("task1");
     }
 
     @Test
@@ -268,6 +319,47 @@ class TaskServiceTest {
         TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
 
         assertThat(task.getColumnId()).isEqualTo("col2");
+        verify(telegramNotificationService).sendTaskMovedNotification(any(), eq(testUser()), any(), eq("Done"));
+    }
+
+    @Test
+    void reorderTask_withinSameColumn_doesNotSendTelegramNotification() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        Task task = testTask(); // columnId = "col1"
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.taskcenter.dto.TaskReorderRequest req = new com.taskcenter.dto.TaskReorderRequest();
+        req.setColumnId("col1"); // ayni o'sha ustun
+        req.setPrevRank("0000000001");
+        req.setNextRank("0000000003");
+
+        taskService.reorderTask("ws1", "task1", req, testUser());
+
+        verify(telegramNotificationService, never()).sendTaskMovedNotification(any(), any(), any(), any());
+    }
+
+    @Test
+    void reorderTask_toDifferentColumn_sendsTelegramNotification() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        Task task = testTask(); // columnId = "col1"
+        BoardColumn newCol = BoardColumn.builder().id("col2").workspaceId("ws1").title("In Progress").order(2).build();
+        BoardColumn oldCol = BoardColumn.builder().id("col1").workspaceId("ws1").title("To Do").order(1).build();
+
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        when(columnRepository.findById("col2")).thenReturn(Optional.of(newCol));
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(oldCol));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.taskcenter.dto.TaskReorderRequest req = new com.taskcenter.dto.TaskReorderRequest();
+        req.setColumnId("col2"); // boshqa ustun
+        req.setPrevRank("0000000001");
+        req.setNextRank("0000000003");
+
+        taskService.reorderTask("ws1", "task1", req, testUser());
+
+        assertThat(task.getColumnId()).isEqualTo("col2");
+        verify(telegramNotificationService).sendTaskMovedNotification(any(), eq(testUser()), eq("To Do"), eq("In Progress"));
     }
 
     // ===== deleteTask =====
@@ -383,5 +475,121 @@ class TaskServiceTest {
 
         assertThat(result).isNotNull();
         verify(taskRepository).findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    // === FIX #10 — TaskUpdateRequest: title="" validatsiyadan o'tmasligi kerak ===
+
+    private static final jakarta.validation.Validator VALIDATOR =
+            jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+
+    @Test
+    void taskUpdateRequest_emptyTitle_failsValidation() {
+        // BUG: avval @Size(max=255) bilan bo'sh string o'tib ketardi
+        // FIX: @Size(min=1, max=255) bo'sh stringni rad etadi
+        com.taskcenter.dto.TaskUpdateRequest req = new com.taskcenter.dto.TaskUpdateRequest();
+        req.setTitle(""); // bo'sh string
+
+        var violations = VALIDATOR.validate(req);
+
+        assertThat(violations).isNotEmpty();
+        assertThat(violations.stream().map(v -> v.getPropertyPath().toString()))
+                .contains("title");
+        assertThat(violations.stream().map(v -> v.getMessage()).findFirst().get())
+                .contains("bo'sh bo'lmasligi");
+    }
+
+    @Test
+    void taskUpdateRequest_nullTitle_passesValidation() {
+        // null = "o'zgartirmaydi" — bu PARTIAL UPDATE uchun to'g'ri
+        com.taskcenter.dto.TaskUpdateRequest req = new com.taskcenter.dto.TaskUpdateRequest();
+        req.setTitle(null); // o'zgartirmaslik uchun null
+
+        var violations = VALIDATOR.validate(req);
+
+        // title uchun violation bo'lmasligi kerak (null @Size da tekshirilmaydi)
+        long titleViolations = violations.stream()
+                .filter(v -> v.getPropertyPath().toString().equals("title"))
+                .count();
+        assertThat(titleViolations).isZero();
+    }
+
+    @Test
+    void taskUpdateRequest_validTitle_passesValidation() {
+        com.taskcenter.dto.TaskUpdateRequest req = new com.taskcenter.dto.TaskUpdateRequest();
+        req.setTitle("To'g'ri sarlavha");
+
+        var violations = VALIDATOR.validate(req);
+
+        long titleViolations = violations.stream()
+                .filter(v -> v.getPropertyPath().toString().equals("title"))
+                .count();
+        assertThat(titleViolations).isZero();
+    }
+
+    @Test
+    void taskUpdateRequest_tooLongTitle_failsValidation() {
+        com.taskcenter.dto.TaskUpdateRequest req = new com.taskcenter.dto.TaskUpdateRequest();
+        req.setTitle("A".repeat(256)); // 256 belgi — maksimumdan 1 ta ko'p
+
+        var violations = VALIDATOR.validate(req);
+
+        assertThat(violations.stream().map(v -> v.getPropertyPath().toString()))
+                .contains("title");
+    }
+
+    @Test
+    void toggleAssignee_addsAssignee_callsTelegramNotificationService() {
+        String workspaceId = "ws-1";
+        String taskId = "t-1";
+        String targetUserId = "user-2";
+        User currentUser = testUser();
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(workspaceId)
+                .title("Test Task")
+                .assignees(new java.util.HashSet<>())
+                .build();
+
+        User targetUser = User.builder().id(targetUserId).name("nodir").build();
+
+        when(taskRepository.findByIdWithDetails(taskId)).thenReturn(Optional.of(task));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskDto result = taskService.toggleAssignee(workspaceId, taskId, targetUserId, currentUser);
+
+        assertThat(result).isNotNull();
+        verify(telegramNotificationService).sendTaskAssignedNotification(any(Task.class), eq(targetUser), eq(currentUser));
+        verify(webSocketNotifier).notifyWorkspace(eq(workspaceId), any());
+    }
+
+    @Test
+    void toggleAssignee_removesAssignee_doesNotCallTelegramNotificationService() {
+        String workspaceId = "ws-1";
+        String taskId = "t-1";
+        String targetUserId = "user-2";
+        User currentUser = testUser();
+
+        User targetUser = User.builder().id(targetUserId).name("nodir").build();
+        java.util.Set<User> assignees = new java.util.HashSet<>();
+        assignees.add(targetUser);
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(workspaceId)
+                .title("Test Task")
+                .assignees(assignees)
+                .build();
+
+        when(taskRepository.findByIdWithDetails(taskId)).thenReturn(Optional.of(task));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskDto result = taskService.toggleAssignee(workspaceId, taskId, targetUserId, currentUser);
+
+        assertThat(result).isNotNull();
+        verifyNoInteractions(telegramNotificationService);
+        verify(webSocketNotifier).notifyWorkspace(eq(workspaceId), any());
     }
 }

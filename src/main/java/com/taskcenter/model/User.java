@@ -47,6 +47,39 @@ public class User implements UserDetails {
     @Column(name = "telegram_link_token")
     private String telegramLinkToken;
 
+    @Column(name = "telegram_link_token_expires_at")
+    private LocalDateTime telegramLinkTokenExpiresAt;
+
+    @Column(name = "telegram_notify_assigned", nullable = false)
+    @Builder.Default
+    private boolean telegramNotifyAssigned = true;
+
+    @Column(name = "telegram_notify_comments", nullable = false)
+    @Builder.Default
+    private boolean telegramNotifyComments = true;
+
+    @Column(name = "telegram_notify_deadlines", nullable = false)
+    @Builder.Default
+    private boolean telegramNotifyDeadlines = true;
+
+    @Column(name = "telegram_daily_digest", nullable = false)
+    @Builder.Default
+    private boolean telegramDailyDigest = true;
+
+    @Column(name = "telegram_quiet_start")
+    private java.time.LocalTime telegramQuietStart;
+
+    @Column(name = "telegram_quiet_end")
+    private java.time.LocalTime telegramQuietEnd;
+
+    @Column(name = "telegram_notify_moves", nullable = false)
+    @Builder.Default
+    private boolean telegramNotifyMoves = true;
+
+    @Column(name = "telegram_notify_invites", nullable = false)
+    @Builder.Default
+    private boolean telegramNotifyInvites = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

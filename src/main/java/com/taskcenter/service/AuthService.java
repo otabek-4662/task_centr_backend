@@ -68,6 +68,7 @@ public class AuthService {
         return refreshToken.getToken();
     }
 
+    @Transactional
     @CacheEvict(value = "users", key = "#request.name")
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByName(request.getName())) {

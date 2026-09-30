@@ -53,10 +53,13 @@ public class ColumnService {
             order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;
         }
 
+        Boolean isDone = request.getIsDone() != null ? request.getIsDone() : false;
+
         BoardColumn column = BoardColumn.builder()
                 .workspaceId(workspaceId)
                 .title(request.getTitle())
                 .order(order)
+                .isDone(isDone)
                 .build();
 
         BoardColumn saved = columnRepository.save(column);
@@ -91,6 +94,9 @@ public class ColumnService {
         if (request.getOrder() != null) {
             column.setOrder(request.getOrder());
         }
+        if (request.getIsDone() != null) {
+            column.setIsDone(request.getIsDone());
+        }
 
         BoardColumn saved = columnRepository.save(column);
         ColumnDto dto = ColumnDto.fromEntity(saved);
@@ -123,6 +129,9 @@ public class ColumnService {
         }
         if (request.getOrder() != null) {
             column.setOrder(request.getOrder());
+        }
+        if (request.getIsDone() != null) {
+            column.setIsDone(request.getIsDone());
         }
 
         BoardColumn saved = columnRepository.save(column);

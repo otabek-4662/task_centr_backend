@@ -26,19 +26,22 @@ public class WorkspaceInvitationService {
     private final WorkspaceAuthorizationService authorizationService;
     private final NotificationService notificationService;
     private final EmailService emailService;
+    private final TelegramNotificationService telegramNotificationService;
 
     public WorkspaceInvitationService(WorkspaceInvitationRepository invitationRepository,
                                       WorkspaceMemberRepository memberRepository,
                                       UserRepository userRepository,
                                       WorkspaceAuthorizationService authorizationService,
                                       NotificationService notificationService,
-                                      EmailService emailService) {
+                                      EmailService emailService,
+                                      TelegramNotificationService telegramNotificationService) {
         this.invitationRepository = invitationRepository;
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.authorizationService = authorizationService;
         this.notificationService = notificationService;
         this.emailService = emailService;
+        this.telegramNotificationService = telegramNotificationService;
     }
 
     @Transactional
@@ -102,6 +105,7 @@ public class WorkspaceInvitationService {
 
         if (receiverId != null) {
             notificationService.notifyUser(receiverId, "Yangi taklif", currentUser.getName() + " sizni " + workspace.getTitle() + " loyihasiga taklif qildi.");
+            receiverOpt.ifPresent(receiver -> telegramNotificationService.sendWorkspaceInviteNotification(workspace, receiver, currentUser));
         }
         
         String emailToNotify = receiverEmail != null ? receiverEmail : (receiverOpt.isPresent() ? receiverOpt.get().getEmail() : null);
