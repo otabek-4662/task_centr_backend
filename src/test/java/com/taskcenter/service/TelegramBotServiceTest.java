@@ -1212,4 +1212,59 @@ class TelegramBotServiceTest {
         verify(telegramBotService).execute(captor.capture());
         assertThat(captor.getValue().getText()).contains("hali ulanmagan");
     }
+
+    @Test
+    void onUpdateReceived_callback_taskSnooze_tashkent0100_snoozesToNextDay() throws Exception {
+        // Create a separate service with a clock fixed at UTC 20:00 (which is 01:00 the next day in Tashkent)
+        java.time.Instant utc20 = java.time.Instant.parse("2026-10-01T20:00:00Z");
+        Clock customClock = Clock.fixed(utc20, ZoneId.of("Asia/Tashkent"));
+        
+        TelegramBotService customService = spy(new TelegramBotService(
+                "dummy", "dummy", userRepository, taskRepository, columnRepository,
+                workspaceRepository, authorizationService, taskExecutor, customClock,
+                activityService, telegramNotificationService, telegramReminderLogRepository
+        ));
+        
+        try {
+            lenient().doReturn(null).when(customService).execute(any(SendMessage.class));
+            lenient().doReturn(true).when(customService).execute(any(AnswerCallbackQuery.class));
+            lenient().doReturn(null).when(customService).execute(any(EditMessageText.class));
+        } catch (Exception e) {}
+        
+        Long chatId = 717L;
+        String taskId = "task-tashkent-tz";
+        
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+        
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId("ws-1")
+                .columnId("col-1")
+                .dueDate(LocalDate.of(2026, 10, 1))
+                .build();
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(authorizationService.checkCanEdit("ws-1", user)).thenReturn(new Workspace());
+        
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-717");
+        callbackQuery.setData("TASK_SNOOZE_" + taskId);
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+        
+        customService.onUpdateReceived(update);
+        
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        
+        // At UTC 2026-10-01T20:00:00, Tashkent is 2026-10-02T01:00:00
+        // Plus 1 day snooze -> 2026-10-03
+        assertThat(taskCaptor.getValue().getDueDate()).isEqualTo(LocalDate.of(2026, 10, 3));
+    }
 }

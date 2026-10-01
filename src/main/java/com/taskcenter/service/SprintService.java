@@ -227,10 +227,7 @@ public class SprintService {
         // Identify done columns to keep finished tasks in this sprint history
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(sprint.getWorkspaceId());
         Set<String> doneColumnIds = columns.stream()
-                .filter(c -> c.getTitle().trim().equalsIgnoreCase("Done")
-                        || c.getTitle().trim().equalsIgnoreCase("Completed")
-                        || c.getTitle().trim().equalsIgnoreCase("Tugallandi")
-                        || c.getTitle().trim().equalsIgnoreCase("Bajarildi"))
+                .filter(c -> Boolean.TRUE.equals(c.getIsDone()))
                 .map(BoardColumn::getId)
                 .collect(Collectors.toSet());
 

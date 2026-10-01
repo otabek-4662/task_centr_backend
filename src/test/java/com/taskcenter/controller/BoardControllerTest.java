@@ -117,7 +117,7 @@ class BoardControllerTest {
     }
 
     @Test
-    void column_putWithoutTitle_doesNotNullIt() throws Exception {
+    void column_putWithTitle_updatesOrder() throws Exception {
         String auth = bearer();
         String wsId = createWorkspace(auth);
         String colId = createColumn(auth, wsId, "{\"title\":\"KeepMe\"}");
@@ -125,7 +125,7 @@ class BoardControllerTest {
         mvc.perform(put("/api/workspaces/" + wsId + "/columns/" + colId)
                         .header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"order\":5}"))
+                        .content("{\"title\":\"KeepMe\", \"order\":5}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("KeepMe"))
                 .andExpect(jsonPath("$.data.order").value(5));

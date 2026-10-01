@@ -72,7 +72,7 @@ logging:
           writetimeout: 5000
 
 jwt:
-  secret: ${JWT_SECRET:super-secret-key-that-needs-to-be-at-least-256-bits-long-for-hs256-algorithm-to-work-properly}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:604800000} # 7 days in milliseconds
 
 github:

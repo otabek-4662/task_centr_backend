@@ -36,6 +36,7 @@ public class TaskService {
     private final com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository;
     private final TelegramNotificationService telegramNotificationService;
     private final UserRepository userRepository;
+    private final java.time.Clock clock;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
@@ -46,7 +47,8 @@ public class TaskService {
                        NotificationService notificationService,
                        com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
                        TelegramNotificationService telegramNotificationService,
-                       UserRepository userRepository) {
+                       UserRepository userRepository,
+                       java.time.Clock clock) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
@@ -57,6 +59,7 @@ public class TaskService {
         this.telegramReminderLogRepository = telegramReminderLogRepository;
         this.telegramNotificationService = telegramNotificationService;
         this.userRepository = userRepository;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -111,9 +114,9 @@ public class TaskService {
             filter.setSearch(null);
         }
         if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
-            filter.setEndOfWeek(LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
+            filter.setEndOfWeek(LocalDate.now(clock).with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
         }
-        filter.setToday(LocalDate.now(java.time.ZoneId.of("Asia/Tashkent")));
+        filter.setToday(LocalDate.now(clock));
         Page<Task> taskPage = taskRepository.findByWorkspaceIdFiltered(workspaceId, filter, pageable);
         return taskPage.map(TaskDto::fromEntity);
     }

@@ -120,7 +120,7 @@ public class WebhookService {
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspace.getId());
         BoardColumn doneColumn = null;
         for (BoardColumn col : columns) {
-            if (Boolean.TRUE.equals(col.getIsDefault()) && col.getOrder() == 3) {
+            if (Boolean.TRUE.equals(col.getIsDone())) {
                 doneColumn = col;
                 break;
             }

@@ -41,6 +41,26 @@ class ColumnServiceTest {
     private final User testUser = User.builder().id("user1").name("tester").role(User.Role.USER).build();
 
     @Test
+    void createColumn_whenTitleIsNull_savesWithNullTitle() {
+        when(columnRepository.findMaxOrderByWorkspaceId("ws1")).thenReturn(2);
+        when(columnRepository.save(any(BoardColumn.class))).thenAnswer(inv -> {
+            BoardColumn c = inv.getArgument(0);
+            c.setId("col1");
+            return c;
+        });
+
+        ColumnCreateRequest req = new ColumnCreateRequest();
+        req.setTitle(null); // Title yo'q
+
+        ColumnDto result = columnService.createColumn("ws1", req, testUser);
+
+        ArgumentCaptor<BoardColumn> captor = ArgumentCaptor.forClass(BoardColumn.class);
+        verify(columnRepository).save(captor.capture());
+        assertThat(captor.getValue().getTitle()).isNull();
+        assertThat(result.getTitle()).isNull();
+    }
+
+    @Test
     void createColumn_whenIsDoneIsNull_defaultsToFalse() {
         when(columnRepository.findMaxOrderByWorkspaceId("ws1")).thenReturn(2);
         when(columnRepository.save(any(BoardColumn.class))).thenAnswer(inv -> {

@@ -79,7 +79,7 @@ class ReportControllerTest {
         BoardColumn inProg = columnRepository.save(BoardColumn.builder()
                 .workspaceId(workspaceId).title("In Progress").order(2).isDefault(true).build());
         BoardColumn done = columnRepository.save(BoardColumn.builder()
-                .workspaceId(workspaceId).title("Done").order(3).isDefault(true).build());
+                .workspaceId(workspaceId).title("Done").order(3).isDefault(true).isDone(true).build());
 
         com.taskcenter.model.Sprint sprint = com.taskcenter.model.Sprint.builder()
                 .workspaceId(workspaceId)

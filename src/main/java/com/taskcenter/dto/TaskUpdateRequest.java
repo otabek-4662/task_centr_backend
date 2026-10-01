@@ -11,7 +11,8 @@ import java.time.LocalDate;
 
 @Data
 public class TaskUpdateRequest {
-    @Size(min = 1, max = 255, message = "title bo'sh bo'lmasligi va 255 belgidan oshmasligi kerak")
+    @jakarta.validation.constraints.Pattern(regexp = "^.*\\S.*$", message = "title faqat bo'sh joylardan iborat bo'lishi mumkin emas")
+    @Size(max = 255, message = "title bo'sh bo'lmasligi va 255 belgidan oshmasligi kerak")
     private String title;
 
     @Size(max = 5000, message = "description 5000 belgidan oshmasligi kerak")

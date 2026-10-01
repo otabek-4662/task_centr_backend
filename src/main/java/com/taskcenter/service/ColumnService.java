@@ -48,10 +48,6 @@ public class ColumnService {
     public ColumnDto createColumn(String workspaceId, ColumnCreateRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
-        if (request.getTitle() == null) {
-            throw new IllegalArgumentException("title bo'sh bo'lishi mumkin emas");
-        }
-
         Integer order = request.getOrder();
         if (order == null || order <= 0) {
             order = columnRepository.findMaxOrderByWorkspaceId(workspaceId) + 1;

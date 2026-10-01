@@ -25,6 +25,14 @@ class TaskUpdateRequestValidationTest {
     }
 
     @Test
+    void whenTitleIsBlank_thenValidationFails() {
+        TaskUpdateRequest req = new TaskUpdateRequest();
+        req.setTitle("   ");
+        var violations = validator.validate(req);
+        assertThat(violations).isNotEmpty();
+    }
+
+    @Test
     void whenTitleIsNull_thenValidationPasses() {
         TaskUpdateRequest req = new TaskUpdateRequest();
         req.setTitle(null);

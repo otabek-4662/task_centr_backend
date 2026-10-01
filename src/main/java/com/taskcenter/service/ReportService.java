@@ -48,7 +48,9 @@ public class ReportService {
             if (Boolean.TRUE.equals(col.getIsDefault())) {
                 if (col.getOrder() == 1) todoColumnId = col.getId();
                 else if (col.getOrder() == 2) inProgressColumnId = col.getId();
-                else if (col.getOrder() == 3) doneColumnId = col.getId();
+            }
+            if (Boolean.TRUE.equals(col.getIsDone())) {
+                doneColumnId = col.getId();
             }
         }
 
@@ -114,7 +116,7 @@ public class ReportService {
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
         String doneColumnId = null;
         for (BoardColumn col : columns) {
-            if (Boolean.TRUE.equals(col.getIsDefault()) && col.getOrder() == 3) {
+            if (Boolean.TRUE.equals(col.getIsDone())) {
                 doneColumnId = col.getId();
                 break;
             }

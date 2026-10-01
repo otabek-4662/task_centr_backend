@@ -78,7 +78,7 @@ class WebhookControllerTest {
         BoardColumn todoColumn = columnRepository.save(BoardColumn.builder()
                 .workspaceId(ws.getId()).title("To Do").order(1).isDefault(true).build());
         doneColumn = columnRepository.save(BoardColumn.builder()
-                .workspaceId(ws.getId()).title("Done").order(3).isDefault(true).build());
+                .workspaceId(ws.getId()).title("Done").order(3).isDefault(true).isDone(true).build());
 
         testTask = Task.builder()
                 .workspaceId(ws.getId()).columnId(todoColumn.getId()).title("Webhook Task")

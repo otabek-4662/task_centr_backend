@@ -49,6 +49,9 @@ class TaskServiceTest {
     @Mock
     private com.taskcenter.repository.UserRepository userRepository;
 
+    @org.mockito.Spy
+    private java.time.Clock clock = java.time.Clock.systemDefaultZone();
+
     @InjectMocks
     private TaskService taskService;
 
@@ -495,7 +498,7 @@ class TaskServiceTest {
         assertThat(violations.stream().map(v -> v.getPropertyPath().toString()))
                 .contains("title");
         assertThat(violations.stream().map(v -> v.getMessage()).findFirst().get())
-                .contains("bo'sh bo'lmasligi");
+                .contains("bo'sh joylardan");
     }
 
     @Test
