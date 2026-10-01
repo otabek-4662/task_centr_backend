@@ -113,6 +113,7 @@ public class TaskService {
         if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
             filter.setEndOfWeek(LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
         }
+        filter.setToday(LocalDate.now(java.time.ZoneId.of("Asia/Tashkent")));
         Page<Task> taskPage = taskRepository.findByWorkspaceIdFiltered(workspaceId, filter, pageable);
         return taskPage.map(TaskDto::fromEntity);
     }
@@ -379,10 +380,16 @@ public class TaskService {
         String maxRank = taskRepository.findMaxLexoRankByColumnId(originalTask.getColumnId());
         String newRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
 
+        String prefix = "(Copy) ";
+        String newTitle = prefix + originalTask.getTitle();
+        if (newTitle.length() > 255) {
+            newTitle = prefix + originalTask.getTitle().substring(0, 255 - prefix.length());
+        }
+
         Task clonedTask = Task.builder()
                 .workspaceId(originalTask.getWorkspaceId())
                 .columnId(originalTask.getColumnId())
-                .title("(Copy) " + originalTask.getTitle())
+                .title(newTitle)
                 .description(originalTask.getDescription())
                 .lexoRank(newRank)
                 .priority(originalTask.getPriority())

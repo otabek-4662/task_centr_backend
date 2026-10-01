@@ -68,7 +68,7 @@ public class TaskController {
     public ApiResponse<TaskDto> updateTask(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestBody TaskUpdateRequest request,
+            @Valid @RequestBody TaskUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.updateTask(workspaceId, id, request, currentUser);
         return ApiResponse.success("Bosh og'riq yangilandi", task);
@@ -79,7 +79,7 @@ public class TaskController {
     public ApiResponse<TaskDto> patchTask(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestBody TaskUpdateRequest request,
+            @Valid @RequestBody TaskUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.updateTask(workspaceId, id, request, currentUser);
         return ApiResponse.success("Task yangilandi", task);
@@ -90,7 +90,7 @@ public class TaskController {
     public ApiResponse<TaskDto> reorderTask(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestBody com.taskcenter.dto.TaskReorderRequest request,
+            @Valid @RequestBody com.taskcenter.dto.TaskReorderRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.reorderTask(workspaceId, id, request, currentUser);
         return ApiResponse.success("Vazifa tartibi yangilandi", task);

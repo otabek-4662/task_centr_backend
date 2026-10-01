@@ -51,7 +51,7 @@ public class TaskChecklistController {
             @PathVariable String workspaceId,
             @PathVariable String taskId,
             @PathVariable String itemId,
-            @RequestBody ChecklistItemUpdateRequest request,
+            @Valid @RequestBody ChecklistItemUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", checklistService.updateItem(workspaceId, taskId, itemId, request, currentUser));
     }

@@ -592,4 +592,27 @@ class TaskServiceTest {
         verifyNoInteractions(telegramNotificationService);
         verify(webSocketNotifier).notifyWorkspace(eq(workspaceId), any());
     }
+    @Test
+    void cloneTask_WhenTitleTooLong_ShouldTruncate() {
+        String longTitle = "A".repeat(250);
+        Task originalTask = Task.builder()
+                .workspaceId("ws-1")
+                .columnId("col-1")
+                .title(longTitle)
+                .build();
+        
+        when(authorizationService.checkCanEdit(any(), any())).thenReturn(null);
+        when(taskRepository.findByIdWithDetails("task-1")).thenReturn(Optional.of(originalTask));
+        when(taskRepository.findMaxLexoRankByColumnId("col-1")).thenReturn("0|hzzzzz:");
+        when(taskRepository.save(any(Task.class))).thenAnswer(i -> {
+            Task t = i.getArgument(0);
+            t.setId("new-id");
+            return t;
+        });
+        
+        TaskDto result = taskService.cloneTask("ws-1", "task-1", new User());
+        
+        assertThat(result.getTitle()).startsWith("(Copy) ");
+        assertThat(result.getTitle().length()).isEqualTo(255);
+    }
 }

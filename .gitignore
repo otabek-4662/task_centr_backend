@@ -35,3 +35,6 @@ logs/
 # Temporary
 *.tmp
 *.temp
+
+# Reports
+WORKSPACE_TASK_REPORT.md

@@ -51,9 +51,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND (:#{#filter.status} IS NULL OR t.columnId = :#{#filter.status}) " +
            "AND (:#{#filter.assigneeId} IS NULL OR EXISTS (SELECT 1 FROM t.assignees a WHERE a.id = :#{#filter.assigneeId})) " +
            "AND (:#{#filter.assignedToMe} IS NULL OR (:#{#filter.assignedToMe} = true AND EXISTS (SELECT 1 FROM t.assignees a2 WHERE a2.id = :#{#filter.currentUserId}))) " +
-           "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < CURRENT_DATE)) " +
-           "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = CURRENT_DATE)) " +
-           "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= CURRENT_DATE AND t.dueDate <= :#{#filter.endOfWeek})) " +
+           "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < :#{#filter.today})) " +
+           "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = :#{#filter.today})) " +
+           "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= :#{#filter.today} AND t.dueDate <= :#{#filter.endOfWeek})) " +
            "AND (:#{#filter.includeArchived} = true OR t.isArchived = false) " +
            "AND (:#{#filter.search} IS NULL OR (" +
            "  LOWER(t.title) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')) OR " +

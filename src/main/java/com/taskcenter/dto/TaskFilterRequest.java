@@ -50,4 +50,5 @@ public class TaskFilterRequest {
 
     private String currentUserId;
     private LocalDate endOfWeek;
+    private LocalDate today;
 }

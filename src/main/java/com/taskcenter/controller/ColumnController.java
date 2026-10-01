@@ -53,7 +53,7 @@ public class ColumnController {
     public ApiResponse<ColumnDto> updateColumn(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestBody ColumnCreateRequest request,
+            @Valid @RequestBody ColumnCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         ColumnDto column = columnService.updateColumn(workspaceId, id, request, currentUser);
         return ApiResponse.success("Column yangilandi", column);
@@ -64,7 +64,7 @@ public class ColumnController {
     public ApiResponse<ColumnDto> patchColumn(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestBody ColumnPatchRequest request,
+            @Valid @RequestBody ColumnPatchRequest request,
             @AuthenticationPrincipal User currentUser) {
         ColumnDto column = columnService.patchColumn(workspaceId, id, request, currentUser);
         return ApiResponse.success("Column yangilandi", column);

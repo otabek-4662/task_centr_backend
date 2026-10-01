@@ -38,7 +38,7 @@ public class LabelController {
     @PostMapping
     public ApiResponse<LabelDto> createLabel(
             @PathVariable String workspaceId,
-            @RequestBody LabelDto req,
+            @jakarta.validation.Valid @RequestBody LabelDto req,
             @AuthenticationPrincipal User currentUser) {
         LabelDto label = labelService.createLabel(workspaceId, req, currentUser);
         return ApiResponse.success("Label yaratildi", label);
