@@ -6,6 +6,7 @@ import com.taskcenter.dto.RegisterRequest;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.exception.RateLimitException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.RefreshToken;
 import com.taskcenter.model.PasswordResetToken;
@@ -15,6 +16,7 @@ import com.taskcenter.repository.PasswordResetTokenRepository;
 import com.taskcenter.repository.WorkspaceInvitationRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.security.JwtTokenProvider;
+import com.taskcenter.security.RateLimitingService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,6 +41,7 @@ public class AuthService {
     private final WorkspaceInvitationRepository invitationRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final EmailService emailService;
+    private final RateLimitingService rateLimitingService;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
                        PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider,
@@ -46,7 +49,8 @@ public class AuthService {
                        PasswordResetTokenRepository passwordResetTokenRepository,
                        WorkspaceInvitationRepository invitationRepository,
                        WorkspaceMemberRepository memberRepository,
-                       EmailService emailService) {
+                       EmailService emailService,
+                       RateLimitingService rateLimitingService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -56,6 +60,7 @@ public class AuthService {
         this.invitationRepository = invitationRepository;
         this.memberRepository = memberRepository;
         this.emailService = emailService;
+        this.rateLimitingService = rateLimitingService;
     }
 
     public String createRefreshToken(String userId) {
@@ -112,8 +117,21 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
+        long waitTime = rateLimitingService.checkUsernameFailedLimit(request.getName());
+        if (waitTime > 0) {
+            throw new RateLimitException(waitTime);
+        }
+
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            rateLimitingService.recordFailedLogin(request.getName());
+            throw e;
+        }
+
+        rateLimitingService.resetFailedLogin(request.getName());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);

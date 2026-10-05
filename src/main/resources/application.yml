@@ -85,6 +85,7 @@ telegram:
     username: ${TELEGRAM_BOT_USERNAME:}
   miniapp:
     max-age-sec: ${TELEGRAM_MINIAPP_MAX_AGE_SEC:3600}
+    base-url: ${TELEGRAM_MINIAPP_BASE_URL:https://task-centr-backend.onrender.com}
   scheduler:
     reminder-cron: ${TELEGRAM_REMINDER_CRON:0 0 18 * * *}
     digest-cron: ${TELEGRAM_DIGEST_CRON:0 0 8 * * *}

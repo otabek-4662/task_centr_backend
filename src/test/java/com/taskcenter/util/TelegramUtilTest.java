@@ -113,9 +113,9 @@ class TelegramUtilTest {
     @Test
     @DisplayName("createTaskViewKeyboard: to'g'ri callbackData va text bilan inline keyboard yaratadi")
     void createTaskViewKeyboard_createsButton() {
-        InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard("task-123", "Mening vazifam");
+        InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard("task-123", "Mening vazifam", "url");
         assertThat(keyboard).isNotNull();
-        assertThat(keyboard.getKeyboard()).hasSize(1);
+        assertThat(keyboard.getKeyboard()).hasSize(2);
         assertThat(keyboard.getKeyboard().get(0).get(0).getText()).isEqualTo("📋 Mening vazifam");
         assertThat(keyboard.getKeyboard().get(0).get(0).getCallbackData()).isEqualTo("TASK_VIEW_task-123");
     }

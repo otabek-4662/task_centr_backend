@@ -46,6 +46,8 @@ class AuthServiceTest {
     private com.taskcenter.repository.PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock
     private EmailService emailService;
+    @Mock
+    private com.taskcenter.security.RateLimitingService rateLimitingService;
 
     @InjectMocks
     private AuthService authService;
@@ -98,6 +100,8 @@ class AuthServiceTest {
         req.setName("elshod");
         req.setPassword("password123");
 
+        when(rateLimitingService.checkUsernameFailedLimit("elshod")).thenReturn(0L);
+
         AuthResponse response = authService.login(req);
 
         assertThat(response.getToken()).isEqualTo("jwt-token");
@@ -112,6 +116,8 @@ class AuthServiceTest {
         LoginRequest req = new LoginRequest();
         req.setName("elshod");
         req.setPassword("wrong");
+
+        when(rateLimitingService.checkUsernameFailedLimit("elshod")).thenReturn(0L);
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BadCredentialsException.class);

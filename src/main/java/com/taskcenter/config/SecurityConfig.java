@@ -85,6 +85,15 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                    "default-src 'self'; " +
+                    "script-src 'self' https://telegram.org https://cdn.jsdelivr.net; " +
+                    "style-src 'self' 'unsafe-inline'; " +
+                    "img-src 'self' data:; " +
+                    "connect-src 'self'; " +
+                    "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"
+                ))
+                .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                 .frameOptions(frame -> frame.disable())
             )
             .authorizeHttpRequests(authz -> authz
@@ -106,6 +115,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/telegram", "/api/auth/**", "/api/webhooks/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/config/public").permitAll()
                 .requestMatchers(
                     "/swagger-ui.html",
                     "/swagger-ui/**",
@@ -121,6 +131,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                 // Joriy foydalanuvchi o'z Telegram ulanishini uzishi mumkin (admin qoidasidan OLDIN turishi shart)
                 .requestMatchers(HttpMethod.DELETE, "/api/users/me/telegram").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/me/telegram").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                 // Workspace owner can do anything on their workspaces
                 .requestMatchers("/api/workspaces/**").hasAnyRole("USER", "ADMIN")

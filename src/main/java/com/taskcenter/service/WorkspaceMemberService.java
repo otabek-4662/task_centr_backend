@@ -163,7 +163,7 @@ public class WorkspaceMemberService {
         User targetUser = targetUserOpt.get();
 
         if (workspace.getOwnerId().equals(targetUser.getId())) {
-            throw new BadRequestException("Workspace egasi allaqachon loyiha egasi hisoblanadi");
+            throw new BadRequestException("Workspace egasi allaqachon g'alva asoschisi hisoblanadi");
         }
 
         if (memberRepository.existsByWorkspaceIdAndUserId(workspaceId, targetUser.getId())) {

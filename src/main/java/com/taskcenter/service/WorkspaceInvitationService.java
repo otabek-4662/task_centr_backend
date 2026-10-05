@@ -48,12 +48,12 @@ public class WorkspaceInvitationService {
     public WorkspaceInvitationDto inviteUser(String workspaceId, InviteRequestDto request, User currentUser) {
         Workspace workspace = authorizationService.checkAdmin(workspaceId, currentUser);
 
-        // Rate limiting / Spam protection: Har bir loyihada maksimum 50 ta PENDING taklif bo'lishi mumkin
+        // Rate limiting / Spam protection: Har bir g'alvada maksimum 50 ta PENDING taklif bo'lishi mumkin
         long pendingCount = invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
                 .filter(inv -> inv.getStatus() == InvitationStatus.PENDING)
                 .count();
         if (pendingCount >= 50) {
-            throw new BadRequestException("Ushbu loyihada kutilayotgan takliflar soni 50 tadan oshib ketdi. Eski takliflarni bekor qiling.");
+            throw new BadRequestException("Ushbu g'alvada kutilayotgan takliflar soni 50 tadan oshib ketdi. Eski takliflarni bekor qiling.");
         }
 
         String query = request.getUsernameOrEmail().trim();
@@ -104,7 +104,7 @@ public class WorkspaceInvitationService {
         WorkspaceInvitation saved = invitationRepository.save(invitation);
 
         if (receiverId != null) {
-            notificationService.notifyUser(receiverId, "Yangi taklif", currentUser.getName() + " sizni " + workspace.getTitle() + " loyihasiga taklif qildi.");
+            notificationService.notifyUser(receiverId, "Yangi taklif", currentUser.getName() + " sizni " + workspace.getTitle() + " g'alvasiga taklif qildi.");
             receiverOpt.ifPresent(receiver -> telegramNotificationService.sendWorkspaceInviteNotification(workspace, receiver, currentUser));
         }
         

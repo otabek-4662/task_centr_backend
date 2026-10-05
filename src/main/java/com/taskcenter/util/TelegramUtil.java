@@ -85,7 +85,7 @@ public class TelegramUtil {
     /**
      * TASK_VIEW inline tugmasini yaratadi.
      */
-    public static InlineKeyboardMarkup createTaskViewKeyboard(String taskId, String title) {
+    public static InlineKeyboardMarkup createTaskViewKeyboard(String taskId, String title, String miniappBaseUrl) {
         if (taskId == null) {
             return null;
         }
@@ -96,8 +96,13 @@ public class TelegramUtil {
         }
         btn.setText("📋 " + (!btnTitle.isBlank() ? btnTitle : "Vazifani ko'rish"));
         btn.setCallbackData("TASK_VIEW_" + taskId);
+
+        InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
+        webAppBtn.setText("📱 Ochish");
+        webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/?task=" + taskId));
+
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
-        keyboard.setKeyboard(List.of(List.of(btn)));
+        keyboard.setKeyboard(List.of(List.of(btn), List.of(webAppBtn)));
         return keyboard;
     }
 

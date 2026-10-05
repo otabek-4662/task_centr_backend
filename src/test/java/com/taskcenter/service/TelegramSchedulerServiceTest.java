@@ -44,7 +44,7 @@ class TelegramSchedulerServiceTest {
         service = new TelegramSchedulerService(
                 taskRepository, reminderLogRepository,
                 userRepository, workspaceRepository,
-                eventPublisher, Clock.systemDefaultZone());
+                eventPublisher, Clock.systemDefaultZone(), "https://test.url");
     }
 
     // ═══════════════════ DUE_TOMORROW eslatma testlari ═══════════════════
@@ -281,7 +281,7 @@ class TelegramSchedulerServiceTest {
 
         // Inline tugmalar
         assertThat(event.keyboard()).isNotNull();
-        assertThat(event.keyboard().getKeyboard()).hasSize(2);
+        assertThat(event.keyboard().getKeyboard()).hasSize(4);
     }
 
     @Test
@@ -342,7 +342,7 @@ class TelegramSchedulerServiceTest {
         assertThat(event.message().length()).isLessThanOrEqualTo(4096);
         assertThat(event.message()).contains("va yana");
         // Max 10 inline tugma
-        assertThat(event.keyboard().getKeyboard()).hasSize(10);
+        assertThat(event.keyboard().getKeyboard()).hasSize(20);
     }
 
     @Test

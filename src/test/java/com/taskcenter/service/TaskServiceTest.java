@@ -234,6 +234,39 @@ class TaskServiceTest {
                 .hasMessageContaining("tegishli emas");
     }
 
+    // ===== getTaskDirectById =====
+
+    @Test
+    void getTaskDirectById_returnsDto() {
+        Task task = testTask();
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+
+        TaskDto result = taskService.getTaskDirectById("task1", testUser());
+
+        assertThat(result.getTitle()).isEqualTo("Test Task");
+        verify(authorizationService).checkAccess("ws1", testUser());
+    }
+
+    @Test
+    void getTaskDirectById_notFound_throws() {
+        when(taskRepository.findByIdWithDetails("task999")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskService.getTaskDirectById("task999", testUser()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getTaskDirectById_noAccess_throwsNotFound() {
+        Task task = testTask();
+        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
+        doThrow(new ForbiddenException("No access"))
+                .when(authorizationService).checkAccess("ws1", testUser());
+
+        assertThatThrownBy(() -> taskService.getTaskDirectById("task1", testUser()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
     // ===== updateTask =====
 
     @Test

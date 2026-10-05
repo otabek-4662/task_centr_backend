@@ -230,4 +230,36 @@ class SecurityTest {
                         .content("{\"title\":\"Ws\",\"bgColor\":\"not-a-color\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void taskDirect_noToken_returns403() throws Exception {
+        mvc.perform(get("/api/tasks/some-id"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void taskDirect_nonMember_returns404() throws Exception {
+        String token = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
+        mvc.perform(get("/api/tasks/some-id")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound()); // doesn't leak
+    }
+
+    @Test
+    void telegramMe_noToken_returns403() throws Exception {
+        mvc.perform(post("/api/users/me/telegram")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"initData\":\"fake\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void appEndpoint_headers_arePresent() throws Exception {
+        mvc.perform(get("/app/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("frame-ancestors https://web.telegram.org")))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andExpect(header().exists("X-Content-Type-Options"))
+                .andExpect(header().doesNotExist("X-Frame-Options"));
+    }
 }

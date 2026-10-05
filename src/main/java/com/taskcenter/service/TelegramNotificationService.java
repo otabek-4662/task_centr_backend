@@ -27,6 +27,7 @@ public class TelegramNotificationService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceRepository workspaceRepository;
     private final Clock clock;
+    private final String miniappBaseUrl;
 
     public TelegramNotificationService(
             ApplicationEventPublisher eventPublisher,
@@ -34,13 +35,15 @@ public class TelegramNotificationService {
             UserRepository userRepository,
             WorkspaceMemberRepository workspaceMemberRepository,
             WorkspaceRepository workspaceRepository,
-            Clock clock) {
+            Clock clock,
+            @org.springframework.beans.factory.annotation.Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl) {
         this.eventPublisher = eventPublisher;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.workspaceRepository = workspaceRepository;
         this.clock = clock;
+        this.miniappBaseUrl = miniappBaseUrl;
     }
 
     /**
@@ -58,7 +61,7 @@ public class TelegramNotificationService {
 
             String escapedComment = TelegramUtil.truncateComment(commentText, 100);
             String actorName = actor.getName();
-            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(taskWithDetails.getId(), taskWithDetails.getTitle());
+            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(taskWithDetails.getId(), taskWithDetails.getTitle(), miniappBaseUrl);
 
             // 2. Mention larni ajratib olish
             Set<String> mentionedUsernames = TelegramUtil.extractMentionedUsernames(commentText);
@@ -145,7 +148,7 @@ public class TelegramNotificationService {
                     + TelegramUtil.escapeHtml(oldColumnTitle) + " dan "
                     + TelegramUtil.escapeHtml(newColumnTitle) + " ga o'tdi";
 
-            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(taskWithDetails.getId(), taskWithDetails.getTitle());
+            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(taskWithDetails.getId(), taskWithDetails.getTitle(), miniappBaseUrl);
             LocalTime now = LocalTime.now(clock);
 
             for (User recipient : recipients.values()) {
@@ -192,7 +195,7 @@ public class TelegramNotificationService {
                     + "\n⚠️ Muhimligi: " + (task.getPriority() != null ? task.getPriority() : "MEDIUM")
                     + "\n\nQozonda qaynatish vaqti keldi! ☕️";
 
-            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(task.getId(), task.getTitle());
+            InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(task.getId(), task.getTitle(), miniappBaseUrl);
             LocalTime now = LocalTime.now(clock);
 
             sendIfEligible(assignee, actor, msg, keyboard, assignee.isTelegramNotifyAssigned(), now);

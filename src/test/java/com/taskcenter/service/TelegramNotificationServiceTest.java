@@ -60,7 +60,8 @@ class TelegramNotificationServiceTest {
                 userRepository,
                 workspaceMemberRepository,
                 workspaceRepository,
-                fixedClock
+                fixedClock,
+                "https://test.url"
         );
     }
 

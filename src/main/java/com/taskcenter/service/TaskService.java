@@ -140,6 +140,20 @@ public class TaskService {
         return TaskDto.fromEntity(task);
     }
 
+    @Transactional(readOnly = true)
+    public TaskDto getTaskDirectById(String id, User currentUser) {
+        Task task = taskRepository.findByIdWithDetails(id).orElse(null);
+        if (task == null) {
+            throw new ResourceNotFoundException("Task topilmadi yoki huquq yo'q");
+        }
+        try {
+            authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        } catch (Exception e) {
+            throw new ResourceNotFoundException("Task topilmadi yoki huquq yo'q");
+        }
+        return TaskDto.fromEntity(task);
+    }
+
     @Transactional
     public TaskDto createTask(String workspaceId, TaskCreateRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);

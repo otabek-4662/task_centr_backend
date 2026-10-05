@@ -50,6 +50,7 @@ public class TelegramSchedulerService {
     private final WorkspaceRepository workspaceRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final String miniappBaseUrl;
 
     public TelegramSchedulerService(
             TaskRepository taskRepository,
@@ -57,13 +58,15 @@ public class TelegramSchedulerService {
             UserRepository userRepository,
             WorkspaceRepository workspaceRepository,
             ApplicationEventPublisher eventPublisher,
-            Clock clock) {
+            Clock clock,
+            @org.springframework.beans.factory.annotation.Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl) {
         this.taskRepository = taskRepository;
         this.reminderLogRepository = reminderLogRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.miniappBaseUrl = miniappBaseUrl;
     }
 
     // ────────────────── Scheduled entry points ──────────────────
@@ -215,7 +218,29 @@ public class TelegramSchedulerService {
             sb.append("📋 ").append(TelegramUtil.escapeHtml(t.getTitle())).append("\n");
         }
 
-        eventPublisher.publishEvent(new TelegramMessageEvent(chatId, sb.toString()));
+        // TASK_VIEW va WebApp inline tugmalar (max 10)
+        int maxButtons = Math.min(newTasks.size(), MAX_INLINE_BUTTONS);
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        for (int i = 0; i < maxButtons; i++) {
+            TelegramReminderTaskDto t = newTasks.get(i);
+            InlineKeyboardButton btn = new InlineKeyboardButton();
+            String btnTitle = t.getTitle();
+            if (btnTitle.length() > BUTTON_TITLE_MAX_LENGTH) {
+                btnTitle = btnTitle.substring(0, BUTTON_TITLE_MAX_LENGTH - 3) + "...";
+            }
+            btn.setText("📋 " + btnTitle);
+            btn.setCallbackData("TASK_VIEW_" + t.getTaskId());
+            rows.add(List.of(btn));
+
+            InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
+            webAppBtn.setText("📱 Ochish");
+            webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/?task=" + t.getTaskId()));
+            rows.add(List.of(webAppBtn));
+        }
+        keyboard.setKeyboard(rows);
+
+        eventPublisher.publishEvent(new TelegramMessageEvent(chatId, sb.toString(), keyboard));
     }
 
     private void processDigestForUser(String userId,
@@ -285,6 +310,11 @@ public class TelegramSchedulerService {
             btn.setText("📋 " + btnTitle);
             btn.setCallbackData("TASK_VIEW_" + t.getTaskId());
             rows.add(List.of(btn));
+
+            InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
+            webAppBtn.setText("📱 Ochish");
+            webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/?task=" + t.getTaskId()));
+            rows.add(List.of(webAppBtn));
         }
         keyboard.setKeyboard(rows);
 

@@ -4,6 +4,7 @@ import com.taskcenter.dto.ApiResponse;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ForbiddenException;
+import com.taskcenter.exception.RateLimitException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,6 +116,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(ApiResponse.error("Fayl hajmi 10 MB dan oshmasligi kerak", null));
+    }
+
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimitException(RateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(ApiResponse.error(ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

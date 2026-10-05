@@ -110,7 +110,7 @@ public class ReportService {
                 .orElseThrow(() -> new com.taskcenter.exception.ResourceNotFoundException("Sprint topilmadi"));
 
         if (!sprint.getWorkspaceId().equals(workspaceId)) {
-            throw new com.taskcenter.exception.BadRequestException("Sprint ushbu loyihaga tegishli emas");
+            throw new com.taskcenter.exception.BadRequestException("Sprint ushbu g'alvaga tegishli emas");
         }
 
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);

@@ -5,6 +5,8 @@ import com.taskcenter.dto.TelegramLinkDto;
 import com.taskcenter.dto.UserDto;
 import com.taskcenter.model.User;
 import com.taskcenter.service.UserService;
+import com.taskcenter.security.RateLimitingService;
+import com.taskcenter.exception.RateLimitException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,9 +23,16 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final RateLimitingService rateLimitingService;
 
-    public UserController(UserService userService) {
+    @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.max:10}")
+    private int telegramLinkUserMax;
+    @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.window-minutes:1}")
+    private int telegramLinkUserWindow;
+
+    public UserController(UserService userService, RateLimitingService rateLimitingService) {
         this.userService = userService;
+        this.rateLimitingService = rateLimitingService;
     }
 
     @Operation(summary = "Joriy foydalanuvchi profilini olish")
@@ -59,6 +68,20 @@ public class UserController {
     public ApiResponse<Void> unlinkTelegram(@AuthenticationPrincipal User currentUser) {
         userService.unlinkTelegram(currentUser);
         return ApiResponse.success("Telegram akkaunt uzildi", null);
+    }
+
+    public record TelegramLinkRequest(@jakarta.validation.constraints.NotBlank String initData) {}
+
+    @Operation(summary = "Mini App orqali Telegram akkauntni ulash")
+    @PostMapping("/users/me/telegram")
+    public ApiResponse<UserDto> linkTelegramViaMiniApp(
+            @AuthenticationPrincipal User currentUser,
+            @jakarta.validation.Valid @RequestBody TelegramLinkRequest request) {
+        long waitTime = rateLimitingService.tryConsumeUserLimit("telegram-link", currentUser.getId(), telegramLinkUserMax, telegramLinkUserWindow);
+        if (waitTime > 0) {
+            throw new RateLimitException(waitTime);
+        }
+        return ApiResponse.success("Telegram muvaffaqiyatli ulandi", userService.linkTelegramViaInitData(currentUser, request.initData()));
     }
 
     @Operation(summary = "Profil ma'lumotlarini tahrirlash", description = "Foydalanuvchi to'liq ismi yoki login nomini yangilash.")

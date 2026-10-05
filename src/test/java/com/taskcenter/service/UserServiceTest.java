@@ -15,6 +15,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.taskcenter.security.TelegramInitDataValidator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.taskcenter.service.TelegramMessageEvent;
 
 import java.util.Optional;
 
@@ -38,6 +46,15 @@ class UserServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private TelegramInitDataValidator initDataValidator;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private UserService userService;
@@ -261,6 +278,68 @@ class UserServiceTest {
     @Test
     void unlinkTelegram_unauthenticatedThrowsForbidden() {
         assertThatThrownBy(() -> userService.unlinkTelegram(null))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void linkTelegram_validData_success() throws Exception {
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        when(initDataValidator.validate("valid")).thenReturn(Optional.of(Map.of("user", "{}")));
+        JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"id\":12345}");
+        when(objectMapper.readTree("{}")).thenReturn(node);
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+        when(userRepository.findByTelegramChatId(12345L)).thenReturn(Optional.empty());
+
+        UserDto dto = userService.linkTelegramViaInitData(user, "valid");
+        
+        assertThat(dto.getTelegramLinked()).isTrue();
+        assertThat(user.getTelegramChatId()).isEqualTo(12345L);
+        verify(userRepository).save(user);
+        verify(eventPublisher).publishEvent(any(TelegramMessageEvent.class));
+    }
+
+    @Test
+    void linkTelegram_invalidData_throws401() {
+        User user = User.builder().id("u1").name("tester").build();
+        when(initDataValidator.validate("invalid")).thenReturn(Optional.empty());
+        
+        assertThatThrownBy(() -> userService.linkTelegramViaInitData(user, "invalid"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Invalid or expired initData");
+    }
+
+    @Test
+    void linkTelegram_alreadyLinkedToAnother_throws409() throws Exception {
+        User user = User.builder().id("u1").name("tester").build();
+        when(initDataValidator.validate("valid")).thenReturn(Optional.of(Map.of("user", "{}")));
+        JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"id\":12345}");
+        when(objectMapper.readTree("{}")).thenReturn(node);
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+        
+        User otherUser = User.builder().id("u2").name("other").build();
+        when(userRepository.findByTelegramChatId(12345L)).thenReturn(Optional.of(otherUser));
+        
+        assertThatThrownBy(() -> userService.linkTelegramViaInitData(user, "valid"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("Bu Telegram boshqa akkauntga ulangan");
+    }
+
+    @Test
+    void linkTelegram_idempotent_success() throws Exception {
+        User user = User.builder().id("u1").name("tester").telegramChatId(12345L).build();
+        when(initDataValidator.validate("valid")).thenReturn(Optional.of(Map.of("user", "{}")));
+        JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"id\":12345}");
+        when(objectMapper.readTree("{}")).thenReturn(node);
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+        
+        UserDto dto = userService.linkTelegramViaInitData(user, "valid");
+        assertThat(dto.getTelegramLinked()).isTrue();
+        // shud not save again or publish event again if already linked
+    }
+
+    @Test
+    void linkTelegram_unauthenticated_throws403() {
+        assertThatThrownBy(() -> userService.linkTelegramViaInitData(null, "valid"))
                 .isInstanceOf(ForbiddenException.class);
     }
 }

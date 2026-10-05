@@ -18,8 +18,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.taskcenter.security.TelegramInitDataValidator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Map;
+import com.taskcenter.util.TelegramUtil;
 
 @Service
 public class UserService {
@@ -36,17 +44,26 @@ public class UserService {
     private final WorkspaceAuthorizationService authorizationService;
     private final PasswordEncoder passwordEncoder;
     private final String botUsername;
+    private final TelegramInitDataValidator initDataValidator;
+    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UserService(UserRepository userRepository,
                        TaskRepository taskRepository,
                        WorkspaceAuthorizationService authorizationService,
                        PasswordEncoder passwordEncoder,
-                       @Value("${telegram.bot.username:}") String botUsername) {
+                       @Value("${telegram.bot.username:}") String botUsername,
+                       TelegramInitDataValidator initDataValidator,
+                       ObjectMapper objectMapper,
+                       ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
         this.passwordEncoder = passwordEncoder;
         this.botUsername = botUsername;
+        this.initDataValidator = initDataValidator;
+        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     public UserDto getCurrentUser(User currentUser) {
@@ -109,6 +126,49 @@ public class UserService {
         user.setTelegramLinkToken(null);
         user.setTelegramLinkTokenExpiresAt(null);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public UserDto linkTelegramViaInitData(User currentUser, String initData) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
+        }
+        
+        Map<String, String> params = initDataValidator.validate(initData)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired initData"));
+
+        long telegramId;
+        try {
+            JsonNode tgUser = objectMapper.readTree(params.get("user"));
+            telegramId = tgUser.get("id").asLong();
+        } catch (Exception e) {
+            throw new BadRequestException("Noto'g'ri user ma'lumotlari");
+        }
+
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
+
+        if (user.getTelegramChatId() != null && user.getTelegramChatId() == telegramId) {
+            return getCurrentUser(user);
+        }
+
+        userRepository.findByTelegramChatId(telegramId).ifPresent(u -> {
+            if (!u.getId().equals(user.getId())) {
+                throw new ConflictException("Bu Telegram boshqa akkauntga ulangan");
+            }
+        });
+
+        user.setTelegramChatId(telegramId);
+        user.setTelegramLinkToken(null);
+        user.setTelegramLinkTokenExpiresAt(null);
+        userRepository.save(user);
+
+        String welcomeMsg = "🎉 Davraga xush kelibsiz, <b>" + TelegramUtil.escapeHtml(user.getFullName() != null ? user.getFullName() : user.getName()) + "</b>!\n\n"
+                + "Akkauntingiz muvaffaqiyatli ulandi ☕️\n"
+                + "Endi barcha g'alva va bosh og'riqlardan (vazifalardan) xabardor bo'lib turasiz hamda ularni shu yerdan boshqara olasiz!";
+        eventPublisher.publishEvent(new TelegramMessageEvent(telegramId, welcomeMsg));
+
+        return getCurrentUser(user);
     }
 
     @Transactional

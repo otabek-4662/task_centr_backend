@@ -86,7 +86,8 @@ class TelegramBotServiceTest {
                 activityService,
                 telegramNotificationService,
                 telegramReminderLogRepository,
-                webSocketNotifier
+                webSocketNotifier,
+                "https://test.url"
         ));
 
         try {
@@ -375,7 +376,7 @@ class TelegramBotServiceTest {
         assertThat(uuid).hasSize(36);
 
         // TASK_VIEW from TelegramUtil
-        String taskViewUtil = TelegramUtil.createTaskViewKeyboard(uuid, "Test Task").getKeyboard().get(0).get(0).getCallbackData();
+        String taskViewUtil = TelegramUtil.createTaskViewKeyboard(uuid, "Test Task", "url").getKeyboard().get(0).get(0).getCallbackData();
         assertThat(taskViewUtil.getBytes(StandardCharsets.UTF_8).length).isLessThanOrEqualTo(64);
 
         // TASK_VIEW from Bot / Scheduler
@@ -543,7 +544,7 @@ class TelegramBotServiceTest {
 
         ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
         verify(telegramBotService).execute(captor.capture());
-        assertThat(captor.getValue().getText()).contains("boshqa loyihaga tegishli");
+        assertThat(captor.getValue().getText()).contains("boshqa g'alvaga tegishli");
     }
 
     @Test
@@ -1226,7 +1227,7 @@ class TelegramBotServiceTest {
                 "dummy", "dummy", userRepository, taskRepository, columnRepository,
                 workspaceRepository, authorizationService, taskExecutor, customClock,
                 activityService, telegramNotificationService, telegramReminderLogRepository,
-                webSocketNotifier
+                webSocketNotifier, "https://test.url"
         ));
         
         try {
@@ -1504,7 +1505,7 @@ class TelegramBotServiceTest {
 
         ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
         verify(telegramBotService).execute(captor.capture());
-        assertThat(captor.getValue().getText()).contains("qaysi loyihaga (g'alvaga) qo'shamiz");
+        assertThat(captor.getValue().getText()).contains("qaysi g'alvaga qo'shamiz");
         assertThat(captor.getValue().getReplyMarkup()).isNotNull();
     }
 
@@ -1619,5 +1620,79 @@ class TelegramBotServiceTest {
         ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
         verify(telegramBotService, atLeastOnce()).execute(captor.capture());
         assertThat(captor.getValue().getText()).contains("Vazifa yaratish bekor qilindi");
+    }
+
+    @Test
+    void onUpdateReceived_startTask_unlinked_showsHelp() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start task_123");
+        when(message.getChatId()).thenReturn(801L);
+        update.setMessage(message);
+
+        when(userRepository.findByTelegramChatId(801L)).thenReturn(Optional.empty());
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Telegram orqali bildirishnomalarni olish");
+    }
+
+    @Test
+    void onUpdateReceived_startTask_noAccess_showsDenied() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start task_123");
+        when(message.getChatId()).thenReturn(802L);
+        update.setMessage(message);
+
+        User user = User.builder().id("u1").build();
+        when(userRepository.findByTelegramChatId(802L)).thenReturn(Optional.of(user));
+        
+        Task task = Task.builder().id("123").workspaceId("ws-1").title("Secret").build();
+        when(taskRepository.findById("123")).thenReturn(Optional.of(task));
+
+        doThrow(new RuntimeException("Denied")).when(authorizationService).checkAccess("ws-1", user);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Bu vazifaga ruxsatingiz yo'q");
+    }
+
+    @Test
+    void onUpdateReceived_startTask_success_showsTask() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start task_123");
+        when(message.getChatId()).thenReturn(803L);
+        update.setMessage(message);
+
+        User user = User.builder().id("u1").build();
+        when(userRepository.findByTelegramChatId(803L)).thenReturn(Optional.of(user));
+        
+        Task task = Task.builder().id("123").workspaceId("ws-1").title("Secret Task").build();
+        when(taskRepository.findById("123")).thenReturn(Optional.of(task));
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Secret Task");
+        assertThat(captor.getValue().getReplyMarkup()).isNotNull();
     }
 }

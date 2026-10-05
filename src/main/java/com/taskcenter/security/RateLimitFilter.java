@@ -1,6 +1,7 @@
 package com.taskcenter.security;
 
-import io.github.bucket4j.Bucket;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.taskcenter.dto.ApiResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,63 +11,67 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> bucketCache;
+    private final RateLimitingService rateLimitingService;
+    private final ObjectMapper objectMapper;
     private final boolean enabled;
     private final boolean apiEnabled;
 
+    @Value("${ratelimit.login.ip.max:10}")
+    private int loginIpMax;
+    @Value("${ratelimit.login.ip.window-minutes:5}")
+    private int loginIpWindow;
+
+    @Value("${ratelimit.telegram.ip.max:30}")
+    private int telegramIpMax;
+    @Value("${ratelimit.telegram.ip.window-minutes:1}")
+    private int telegramIpWindow;
+
+    @Value("${ratelimit.register.ip.max:5}")
+    private int registerIpMax;
+    @Value("${ratelimit.register.ip.window-minutes:10}")
+    private int registerIpWindow;
+
     public RateLimitFilter(
-            Map<String, Bucket> bucketCache,
+            RateLimitingService rateLimitingService,
+            ObjectMapper objectMapper,
             @Value("${ratelimit.auth.enabled:true}") boolean enabled,
             @Value("${ratelimit.api.enabled:true}") boolean apiEnabled) {
-        this.bucketCache = bucketCache;
+        this.rateLimitingService = rateLimitingService;
+        this.objectMapper = objectMapper;
         this.enabled = enabled;
         this.apiEnabled = apiEnabled;
-    }
-
-    private Bucket resolveBucket(String key, int capacity, int refillTokens, java.time.Duration refillDuration) {
-        return bucketCache.computeIfAbsent(key, k -> io.github.bucket4j.Bucket.builder()
-                .addLimit(io.github.bucket4j.Bandwidth.classic(capacity, io.github.bucket4j.Refill.greedy(refillTokens, refillDuration)))
-                .build());
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain) throws IOException, jakarta.servlet.ServletException {
+                                    FilterChain filterChain) throws IOException, ServletException {
         if (!enabled && !apiEnabled) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
 
-        // Auth endpoints: stricter limit (10 req/min)
-        if (enabled && path.startsWith("/api/auth/")) {
+        if (enabled && "POST".equalsIgnoreCase(method)) {
             String clientIp = getClientIp(request);
-            Bucket bucket = resolveBucket("auth:" + clientIp, 10, 10, java.time.Duration.ofMinutes(1));
+            long waitTime = 0;
 
-            if (!bucket.tryConsume(1)) {
-                response.setStatus(429);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"success\":false,\"message\":\"Too many requests. Please try again later.\",\"data\":null}");
-                return;
+            if (path.equals("/api/auth/login")) {
+                waitTime = rateLimitingService.tryConsumeIpLimit("login", clientIp, loginIpMax, loginIpWindow);
+            } else if (path.equals("/api/v1/auth/telegram")) {
+                waitTime = rateLimitingService.tryConsumeIpLimit("telegram-auth", clientIp, telegramIpMax, telegramIpWindow);
+            } else if (path.equals("/api/auth/register") || path.equals("/api/auth/forgot-password") || path.equals("/api/auth/reset-password")) {
+                waitTime = rateLimitingService.tryConsumeIpLimit("register", clientIp, registerIpMax, registerIpWindow);
             }
-        }
 
-        // All other API endpoints: moderate limit (100 req/min)
-        if (apiEnabled && path.startsWith("/api/") && !path.startsWith("/api/auth/")) {
-            String clientIp = getClientIp(request);
-            Bucket bucket = resolveBucket("api:" + clientIp, 100, 100, java.time.Duration.ofMinutes(1));
-
-            if (!bucket.tryConsume(1)) {
-                response.setStatus(429);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"success\":false,\"message\":\"Too many requests. Please try again later.\",\"data\":null}");
+            if (waitTime > 0) {
+                sendRateLimitResponse(response, waitTime);
                 return;
             }
         }
@@ -74,10 +79,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    private void sendRateLimitResponse(HttpServletResponse response, long waitTime) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Retry-After", String.valueOf(waitTime));
+        
+        ApiResponse<Void> apiResponse = ApiResponse.error("Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.");
+        response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+    }
+
     private String getClientIp(HttpServletRequest request) {
+        /*
+         * Render's proxy behavior:
+         * Render appends the actual remote IP (the IP of the client connecting to Render) 
+         * to the X-Forwarded-For header. If a client attempts to spoof the header by sending 
+         * their own X-Forwarded-For, Render will append the real IP to the end of the list.
+         * Therefore, the LAST trusted hop (the last IP in the comma-separated list) 
+         * is the actual client IP.
+         */
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+            String[] ips = xForwardedFor.split(",");
+            return ips[ips.length - 1].trim();
         }
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {

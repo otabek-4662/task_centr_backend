@@ -159,5 +159,6 @@ async function disconnectTelegram() {
 ## 📌 6. Eslatma
 
 - `/app/` dagi Mini App backend tomonidan yaratilgan — frontend dasturchi unga **tegmaydi**.
-- Mini App faqat akkaunt ulangan bo'lsa kiradi; ulanmagan bo'lsa foydalanuvchiga *"Avval botda akkauntingizni ulang"* (`401`) ko'rsatiladi. Shu sababli bu ulash UI Mini App uchun ham zarur.
-- Uzilgandan keyin Mini App kirishi ham to'xtaydi.
+- Mini App ichida avtomatik kirish imkoniyati mavjud. Agar foydalanuvchi akkaunti hali Telegram bilan ulanmagan bo'lsa, Mini App ichida to'g'ridan-to'g'ri tizimga kirish va akkauntni ulash uchun maxsus ekran (Login View) ko'rsatiladi. Bu orqali foydalanuvchi ulanishni to'g'ridan-to'g'ri Telegramning o'zida ham amalga oshirishi mumkin.
+- Web sayt orqali ulash UI ham baribir o'z kuchida qoladi (shaxsiy kabinet orqali ulanish imkoniyati uchun).
+- Uzilgandan keyin Mini App yana Login ekranini ko'rsatadi.
