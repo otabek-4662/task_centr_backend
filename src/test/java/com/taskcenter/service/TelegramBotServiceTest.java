@@ -62,6 +62,8 @@ class TelegramBotServiceTest {
     private TelegramNotificationService telegramNotificationService;
     @Mock
     private TelegramReminderLogRepository telegramReminderLogRepository;
+    @Mock
+    private WebSocketNotifier webSocketNotifier;
 
     private static final ZoneId ZONE = ZoneId.of("Asia/Tashkent");
     private final Clock clock = Clock.fixed(
@@ -83,7 +85,8 @@ class TelegramBotServiceTest {
                 clock,
                 activityService,
                 telegramNotificationService,
-                telegramReminderLogRepository
+                telegramReminderLogRepository,
+                webSocketNotifier
         ));
 
         try {
@@ -1222,7 +1225,8 @@ class TelegramBotServiceTest {
         TelegramBotService customService = spy(new TelegramBotService(
                 "dummy", "dummy", userRepository, taskRepository, columnRepository,
                 workspaceRepository, authorizationService, taskExecutor, customClock,
-                activityService, telegramNotificationService, telegramReminderLogRepository
+                activityService, telegramNotificationService, telegramReminderLogRepository,
+                webSocketNotifier
         ));
         
         try {
@@ -1266,5 +1270,354 @@ class TelegramBotServiceTest {
         // At UTC 2026-10-01T20:00:00, Tashkent is 2026-10-02T01:00:00
         // Plus 1 day snooze -> 2026-10-03
         assertThat(taskCaptor.getValue().getDueDate()).isEqualTo(LocalDate.of(2026, 10, 3));
+    }
+
+    // --- STATS Tests ---
+
+    @Test
+    void onUpdateReceived_statsCommand_showsFullDashboard() throws Exception {
+        Long chatId = 801L;
+        User user = User.builder().id("u1").name("bek").fullName("Bekmurod").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        com.taskcenter.dto.UserTaskStatsProjection stats = mock(com.taskcenter.dto.UserTaskStatsProjection.class);
+        when(stats.getTotalAssigned()).thenReturn(20L);
+        when(stats.getCompletedCount()).thenReturn(15L);
+        when(stats.getActiveCount()).thenReturn(5L);
+        when(stats.getOverdueCount()).thenReturn(2L);
+        when(stats.getDueTodayCount()).thenReturn(3L);
+
+        when(taskRepository.getUserTaskStats("u1", LocalDate.of(2026, 10, 1))).thenReturn(stats);
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/stats");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        String text = captor.getValue().getText();
+
+        assertThat(text).contains("Shaxsiy unumdorlik statistikasi");
+        assertThat(text).contains("Bekmurod");
+        assertThat(text).contains("O'zimizdan");
+        assertThat(text).contains("Jami biriktirilgan: <b>20 ta</b>");
+        assertThat(text).contains("Faol (jarayonda): <b>5 ta</b>");
+        assertThat(text).contains("Bajarilgan: <b>15 ta</b> (Samaradorlik: <b>75%</b>)");
+        assertThat(text).contains("Muddati o'tgan: <b>2 ta</b>");
+        assertThat(text).contains("Bugun kutilayotgan: <b>3 ta</b>");
+        assertThat(captor.getValue().getReplyMarkup()).isNotNull();
+    }
+
+    @Test
+    void onUpdateReceived_callback_statsRefresh_editsMessage() throws Exception {
+        Long chatId = 802L;
+        User user = User.builder().id("u1").name("bek").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        com.taskcenter.dto.UserTaskStatsProjection stats = mock(com.taskcenter.dto.UserTaskStatsProjection.class);
+        when(stats.getTotalAssigned()).thenReturn(5L);
+        when(stats.getCompletedCount()).thenReturn(5L);
+        when(stats.getActiveCount()).thenReturn(0L);
+        when(stats.getOverdueCount()).thenReturn(0L);
+        when(stats.getDueTodayCount()).thenReturn(0L);
+
+        when(taskRepository.getUserTaskStats("u1", LocalDate.of(2026, 10, 1))).thenReturn(stats);
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-802");
+        callbackQuery.setData("STATS_REFRESH");
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        when(message.getMessageId()).thenReturn(555);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<EditMessageText> editCaptor = ArgumentCaptor.forClass(EditMessageText.class);
+        verify(telegramBotService).execute(editCaptor.capture());
+        assertThat(editCaptor.getValue().getText()).contains("Shaxsiy unumdorlik statistikasi");
+    }
+
+    @Test
+    void onUpdateReceived_overdueCommand_empty_showsNiceMessage() throws Exception {
+        Long chatId = 803L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+        when(taskRepository.findOverdueTasksByUserId("u1", LocalDate.of(2026, 10, 1))).thenReturn(List.of());
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/overdue");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("birorta ham muddati o'tgan bosh og'riq yo'q");
+    }
+
+    @Test
+    void onUpdateReceived_overdueCommand_withTasks_listsTasks() throws Exception {
+        Long chatId = 804L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task t1 = Task.builder().id("t1").title("Overdue Task 1").build();
+        when(taskRepository.findOverdueTasksByUserId("u1", LocalDate.of(2026, 10, 1))).thenReturn(List.of(t1));
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/overdue");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Muddati o'tgan vazifalar ro'yxati");
+        assertThat(captor.getValue().getReplyMarkup()).isNotNull();
+    }
+
+    @Test
+    void onUpdateReceived_tasksTodayCommand_listsTasks() throws Exception {
+        Long chatId = 805L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task t1 = Task.builder().id("t1").title("Today Task 1").build();
+        when(taskRepository.findDueTodayTasksByUserId("u1", LocalDate.of(2026, 10, 1))).thenReturn(List.of(t1));
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/tasks_today");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Bugun bajarilishi kerak bo'lgan vazifalar");
+    }
+
+    // --- CREATE_TASK Tests ---
+
+    @Test
+    void onUpdateReceived_createTask_quickMode_singleWorkspace_createsTask() throws Exception {
+        Long chatId = 806L;
+        User user = User.builder().id("u1").name("bek").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Workspace ws1 = Workspace.builder().id("ws1").title("Asosiy Loyiha").build();
+        when(workspaceRepository.findByOwnerIdOrMemberUserId("u1")).thenReturn(List.of(ws1));
+        when(workspaceRepository.findById("ws1")).thenReturn(Optional.of(ws1));
+        when(authorizationService.checkCanEdit("ws1", user)).thenReturn(ws1);
+
+        BoardColumn col1 = BoardColumn.builder().id("col1").workspaceId("ws1").title("To Do").order(1).isDone(false).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws1")).thenReturn(List.of(col1));
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn(null);
+
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId("new-task-id");
+            return t;
+        });
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/create_task Tezkor vazifa");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task createdTask = taskCaptor.getValue();
+        assertThat(createdTask.getTitle()).isEqualTo("Tezkor vazifa");
+        assertThat(createdTask.getColumnId()).isEqualTo("col1");
+        assertThat(createdTask.getPriority()).isEqualTo(com.taskcenter.model.Priority.MEDIUM);
+        assertThat(createdTask.getAssignees()).contains(user);
+
+        verify(activityService).logActivity(eq("new-task-id"), eq(user), eq(TaskActivityType.TASK_CREATED), eq("task"), isNull(), eq("Tezkor vazifa"));
+        verify(webSocketNotifier).notifyWorkspace(eq("ws1"), any());
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Yangi vazifa muvaffaqiyatli yaratildi");
+        assertThat(captor.getValue().getText()).contains("Tezkor vazifa");
+    }
+
+    @Test
+    void onUpdateReceived_createTask_quickMode_multipleWorkspaces_promptsWorkspaceSelection() throws Exception {
+        Long chatId = 807L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Workspace ws1 = Workspace.builder().id("ws1").title("Loyiha A").build();
+        Workspace ws2 = Workspace.builder().id("ws2").title("Loyiha B").build();
+        when(workspaceRepository.findByOwnerIdOrMemberUserId("u1")).thenReturn(List.of(ws1, ws2));
+
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/create_task Ko'p loyihali vazifa");
+        when(message.getChatId()).thenReturn(chatId);
+        update.setMessage(message);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("qaysi loyihaga (g'alvaga) qo'shamiz");
+        assertThat(captor.getValue().getReplyMarkup()).isNotNull();
+    }
+
+    @Test
+    void onUpdateReceived_createTask_wizardMode_stepByStep() throws Exception {
+        Long chatId = 808L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Workspace ws1 = Workspace.builder().id("ws1").title("Loyiha 1").build();
+        Workspace ws2 = Workspace.builder().id("ws2").title("Loyiha 2").build();
+        when(workspaceRepository.findByOwnerIdOrMemberUserId("u1")).thenReturn(List.of(ws1, ws2));
+        when(workspaceRepository.findById("ws1")).thenReturn(Optional.of(ws1));
+
+        BoardColumn col1 = BoardColumn.builder().id("col1").workspaceId("ws1").title("To Do").order(1).isDone(false).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws1")).thenReturn(List.of(col1));
+        when(authorizationService.checkCanEdit("ws1", user)).thenReturn(ws1);
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId("wizard-task-id");
+            return t;
+        });
+
+        // Step 1: User sends /create_task
+        Update u1 = new Update();
+        Message m1 = mock(Message.class);
+        Chat c1 = new Chat();
+        c1.setType("private");
+        when(m1.getChat()).thenReturn(c1);
+        when(m1.hasText()).thenReturn(true);
+        when(m1.getText()).thenReturn("/create_task");
+        when(m1.getChatId()).thenReturn(chatId);
+        u1.setMessage(m1);
+
+        telegramBotService.onUpdateReceived(u1);
+
+        // Step 2: User sends task title
+        Update u2 = new Update();
+        Message m2 = mock(Message.class);
+        when(m2.getChat()).thenReturn(c1);
+        when(m2.hasText()).thenReturn(true);
+        when(m2.getText()).thenReturn("Interaktiv vazifa");
+        when(m2.getChatId()).thenReturn(chatId);
+        u2.setMessage(m2);
+
+        telegramBotService.onUpdateReceived(u2);
+
+        // Step 3: User picks workspace CT_WS_ws1
+        Update u3 = new Update();
+        CallbackQuery cb3 = new CallbackQuery();
+        cb3.setId("cb-ws");
+        cb3.setData("CT_WS_ws1");
+        Message m3 = mock(Message.class);
+        when(m3.getChat()).thenReturn(c1);
+        when(m3.getChatId()).thenReturn(chatId);
+        cb3.setMessage(m3);
+        u3.setCallbackQuery(cb3);
+
+        telegramBotService.onUpdateReceived(u3);
+
+        // Step 4: User picks priority CT_PRIO_HIGH
+        Update u4 = new Update();
+        CallbackQuery cb4 = new CallbackQuery();
+        cb4.setId("cb-prio");
+        cb4.setData("CT_PRIO_HIGH");
+        Message m4 = mock(Message.class);
+        when(m4.getChat()).thenReturn(c1);
+        when(m4.getChatId()).thenReturn(chatId);
+        when(m4.getMessageId()).thenReturn(999);
+        cb4.setMessage(m4);
+        u4.setCallbackQuery(cb4);
+
+        telegramBotService.onUpdateReceived(u4);
+
+        ArgumentCaptor<Task> taskCaptor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(taskCaptor.capture());
+        Task saved = taskCaptor.getValue();
+        assertThat(saved.getTitle()).isEqualTo("Interaktiv vazifa");
+        assertThat(saved.getPriority()).isEqualTo(com.taskcenter.model.Priority.HIGH);
+        assertThat(saved.getWorkspaceId()).isEqualTo("ws1");
+    }
+
+    @Test
+    void onUpdateReceived_cancelCommand_cancelsActiveCreation() throws Exception {
+        Long chatId = 809L;
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+        when(workspaceRepository.findByOwnerIdOrMemberUserId("u1")).thenReturn(List.of(Workspace.builder().id("w1").build()));
+
+        // Start creation
+        Update u1 = new Update();
+        Message m1 = mock(Message.class);
+        Chat c1 = new Chat();
+        c1.setType("private");
+        when(m1.getChat()).thenReturn(c1);
+        when(m1.hasText()).thenReturn(true);
+        when(m1.getText()).thenReturn("/create_task");
+        when(m1.getChatId()).thenReturn(chatId);
+        u1.setMessage(m1);
+        telegramBotService.onUpdateReceived(u1);
+
+        // Cancel
+        Update u2 = new Update();
+        Message m2 = mock(Message.class);
+        when(m2.getChat()).thenReturn(c1);
+        when(m2.hasText()).thenReturn(true);
+        when(m2.getText()).thenReturn("/cancel");
+        when(m2.getChatId()).thenReturn(chatId);
+        u2.setMessage(m2);
+        telegramBotService.onUpdateReceived(u2);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService, atLeastOnce()).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Vazifa yaratish bekor qilindi");
     }
 }

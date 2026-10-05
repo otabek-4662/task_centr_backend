@@ -100,4 +100,98 @@ public class TelegramUtil {
         keyboard.setKeyboard(List.of(List.of(btn)));
         return keyboard;
     }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    public record TelegramUserData(Long id, String firstName, String lastName, String username) {
+        public String getDisplayName() {
+            if (firstName != null && !firstName.isBlank()) {
+                return (lastName != null && !lastName.isBlank()) ? firstName + " " + lastName : firstName;
+            }
+            if (username != null && !username.isBlank()) {
+                return username;
+            }
+            return "Telegram User " + id;
+        }
+    }
+
+    /**
+     * Telegram WebApp tomonidan yuborilgan initData query-string'ni tekshiradi (HMAC-SHA-256).
+     * Agar ma'lumotlar haqiqiy bo'lsa, TelegramUserData obyektini qaytaradi, aks holda null.
+     */
+    public static TelegramUserData validateTelegramWebAppData(String initData, String botToken) {
+        if (initData == null || initData.isBlank() || botToken == null || botToken.isBlank()) {
+            return null;
+        }
+        try {
+            java.util.Map<String, String> params = new java.util.LinkedHashMap<>();
+            String[] pairs = initData.split("&");
+            for (String pair : pairs) {
+                int idx = pair.indexOf("=");
+                if (idx > 0) {
+                    String key = pair.substring(0, idx);
+                    String val = java.net.URLDecoder.decode(pair.substring(idx + 1), java.nio.charset.StandardCharsets.UTF_8);
+                    params.put(key, val);
+                }
+            }
+            String receivedHash = params.remove("hash");
+            if (receivedHash == null || receivedHash.isBlank()) {
+                return null;
+            }
+
+            java.util.List<String> sortedKeys = new java.util.ArrayList<>(params.keySet());
+            java.util.Collections.sort(sortedKeys);
+
+            StringBuilder checkString = new StringBuilder();
+            for (String key : sortedKeys) {
+                if (checkString.length() > 0) {
+                    checkString.append("\n");
+                }
+                checkString.append(key).append("=").append(params.get(key));
+            }
+
+            javax.crypto.Mac hmacSha256 = javax.crypto.Mac.getInstance("HmacSHA256");
+            javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(
+                    "WebAppData".getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+            hmacSha256.init(secretKeySpec);
+            byte[] secretKey = hmacSha256.doFinal(botToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            javax.crypto.Mac dataHmac = javax.crypto.Mac.getInstance("HmacSHA256");
+            javax.crypto.spec.SecretKeySpec dataKeySpec = new javax.crypto.spec.SecretKeySpec(secretKey, "HmacSHA256");
+            dataHmac.init(dataKeySpec);
+            byte[] calculatedHashBytes = dataHmac.doFinal(checkString.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            StringBuilder hexSb = new StringBuilder();
+            for (byte b : calculatedHashBytes) {
+                hexSb.append(String.format("%02x", b));
+            }
+            String calculatedHash = hexSb.toString();
+
+            if (!java.security.MessageDigest.isEqual(
+                    calculatedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    receivedHash.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+                return null;
+            }
+
+            String userJson = params.get("user");
+            if (userJson == null || userJson.isBlank()) {
+                return null;
+            }
+
+            com.fasterxml.jackson.databind.JsonNode userNode = OBJECT_MAPPER.readTree(userJson);
+            Long id = userNode.has("id") ? userNode.get("id").asLong() : null;
+            String firstName = userNode.has("first_name") ? userNode.get("first_name").asText() : "";
+            String lastName = userNode.has("last_name") ? userNode.get("last_name").asText() : "";
+            String username = userNode.has("username") ? userNode.get("username").asText() : null;
+
+            if (id == null) {
+                return null;
+            }
+
+            return new TelegramUserData(id, firstName, lastName, username);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
+

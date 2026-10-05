@@ -150,4 +150,17 @@ public class Task {
             this.publicId = "WFM-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         }
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Task)) return false;
+        Task other = (Task) o;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kanban</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>
+  body { margin:0; font-family:system-ui,sans-serif; background:var(--tg-theme-bg-color,#fff); color:var(--tg-theme-text-color,#000); }
+  header { padding:10px; display:flex; gap:8px; align-items:center; }
+  select { flex:1; padding:8px; border-radius:8px; border:1px solid var(--tg-theme-hint-color,#ccc); background:var(--tg-theme-secondary-bg-color,#f1f1f1); color:inherit; }
+  #board { display:flex; gap:10px; overflow-x:auto; padding:0 10px 20px; align-items:flex-start; }
+  .col { min-width:240px; background:var(--tg-theme-secondary-bg-color,#f1f1f1); border-radius:12px; padding:8px; }
+  .col h3 { margin:4px 6px 8px; font-size:15px; }
+  .list { min-height:40px; }
+  .card { background:var(--tg-theme-bg-color,#fff); border-radius:10px; padding:10px; margin-bottom:8px; box-shadow:0 1px 2px #0002; font-size:14px; }
+  .card small { display:block; margin-top:6px; color:var(--tg-theme-link-color,#2481cc); cursor:pointer; }
+  #msg { padding:20px; text-align:center; }
+</style>
+</head>
+<body>
+<header><select id="ws"></select></header>
+<div id="msg"></div>
+<div id="board"></div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+// ---- SOZLAMA: backend URL va endpointlarni o'zingizning API'ga moslang ----
+const API = location.origin;              // backend ichida static bo'lsa
+let token = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: 'Bearer ' + token }) }
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? 'AUTH' : 'HTTP ' + res.status);
+  return res.status === 204 ? null : res.json();
+}
+
+const endpoints = {
+  workspaces: () => '/api/workspaces',
+  columns:    (ws) => `/api/workspaces/${ws}/columns`,
+  tasks:      (ws) => `/api/workspaces/${ws}/tasks?size=100`,
+  moveTask:   (ws, id) => `/api/workspaces/${ws}/tasks/${id}`,   // PATCH body: { columnId: String }
+};
+
+async function login() {
+  const r = await api('/api/v1/auth/telegram', { method: 'POST', body: JSON.stringify({ initData: tg.initData }) });
+  token = r?.data?.token || r?.token;
+}
+
+async function loadBoard(ws) {
+  const [colsRes, tasksRes] = await Promise.all([api(endpoints.columns(ws)), api(endpoints.tasks(ws))]);
+  const cols = colsRes?.data || colsRes || [];
+  const tasks = tasksRes?.data?.content || tasksRes?.data || tasksRes || [];
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  cols.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'col';
+    el.innerHTML = `<h3>${esc(c.title || c.name)}</h3><div class="list" data-col="${c.id}"></div>`;
+    const list = el.querySelector('.list');
+    tasks.filter(t => t.columnId === c.id).forEach(t => list.appendChild(card(t, cols)));
+    board.appendChild(el);
+    Sortable.create(list, {
+      group: 'tasks', animation: 150, delay: 150, delayOnTouchOnly: true,
+      onEnd: ev => moveTo(ev.item.dataset.id, ev.to.dataset.col)
+    });
+  });
+}
+
+function card(t, cols) {
+  const d = document.createElement('div');
+  d.className = 'card'; d.dataset.id = t.id;
+  d.innerHTML = `${esc(t.title || t.name)}<small>↔ ustunni o'zgartirish</small>`;
+  // zaxira: drag ishlamasa shu tugma
+  d.querySelector('small').onclick = () => {
+    const name = prompt('Ustun nomi:\n' + cols.map(c => c.title || c.name).join('\n'));
+    const target = cols.find(c => (c.title || c.name) === name);
+    if (target) moveTo(t.id, target.id).then(() => loadBoard(document.getElementById('ws').value));
+  };
+  return d;
+}
+
+async function moveTo(taskId, columnId) {
+  const ws = document.getElementById('ws').value;
+  try {
+    await api(endpoints.moveTask(ws, taskId), { method: 'PATCH', body: JSON.stringify({ columnId: String(columnId) }) });
+    tg.HapticFeedback?.impactOccurred?.('light');
+  } catch (e) {
+    tg.HapticFeedback?.notificationOccurred?.('error');
+    loadBoard(ws);
+  }
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+(async () => {
+  const msg = document.getElementById('msg');
+  try {
+    if (!tg.initData) { msg.textContent = 'Bu sahifani Telegram ichida oching.'; return; }
+    await login();
+    const wssRes = await api(endpoints.workspaces());
+    const wss = wssRes?.data?.content || wssRes?.data || wssRes || [];
+    const sel = document.getElementById('ws');
+    sel.innerHTML = wss.map(w => `<option value="${w.id}">${esc(w.title || w.name)}</option>`).join('');
+    sel.onchange = () => loadBoard(sel.value);
+    if (wss.length) await loadBoard(wss[0].id); else msg.textContent = 'Workspace yo\'q.';
+  } catch (e) {
+    msg.textContent = e.message === 'AUTH' ? 'Avval botda akkauntingizni ulang.' : 'Xatolik: ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>

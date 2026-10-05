@@ -405,20 +405,24 @@ public class SprintService {
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Task> taskPage = taskRepository.findBacklogTasks(workspaceId, pageable);
-        Integer totalStoryPoints = taskRepository.sumStoryPointsInBacklog(workspaceId);
+        Page<String> idPage = taskRepository.findBacklogTaskIds(workspaceId, pageable);
+        List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
+        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
 
-        List<TaskDto> taskDtos = taskPage.getContent()
-                .stream()
+        List<TaskDto> taskDtos = idPage.getContent().stream()
+                .map(taskMap::get)
+                .filter(java.util.Objects::nonNull)
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
 
+        Integer totalStoryPoints = taskRepository.sumStoryPointsInBacklog(workspaceId);
+
         return BacklogDto.builder()
                 .tasks(taskDtos)
-                .totalTasks(taskPage.getTotalElements())
+                .totalTasks(idPage.getTotalElements())
                 .totalStoryPoints(totalStoryPoints != null ? totalStoryPoints : 0)
                 .currentPage(page)
-                .totalPages(taskPage.getTotalPages())
+                .totalPages(idPage.getTotalPages())
                 .build();
     }
 

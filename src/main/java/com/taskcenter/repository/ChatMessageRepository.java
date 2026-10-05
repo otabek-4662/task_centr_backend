@@ -16,10 +16,8 @@ import java.util.Optional;
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, String> {
 
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     Page<ChatMessage> findByTypeOrderByCreatedAtDesc(ChatMessageType type, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     @Query("SELECT m FROM ChatMessage m WHERE m.type = :type AND " +
            "((m.senderId = :user1 AND m.recipientId = :user2) OR (m.senderId = :user2 AND m.recipientId = :user1)) " +
            "ORDER BY m.createdAt DESC")
@@ -36,7 +34,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
     @Query("SELECT m FROM ChatMessage m WHERE m.type = :type AND " +
            "LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "ORDER BY m.createdAt DESC")
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     Page<ChatMessage> searchPublicMessages(
             @Param("query") String query,
             @Param("type") ChatMessageType type,
@@ -47,7 +44,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
            "((m.senderId = :user1 AND m.recipientId = :user2) OR (m.senderId = :user2 AND m.recipientId = :user1)) " +
            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "ORDER BY m.createdAt DESC")
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     Page<ChatMessage> searchDirectMessages(
             @Param("user1") String user1,
             @Param("user2") String user2,
@@ -60,7 +56,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
            "(m.type = 'PUBLIC' OR (m.type = 'DIRECT' AND (m.senderId = :userId OR m.recipientId = :userId))) " +
            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "ORDER BY m.createdAt DESC")
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     Page<ChatMessage> searchAllMessages(
             @Param("userId") String userId,
             @Param("query") String query,

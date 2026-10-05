@@ -58,7 +58,7 @@ public class AuthService {
         this.emailService = emailService;
     }
 
-    private String createRefreshToken(String userId) {
+    public String createRefreshToken(String userId) {
         RefreshToken refreshToken = RefreshToken.builder()
                 .userId(userId)
                 .token(UUID.randomUUID().toString())
@@ -122,7 +122,7 @@ public class AuthService {
 
         return new AuthResponse(jwt, refreshToken, AuthResponse.UserDto.fromEntity(user));
     }
-    
+
     @Cacheable(value = "users", key = "#name")
     public User getUserByName(String name) {
         return userRepository.findByName(name)

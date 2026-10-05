@@ -5,7 +5,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -16,14 +15,18 @@ import java.util.Map;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private Map<String, Bucket> bucketCache;
+    private final Map<String, Bucket> bucketCache;
+    private final boolean enabled;
+    private final boolean apiEnabled;
 
-    @Value("${ratelimit.auth.enabled:true}")
-    private boolean enabled;
-
-    @Value("${ratelimit.api.enabled:true}")
-    private boolean apiEnabled;
+    public RateLimitFilter(
+            Map<String, Bucket> bucketCache,
+            @Value("${ratelimit.auth.enabled:true}") boolean enabled,
+            @Value("${ratelimit.api.enabled:true}") boolean apiEnabled) {
+        this.bucketCache = bucketCache;
+        this.enabled = enabled;
+        this.apiEnabled = apiEnabled;
+    }
 
     private Bucket resolveBucket(String key, int capacity, int refillTokens, java.time.Duration refillDuration) {
         return bucketCache.computeIfAbsent(key, k -> io.github.bucket4j.Bucket.builder()

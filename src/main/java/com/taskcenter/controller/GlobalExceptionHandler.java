@@ -77,6 +77,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Nom yoki quloqqa aytiladigan so'z xato"));
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(ApiResponse.error(ex.getReason() != null ? ex.getReason() : ex.getMessage()));
+    }
+
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleUsernameNotFound(UsernameNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

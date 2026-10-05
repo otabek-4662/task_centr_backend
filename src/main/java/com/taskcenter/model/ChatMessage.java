@@ -57,10 +57,12 @@ public class ChatMessage {
     private ChatMessageType type = ChatMessageType.PUBLIC;
 
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private java.util.Set<MessageAttachment> attachments = new java.util.HashSet<>();
 
     @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private java.util.Set<MessageReaction> reactions = new java.util.HashSet<>();
 

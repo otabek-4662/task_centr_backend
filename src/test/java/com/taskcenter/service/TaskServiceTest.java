@@ -429,13 +429,12 @@ class TaskServiceTest {
                 .thenReturn(new com.taskcenter.model.Workspace());
 
         Task t1 = Task.builder().id("t1").title("Swagger documentation task").workspaceId("ws1").build();
-        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of(t1));
-
+        org.springframework.data.domain.Page<String> idPage = new org.springframework.data.domain.PageImpl<>(List.of("t1"));
         com.taskcenter.dto.TaskFilterRequest filter = new com.taskcenter.dto.TaskFilterRequest();
         filter.setSearch("  Swagger  ");
-
-        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(page);
+        when(taskRepository.findIdsByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(idPage);
+        when(taskRepository.findByIdIn(List.of("t1"))).thenReturn(List.of(t1));
 
         org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), filter, org.springframework.data.domain.PageRequest.of(0, 10));
 
@@ -450,13 +449,12 @@ class TaskServiceTest {
                 .thenReturn(new com.taskcenter.model.Workspace());
 
         Task t1 = Task.builder().id("t1").title("Bug in login").workspaceId("ws1").build();
-        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of(t1));
-
+        org.springframework.data.domain.Page<String> idPage = new org.springframework.data.domain.PageImpl<>(List.of("t1"));
         com.taskcenter.dto.TaskFilterRequest filter = new com.taskcenter.dto.TaskFilterRequest();
         filter.setQ("Bug");
-
-        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(page);
+        when(taskRepository.findIdsByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(idPage);
+        when(taskRepository.findByIdIn(List.of("t1"))).thenReturn(List.of(t1));
 
         org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), filter, org.springframework.data.domain.PageRequest.of(0, 10));
 
@@ -469,15 +467,15 @@ class TaskServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkAccess(eq("ws1"), any(User.class)))
                 .thenReturn(new com.taskcenter.model.Workspace());
 
-        org.springframework.data.domain.Page<Task> page = new org.springframework.data.domain.PageImpl<>(List.of());
-
-        when(taskRepository.findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(page);
+        org.springframework.data.domain.Page<String> idPage = new org.springframework.data.domain.PageImpl<>(List.of());
+        when(taskRepository.findIdsByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(idPage);
+        when(taskRepository.findByIdIn(List.of())).thenReturn(List.of());
 
         org.springframework.data.domain.Page<TaskDto> result = taskService.getTasksByWorkspace("ws1", testUser(), null, org.springframework.data.domain.PageRequest.of(0, 10));
 
         assertThat(result).isNotNull();
-        verify(taskRepository).findByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class));
+        verify(taskRepository).findIdsByWorkspaceIdFiltered(eq("ws1"), any(com.taskcenter.dto.TaskFilterRequest.class), any(org.springframework.data.domain.Pageable.class));
     }
 
     // === FIX #10 — TaskUpdateRequest: title="" validatsiyadan o'tmasligi kerak ===

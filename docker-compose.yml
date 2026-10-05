@@ -19,21 +19,20 @@ services:
       retries: 5
 
   backend:
-    image: eclipse-temurin:17-jdk
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: taskcenter-backend
-    working_dir: /app
-    volumes:
-      - ./app.jar:/app/app.jar:ro
-    command: ["java", "-jar", "app.jar"]
     ports:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskcenter
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: password
-      JWT_SECRET: ${JWT_SECRET}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      JWT_SECRET: ${JWT_SECRET:-default_jwt_secret_key_at_least_32_characters_long_for_security}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      APP_SEED_ENABLED: ${APP_SEED_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy

@@ -61,4 +61,17 @@ public class Label {
             this.createdAt = LocalDateTime.now();
         }
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Label)) return false;
+        Label other = (Label) o;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

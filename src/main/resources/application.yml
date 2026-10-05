@@ -38,23 +38,11 @@ spring:
           batch_size: 20
         order_inserts: true
         order_updates: true
-
-logging:
-  level:
-    # SQL so'rovlarni debug qilish uchun quyidagi ikki satrni yoqing:
-    # org.hibernate.SQL: DEBUG
-    # org.hibernate.orm.jdbc.bind: TRACE
-    # N+1 statistikasi uchun:
-    # org.hibernate.stat: DEBUG
-    com.taskcenter: INFO
-    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
-
   flyway:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
     locations: classpath:db/migration
-
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -70,6 +58,18 @@ logging:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+logging:
+  level:
+    # SQL so'rovlarni debug qilish uchun quyidagi ikki satrni yoqing:
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
+    # N+1 statistikasi uchun:
+    # org.hibernate.stat: DEBUG
+    com.taskcenter: INFO
+    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
 
 jwt:
   secret: ${JWT_SECRET}
@@ -83,6 +83,8 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
+  miniapp:
+    max-age-sec: ${TELEGRAM_MINIAPP_MAX_AGE_SEC:3600}
   scheduler:
     reminder-cron: ${TELEGRAM_REMINDER_CRON:0 0 18 * * *}
     digest-cron: ${TELEGRAM_DIGEST_CRON:0 0 8 * * *}
@@ -96,6 +98,7 @@ ratelimit:
 server:
   port: ${PORT:8080}
   forward-headers-strategy: framework
+  shutdown: graceful
   compression:
     enabled: true
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
@@ -135,3 +138,10 @@ springdoc:
 
 storage:
   type: ${STORAGE_TYPE:local}
+
+app:
+  seed:
+    enabled: ${APP_SEED_ENABLED:false}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+

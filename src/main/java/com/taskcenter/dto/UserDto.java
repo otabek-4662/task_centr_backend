@@ -35,6 +35,9 @@ public class UserDto {
     @Schema(description = "Foydalanuvchining o'zbekona maqomi / unvoni", example = "O'zimizdan")
     private String statusNickname;
 
+    @Schema(description = "Telegram bot bilan ulanganmi (faqat joriy foydalanuvchi uchun qaytadi)", example = "true")
+    private Boolean telegramLinked;
+
     public static String calculateStatusNickname(long count) {
         if (count <= 0) return "Begona bola";
         if (count <= 10) return "Do'konga chopuvchi";

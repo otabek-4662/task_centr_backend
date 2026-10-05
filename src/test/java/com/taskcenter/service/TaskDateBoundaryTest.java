@@ -42,7 +42,8 @@ class TaskDateBoundaryTest {
                 taskRepository, null, null, authorizationService, null, null, null, null, null, null, clock
         );
         
-        when(taskRepository.findByWorkspaceIdFiltered(any(), any(), any())).thenReturn(Page.empty());
+        when(taskRepository.findIdsByWorkspaceIdFiltered(any(), any(), any())).thenReturn(Page.empty());
+        when(taskRepository.findByIdIn(any())).thenReturn(java.util.Collections.emptyList());
         
         User testUser = User.builder().id("user1").build();
         TaskFilterRequest filter = new TaskFilterRequest();
@@ -50,7 +51,7 @@ class TaskDateBoundaryTest {
         taskService.getTasksByWorkspace("ws-1", testUser, filter, Pageable.unpaged());
         
         ArgumentCaptor<TaskFilterRequest> captor = ArgumentCaptor.forClass(TaskFilterRequest.class);
-        verify(taskRepository).findByWorkspaceIdFiltered(eq("ws-1"), captor.capture(), any());
+        verify(taskRepository).findIdsByWorkspaceIdFiltered(eq("ws-1"), captor.capture(), any());
         
         LocalDate today = captor.getValue().getToday();
         assertThat(today).isEqualTo(LocalDate.of(2026, 10, 2));

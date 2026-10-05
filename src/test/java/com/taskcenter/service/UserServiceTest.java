@@ -196,5 +196,72 @@ class UserServiceTest {
         // Ikki token bir xil bo'lish ehtimoli 36^8 = 2.8 trillion dan 1 — praktikda imkonsiz
         assertThat(token1).isNotEqualTo(token2);
     }
+
+    // === Telegram: telegramLinked, link, expiresAt, unlink ===
+
+    @Test
+    void getCurrentUser_telegramLinkedReflectsChatId() {
+        User linked = User.builder().id("u1").name("a").role(User.Role.USER).telegramChatId(123L).build();
+        User notLinked = User.builder().id("u2").name("b").role(User.Role.USER).build();
+        when(taskRepository.countAssignedTasksByUserId(any())).thenReturn(0L);
+
+        assertThat(userService.getCurrentUser(linked).getTelegramLinked()).isTrue();
+        assertThat(userService.getCurrentUser(notLinked).getTelegramLinked()).isFalse();
+    }
+
+    @Test
+    void createTelegramLink_returnsTokenLinkAndExpiresAt() {
+        org.springframework.test.util.ReflectionTestUtils.setField(userService, "botUsername", "task_center_bot");
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        User dbUser = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        when(userRepository.findById("u1")).thenReturn(Optional.of(dbUser));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.taskcenter.dto.TelegramLinkDto dto = userService.createTelegramLink(user);
+
+        assertThat(dto.getToken()).matches("[A-Z0-9]{8}");
+        assertThat(dto.getLink()).isEqualTo("https://t.me/task_center_bot?start=" + dto.getToken());
+        assertThat(dto.getExpiresAt()).isEqualTo(dbUser.getTelegramLinkTokenExpiresAt());
+        assertThat(dbUser.getTelegramLinkToken()).isEqualTo(dto.getToken());
+    }
+
+    @Test
+    void createTelegramLink_noBotUsername_linkIsNull() {
+        org.springframework.test.util.ReflectionTestUtils.setField(userService, "botUsername", "");
+        User user = User.builder().id("u1").name("tester").role(User.Role.USER).build();
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.taskcenter.dto.TelegramLinkDto dto = userService.createTelegramLink(user);
+
+        assertThat(dto.getToken()).isNotBlank();
+        assertThat(dto.getLink()).isNull();
+    }
+
+    @Test
+    void unlinkTelegram_clearsChatIdAndTokenForCurrentUserOnly() {
+        User current = User.builder().id("u1").name("a").role(User.Role.USER).build();
+        User dbUser = User.builder().id("u1").name("a").role(User.Role.USER)
+                .telegramChatId(555L)
+                .telegramLinkToken("ABCD1234")
+                .telegramLinkTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(5))
+                .build();
+        when(userRepository.findById("u1")).thenReturn(Optional.of(dbUser));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        userService.unlinkTelegram(current);
+
+        assertThat(dbUser.getTelegramChatId()).isNull();
+        assertThat(dbUser.getTelegramLinkToken()).isNull();
+        assertThat(dbUser.getTelegramLinkTokenExpiresAt()).isNull();
+        verify(userRepository).findById("u1");
+        verify(userRepository).save(dbUser);
+    }
+
+    @Test
+    void unlinkTelegram_unauthenticatedThrowsForbidden() {
+        assertThatThrownBy(() -> userService.unlinkTelegram(null))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }
 

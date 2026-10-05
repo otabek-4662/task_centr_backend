@@ -207,9 +207,9 @@ class SprintServiceTest {
         org.mockito.Mockito.lenient().when(authorizationService.checkAccess("ws1", user)).thenReturn(new com.taskcenter.model.Workspace());
 
         Task bTask = Task.builder().id("bt1").title("Backlog task").storyPoints(5).build();
-        Page<Task> page = new PageImpl<>(List.of(bTask));
-
-        when(taskRepository.findBacklogTasks(eq("ws1"), any(Pageable.class))).thenReturn(page);
+        Page<String> idPage = new PageImpl<>(List.of("bt1"));
+        when(taskRepository.findBacklogTaskIds(eq("ws1"), any(Pageable.class))).thenReturn(idPage);
+        when(taskRepository.findByIdIn(List.of("bt1"))).thenReturn(List.of(bTask));
 
         when(taskRepository.sumStoryPointsInBacklog("ws1")).thenReturn(5);
 

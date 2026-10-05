@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -146,6 +147,60 @@ class SecurityTest {
         mvc.perform(get("/actuator/health"))
                 .andExpect(status().is2xxSuccessful())
                 .andExpect(jsonPath("$.status").exists());
+    }
+
+    private String registerAndGetToken(String name) throws Exception {
+        String body = mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.data.token");
+    }
+
+    @Test
+    void telegramLinking_meShowsFlag_tokenHasShape_unlinkAllowedForUser() throws Exception {
+        String jwt = registerAndGetToken("tglinkuser");
+
+        mvc.perform(get("/api/me").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.telegramLinked").value(false))
+                .andExpect(jsonPath("$.data.telegramChatId").doesNotExist());
+
+        mvc.perform(get("/api/users/me/telegram-link-token").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isString())
+                .andExpect(jsonPath("$.data.expiresAt").exists());
+
+        mvc.perform(delete("/api/users/me/telegram").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void telegramUnlink_withoutToken_returns403() throws Exception {
+        mvc.perform(delete("/api/users/me/telegram")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteOtherUsers_stillAdminOnly() throws Exception {
+        String jwt = registerAndGetToken("tgplainuser");
+        mvc.perform(delete("/api/users/some-other-id").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void appEndpoint_allowsFraming_forTelegramMiniApp() throws Exception {
+        mvc.perform(get("/app/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("X-Frame-Options"));
+    }
+
+    @Test
+    void apiEndpoint_deniesFraming_byDefault() throws Exception {
+        mvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Frame-Options", "DENY"));
     }
 
     @Test

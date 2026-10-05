@@ -1,6 +1,8 @@
 package com.taskcenter.service;
 
 import com.taskcenter.dto.UserDto;
+import com.taskcenter.dto.TelegramLinkDto;
+import org.springframework.beans.factory.annotation.Value;
 import com.taskcenter.dto.UpdateProfileRequest;
 import com.taskcenter.dto.ChangePasswordRequest;
 import com.taskcenter.exception.BadRequestException;
@@ -33,15 +35,18 @@ public class UserService {
     private final TaskRepository taskRepository;
     private final WorkspaceAuthorizationService authorizationService;
     private final PasswordEncoder passwordEncoder;
+    private final String botUsername;
 
     public UserService(UserRepository userRepository,
                        TaskRepository taskRepository,
                        WorkspaceAuthorizationService authorizationService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       @Value("${telegram.bot.username:}") String botUsername) {
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
         this.passwordEncoder = passwordEncoder;
+        this.botUsername = botUsername;
     }
 
     public UserDto getCurrentUser(User currentUser) {
@@ -49,7 +54,9 @@ public class UserService {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
         }
         long taskCount = taskRepository.countAssignedTasksByUserId(currentUser.getId());
-        return UserDto.fromEntity(currentUser, taskCount);
+        UserDto dto = UserDto.fromEntity(currentUser, taskCount);
+        dto.setTelegramLinked(currentUser.getTelegramChatId() != null);
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -67,18 +74,41 @@ public class UserService {
 
     @Transactional
     public String generateTelegramLinkToken(User currentUser) {
+        return createTelegramLink(currentUser).getToken();
+    }
+
+    @Transactional
+    public TelegramLinkDto createTelegramLink(User currentUser) {
         // SecureRandom bilan kriptografik jihatdan xavfsiz token yaratish
         StringBuilder sb = new StringBuilder(TOKEN_LENGTH);
         for (int i = 0; i < TOKEN_LENGTH; i++) {
             sb.append(TOKEN_CHARS.charAt(SECURE_RANDOM.nextInt(TOKEN_CHARS.length())));
         }
         String token = sb.toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(TOKEN_TTL_MINUTES);
 
         User user = userRepository.findById(currentUser.getId()).orElseThrow();
         user.setTelegramLinkToken(token);
-        user.setTelegramLinkTokenExpiresAt(LocalDateTime.now().plusMinutes(TOKEN_TTL_MINUTES));
+        user.setTelegramLinkTokenExpiresAt(expiresAt);
         userRepository.save(user);
-        return token;
+
+        String link = (botUsername != null && !botUsername.isBlank())
+                ? "https://t.me/" + botUsername.trim().replaceFirst("^@", "") + "?start=" + token
+                : null;
+        return TelegramLinkDto.builder().token(token).link(link).expiresAt(expiresAt).build();
+    }
+
+    @Transactional
+    public void unlinkTelegram(User currentUser) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
+        }
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
+        user.setTelegramChatId(null);
+        user.setTelegramLinkToken(null);
+        user.setTelegramLinkTokenExpiresAt(null);
+        userRepository.save(user);
     }
 
     @Transactional
@@ -104,7 +134,9 @@ public class UserService {
         }
 
         User saved = userRepository.save(user);
-        return UserDto.fromEntity(saved);
+        UserDto dto = UserDto.fromEntity(saved);
+        dto.setTelegramLinked(saved.getTelegramChatId() != null);
+        return dto;
     }
 
     @Transactional

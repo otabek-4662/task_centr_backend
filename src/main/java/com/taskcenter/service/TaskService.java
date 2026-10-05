@@ -117,8 +117,15 @@ public class TaskService {
             filter.setEndOfWeek(LocalDate.now(clock).with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
         }
         filter.setToday(LocalDate.now(clock));
-        Page<Task> taskPage = taskRepository.findByWorkspaceIdFiltered(workspaceId, filter, pageable);
-        return taskPage.map(TaskDto::fromEntity);
+        Page<String> idPage = taskRepository.findIdsByWorkspaceIdFiltered(workspaceId, filter, pageable);
+        List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
+        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
+        List<TaskDto> dtos = idPage.getContent().stream()
+                .map(taskMap::get)
+                .filter(java.util.Objects::nonNull)
+                .map(TaskDto::fromEntity)
+                .collect(Collectors.toList());
+        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, idPage.getTotalElements());
     }
 
     @Transactional(readOnly = true)

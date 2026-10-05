@@ -10,3 +10,7 @@ pgdata_test
 backend.log
 backend_err.log
 swagger_auth_test*.ps1
+.env
+.env.*
+uploads
+

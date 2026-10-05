@@ -25,12 +25,14 @@ public class AuthResponse {
         private String id;
         private String name;
         private String fullName;
+        private Boolean telegramLinked;
 
         public static UserDto fromEntity(User user) {
             return UserDto.builder()
                     .id(user.getId())
                     .name(user.getName())
                     .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
+                    .telegramLinked(user.getTelegramChatId() != null)
                     .build();
         }
     }

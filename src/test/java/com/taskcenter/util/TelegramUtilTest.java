@@ -119,4 +119,52 @@ class TelegramUtilTest {
         assertThat(keyboard.getKeyboard().get(0).get(0).getText()).isEqualTo("📋 Mening vazifam");
         assertThat(keyboard.getKeyboard().get(0).get(0).getCallbackData()).isEqualTo("TASK_VIEW_task-123");
     }
+
+    @Test
+    @DisplayName("validateTelegramWebAppData: to'g'ri hash bilan TelegramUserData muvaffaqiyatli qaytadi")
+    void validateTelegramWebAppData_validSignature_success() throws Exception {
+        String botToken = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
+        String userJson = "{\"id\":99887766,\"first_name\":\"Bekmurod\",\"username\":\"bekmurod_dev\"}";
+        String authDate = "1710000000";
+
+        // data_check_string: auth_date=... \n user=...
+        String dataCheckString = "auth_date=" + authDate + "\nuser=" + userJson;
+
+        javax.crypto.Mac hmacSha256 = javax.crypto.Mac.getInstance("HmacSHA256");
+        javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(
+                "WebAppData".getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+        hmacSha256.init(secretKeySpec);
+        byte[] secretKey = hmacSha256.doFinal(botToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        javax.crypto.Mac dataHmac = javax.crypto.Mac.getInstance("HmacSHA256");
+        javax.crypto.spec.SecretKeySpec dataKeySpec = new javax.crypto.spec.SecretKeySpec(secretKey, "HmacSHA256");
+        dataHmac.init(dataKeySpec);
+        byte[] calculatedHashBytes = dataHmac.doFinal(dataCheckString.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        StringBuilder hexSb = new StringBuilder();
+        for (byte b : calculatedHashBytes) {
+            hexSb.append(String.format("%02x", b));
+        }
+        String validHash = hexSb.toString();
+
+        String initData = "auth_date=" + authDate + "&user=" + java.net.URLEncoder.encode(userJson, java.nio.charset.StandardCharsets.UTF_8) + "&hash=" + validHash;
+
+        TelegramUtil.TelegramUserData result = TelegramUtil.validateTelegramWebAppData(initData, botToken);
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(99887766L);
+        assertThat(result.firstName()).isEqualTo("Bekmurod");
+        assertThat(result.username()).isEqualTo("bekmurod_dev");
+        assertThat(result.getDisplayName()).isEqualTo("Bekmurod");
+    }
+
+    @Test
+    @DisplayName("validateTelegramWebAppData: noto'g'ri hash bo'lsa null qaytadi")
+    void validateTelegramWebAppData_invalidSignature_returnsNull() {
+        String botToken = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
+        String initData = "auth_date=1710000000&user=%7B%22id%22%3A123%7D&hash=invalidhash123456";
+
+        TelegramUtil.TelegramUserData result = TelegramUtil.validateTelegramWebAppData(initData, botToken);
+        assertThat(result).isNull();
+    }
 }
+

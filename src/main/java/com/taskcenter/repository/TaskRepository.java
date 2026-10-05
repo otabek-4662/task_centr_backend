@@ -38,11 +38,28 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     List<Task> findByWorkspaceIdWithAssignees(@Param("workspaceId") String workspaceId);
     
-    @EntityGraph(attributePaths = {"labels", "assignees"})
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     Page<Task> findByWorkspaceIdPaginated(@Param("workspaceId") String workspaceId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @Query("SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId " +
+           "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
+           "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +
+           "AND (:#{#filter.issueType} IS NULL OR t.issueType = :#{#filter.issueType}) " +
+           "AND (:#{#filter.sprintId} IS NULL OR t.sprintId = :#{#filter.sprintId}) " +
+           "AND (:#{#filter.status} IS NULL OR t.columnId = :#{#filter.status}) " +
+           "AND (:#{#filter.assigneeId} IS NULL OR EXISTS (SELECT 1 FROM t.assignees a WHERE a.id = :#{#filter.assigneeId})) " +
+           "AND (:#{#filter.assignedToMe} IS NULL OR (:#{#filter.assignedToMe} = true AND EXISTS (SELECT 1 FROM t.assignees a2 WHERE a2.id = :#{#filter.currentUserId}))) " +
+           "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < :#{#filter.today})) " +
+           "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = :#{#filter.today})) " +
+           "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= :#{#filter.today} AND t.dueDate <= :#{#filter.endOfWeek})) " +
+           "AND (:#{#filter.includeArchived} = true OR t.isArchived = false) " +
+           "AND (:#{#filter.search} IS NULL OR (" +
+           "  LOWER(t.title) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')) OR " +
+           "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
+           "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
+           "))")
+    Page<String> findIdsByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
+
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
            "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
            "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +
@@ -71,9 +88,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findBySprintId(String sprintId);
 
-    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @Query("SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
+    Page<String> findBacklogTaskIds(@Param("workspaceId") String workspaceId, Pageable pageable);
+
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
     Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"labels", "assignees"})
+    List<Task> findByIdIn(List<String> ids);
 
     long countBySprintId(String sprintId);
 
@@ -143,5 +165,31 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND u.telegramDailyDigest = true")
     List<com.taskcenter.dto.TelegramReminderTaskDto> findTasksForTelegramDigest(
             @Param("today") java.time.LocalDate today);
+
+    @Query("SELECT " +
+           "COUNT(t.id) AS totalAssigned, " +
+           "COALESCE(SUM(CASE WHEN bc.isDone = true THEN 1L ELSE 0L END), 0L) AS completedCount, " +
+           "COALESCE(SUM(CASE WHEN bc.isDone = false THEN 1L ELSE 0L END), 0L) AS activeCount, " +
+           "COALESCE(SUM(CASE WHEN bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate < :today THEN 1L ELSE 0L END), 0L) AS overdueCount, " +
+           "COALESCE(SUM(CASE WHEN bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate = :today THEN 1L ELSE 0L END), 0L) AS dueTodayCount " +
+           "FROM Task t " +
+           "JOIN t.assignees a " +
+           "JOIN BoardColumn bc ON bc.id = t.columnId " +
+           "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL)")
+    com.taskcenter.dto.UserTaskStatsProjection getUserTaskStats(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
+
+    @Query("SELECT t FROM Task t " +
+           "JOIN t.assignees a " +
+           "JOIN BoardColumn bc ON bc.id = t.columnId " +
+           "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
+           "AND bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate < :today ORDER BY t.dueDate ASC")
+    List<Task> findOverdueTasksByUserId(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
+
+    @Query("SELECT t FROM Task t " +
+           "JOIN t.assignees a " +
+           "JOIN BoardColumn bc ON bc.id = t.columnId " +
+           "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
+           "AND bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate = :today ORDER BY t.priority DESC")
+    List<Task> findDueTodayTasksByUserId(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
 }
 

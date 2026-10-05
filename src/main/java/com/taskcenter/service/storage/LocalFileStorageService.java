@@ -110,6 +110,9 @@ public class LocalFileStorageService implements FileStorageService {
     public Resource loadFileAsResource(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation)) {
+                throw new BadRequestException("Noqonuniy fayl yo'li: " + storagePath);
+            }
             Resource resource = new UrlResource(filePath.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;
@@ -125,6 +128,9 @@ public class LocalFileStorageService implements FileStorageService {
     public void deleteFile(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation)) {
+                return;
+            }
             Files.deleteIfExists(filePath);
         } catch (IOException ignored) {
         }

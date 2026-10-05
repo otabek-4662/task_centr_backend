@@ -31,6 +31,10 @@ EXPOSE 8080
 # Healthcheck uchun curl qo'shamiz
 RUN apk add --no-cache curl
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
+
+
 # Render free: 0.1 CPU / 512 MB. Bunday zaif mashinada JVM ning o'zi CPU ni "yeb qo'yadi":
 #  -XX:TieredStopAtLevel=1  faqat tezkor C1 kompilyator (og'ir C2 ishga tushishni sekinlashtiradi)
 #  -XX:+UseSerialGC         bitta oqimli GC — 1 yadrodan kam CPU uchun eng yengili

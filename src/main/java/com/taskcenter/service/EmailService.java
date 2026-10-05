@@ -1,5 +1,8 @@
 package com.taskcenter.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -17,6 +20,8 @@ import java.util.Map;
 @Service
 public class EmailService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+
     private final TemplateEngine templateEngine;
     private final RestTemplate restTemplate;
 
@@ -31,13 +36,16 @@ public class EmailService {
 
     public EmailService(TemplateEngine templateEngine) {
         this.templateEngine = templateEngine;
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(5000);
+        this.restTemplate = new RestTemplate(factory);
     }
 
     @Async
     public void sendInvitationEmail(String toEmail, String workspaceTitle, String senderName, String workspaceRole, String invitationToken) {
         if (brevoApiKey == null || brevoApiKey.isEmpty()) {
-            System.err.println("BREVO_API_KEY yo'qligi sababli " + toEmail + " manziliga xat yuborilmadi.");
+            log.warn("BREVO_API_KEY yo'qligi sababli {} manziliga xat yuborilmadi.", toEmail);
             return;
         }
         
@@ -85,16 +93,16 @@ public class EmailService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             restTemplate.postForEntity("https://api.brevo.com/v3/smtp/email", entity, String.class);
-            System.out.println("Taklif xati muvaffaqiyatli jo'natildi -> " + toEmail);
+            log.info("Taklif xati muvaffaqiyatli jo'natildi -> {}", toEmail);
         } catch (Exception e) {
-            System.err.println("Taklif xatini yuborishda HTTP xatolik yuz berdi: " + e.getMessage());
+            log.error("Taklif xatini yuborishda HTTP xatolik yuz berdi: {}", e.getMessage());
         }
     }
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         if (brevoApiKey == null || brevoApiKey.isEmpty()) {
-            System.err.println("BREVO_API_KEY yo'qligi sababli " + toEmail + " manziliga parol tiklash xati yuborilmadi.");
+            log.warn("BREVO_API_KEY yo'qligi sababli {} manziliga parol tiklash xati yuborilmadi.", toEmail);
             return;
         }
 
@@ -137,9 +145,9 @@ public class EmailService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             restTemplate.postForEntity("https://api.brevo.com/v3/smtp/email", entity, String.class);
-            System.out.println("Parol tiklash xati muvaffaqiyatli jo'natildi -> " + toEmail);
+            log.info("Parol tiklash xati muvaffaqiyatli jo'natildi -> {}", toEmail);
         } catch (Exception e) {
-            System.err.println("Parol tiklash xatini yuborishda HTTP xatolik yuz berdi: " + e.getMessage());
+            log.error("Parol tiklash xatini yuborishda HTTP xatolik yuz berdi: {}", e.getMessage());
         }
     }
 }

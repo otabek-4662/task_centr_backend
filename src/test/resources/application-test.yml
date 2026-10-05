@@ -32,3 +32,8 @@ ratelimit:
     enabled: false
   api:
     enabled: false
+
+app:
+  seed:
+    enabled: true
+

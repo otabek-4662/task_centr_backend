@@ -1,6 +1,7 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.TelegramLinkDto;
 import com.taskcenter.dto.UserDto;
 import com.taskcenter.model.User;
 import com.taskcenter.service.UserService;
@@ -47,11 +48,17 @@ public class UserController {
         return ApiResponse.success("ok", users);
     }
 
-    @Operation(summary = "Telegram bilan ulash uchun vaqtinchalik token olish")
+    @Operation(summary = "Telegram bilan ulash uchun vaqtinchalik token, tayyor havola va amal qilish muddatini olish")
     @GetMapping("/users/me/telegram-link-token")
-    public ApiResponse<java.util.Map<String, String>> getTelegramLinkToken(@AuthenticationPrincipal User currentUser) {
-        String token = userService.generateTelegramLinkToken(currentUser);
-        return ApiResponse.success("ok", java.util.Map.of("token", token));
+    public ApiResponse<TelegramLinkDto> getTelegramLinkToken(@AuthenticationPrincipal User currentUser) {
+        return ApiResponse.success("ok", userService.createTelegramLink(currentUser));
+    }
+
+    @Operation(summary = "Telegram akkauntni uzish (faqat joriy foydalanuvchi uchun)")
+    @DeleteMapping("/users/me/telegram")
+    public ApiResponse<Void> unlinkTelegram(@AuthenticationPrincipal User currentUser) {
+        userService.unlinkTelegram(currentUser);
+        return ApiResponse.success("Telegram akkaunt uzildi", null);
     }
 
     @Operation(summary = "Profil ma'lumotlarini tahrirlash", description = "Foydalanuvchi to'liq ismi yoki login nomini yangilash.")
