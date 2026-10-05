@@ -1144,21 +1144,21 @@ async function loadStats() {
         
         const mainStats = document.createElement('div');
         mainStats.innerHTML = `
-          <div class="stats-grid">
+          <div class="stats-grid" style="animation: slideUpFade 0.4s ease-out;">
             <div class="stat-card">
-              <div class="stat-num">${total}</div>
+              <div class="stat-num stat-animate">${total}</div>
               <div class="stat-label">Jami</div>
             </div>
             <div class="stat-card">
-              <div class="stat-num" style="color:#10b981;">${completed}</div>
+              <div class="stat-num stat-animate" style="color:#10b981;">${completed}</div>
               <div class="stat-label">Bajarilgan</div>
             </div>
             <div class="stat-card">
-              <div class="stat-num" style="color:#ef4444;">${overdue}</div>
+              <div class="stat-num stat-animate" style="color:#ef4444;">${overdue}</div>
               <div class="stat-label">Kechikkan</div>
             </div>
             <div class="stat-card">
-              <div class="stat-num" style="color:var(--btn-color);">${mine}</div>
+              <div class="stat-num stat-animate" style="color:var(--btn-color);">${mine}</div>
               <div class="stat-label">Mening</div>
             </div>
           </div>
@@ -1170,6 +1170,7 @@ async function loadStats() {
         // Chart
         const chartSection = document.createElement('div');
         chartSection.className = 'chart-section';
+        chartSection.style.animation = 'slideUpFade 0.5s ease-out 0.1s both';
         chartSection.innerHTML = `<div class="chart-title">Ustunlar bo'yicha</div><div class="bar-chart"></div>`;
         const barChart = chartSection.querySelector('.bar-chart');
         
@@ -1182,7 +1183,7 @@ async function loadStats() {
             barCol.className = 'bar-col';
             barCol.innerHTML = `
                 <div class="bar-val">${count}</div>
-                <div class="bar" style="height:${h}%; background:${getColColor(colTitle)}"></div>
+                <div class="bar" style="height:${h}%; background:${getColColor(colTitle)}; animation: growBar 0.8s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;"></div>
                 <div class="bar-label"></div>
             `;
             const labelEl = barCol.querySelector('.bar-label');
@@ -1195,6 +1196,7 @@ async function loadStats() {
         // Workload
         const workloadSection = document.createElement('div');
         workloadSection.className = 'chart-section';
+        workloadSection.style.animation = 'slideUpFade 0.5s ease-out 0.2s both';
         workloadSection.innerHTML = `<div class="chart-title">Kimga qancha ilingan?</div><div class="workload-list"></div>`;
         const workloadList = workloadSection.querySelector('.workload-list');
         
@@ -1207,9 +1209,14 @@ async function loadStats() {
                 });
             }
         });
+        
+        let delay = 0.3;
         Object.values(workload).sort((a,b)=>b.count-a.count).forEach(w => {
+            if(w.count === 0) return; // Hide zero counts
             const item = document.createElement('div');
             item.className = 'workload-item';
+            item.style.animation = \`slideUpFade 0.4s ease-out \${delay}s both\`;
+            delay += 0.05;
             item.innerHTML = `
                 <div class="member-avatar" style="width:28px;height:28px;font-size:10px;color:white;background:var(--btn-color)">${getInitials(w.name)}</div>
                 <div class="wl-name"></div>
@@ -1219,7 +1226,41 @@ async function loadStats() {
             workloadList.appendChild(item);
         });
         
+        if (workloadList.children.length === 0) {
+            workloadList.innerHTML = '<div style="text-align:center;color:var(--hint-color);font-size:13px;padding:10px;">Hali hech kimga vazifa ilinmagan</div>';
+        }
+        
         container.appendChild(workloadSection);
+        
+        // Priorities Chart
+        const prioritySection = document.createElement('div');
+        prioritySection.className = 'chart-section';
+        prioritySection.style.animation = 'slideUpFade 0.5s ease-out 0.4s both';
+        prioritySection.innerHTML = `<div class="chart-title">Muhimligi (Priority)</div><div class="bar-chart"></div>`;
+        const prioChart = prioritySection.querySelector('.bar-chart');
+        
+        const prioCounts = { "HIGH": 0, "MEDIUM": 0, "LOW": 0 };
+        allTasks.forEach(t => { if(t.priority) prioCounts[t.priority]++; });
+        
+        const prioLabels = { "HIGH": "O'ta muhim", "MEDIUM": "O'rta", "LOW": "Past" };
+        const prioColors = { "HIGH": "#ef4444", "MEDIUM": "#f59e0b", "LOW": "#10b981" };
+        
+        const maxPrio = Math.max(...Object.values(prioCounts), 1);
+        
+        Object.keys(prioCounts).forEach(k => {
+            const count = prioCounts[k];
+            const h = (count / maxPrio) * 100;
+            const barCol = document.createElement('div');
+            barCol.className = 'bar-col';
+            barCol.innerHTML = `
+                <div class="bar-val">${count}</div>
+                <div class="bar" style="height:${h}%; background:${prioColors[k]}; animation: growBar 0.8s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;"></div>
+                <div class="bar-label">${prioLabels[k]}</div>
+            `;
+            prioChart.appendChild(barCol);
+        });
+        
+        container.appendChild(prioritySection);
         
     } catch(e) {
         container.innerHTML = `<div class="empty-placeholder">Yuklashda xatolik</div>`;

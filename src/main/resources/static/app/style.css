@@ -475,3 +475,10 @@ select#ws {
 .checklist-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--btn-color); }
 .checklist-item.completed span { text-decoration: line-through; color: var(--hint-color); }
 .checklist-item .btn-del-check { margin-left: auto; background: none; border: none; color: #ef4444; padding: 4px; cursor: pointer; border-radius: 4px; }
+@keyframes slideUpFade {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes growBar {
+  0% { height: 0; }
+}
