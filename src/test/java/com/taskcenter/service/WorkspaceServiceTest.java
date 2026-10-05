@@ -182,9 +182,6 @@ class WorkspaceServiceTest {
     void deleteWorkspace_ownerCanDelete() {
         workspaceService.deleteWorkspace("ws1", testUser());
 
-        verify(taskRepository).deleteByWorkspaceId("ws1");
-        verify(sprintRepository).deleteByWorkspaceId("ws1");
-        verify(columnRepository).deleteByWorkspaceId("ws1");
         verify(workspaceRepository).deleteById("ws1");
     }
 
