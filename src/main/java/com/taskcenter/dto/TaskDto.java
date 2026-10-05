@@ -30,6 +30,8 @@ public class TaskDto {
     private Boolean isOverdue;
     private Integer totalChecklistItems;
     private Integer completedChecklistItems;
+    @io.swagger.v3.oas.annotations.media.Schema(hidden = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
     private List<LabelDto> labels;
     private List<UserDto> assignees;

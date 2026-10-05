@@ -24,7 +24,8 @@ public class TaskFilterRequest {
     @Schema(description = "Vazifa turi bo'yicha filter", example = "BUG")
     private IssueType issueType;
 
-    @Schema(description = "Biriktirilgan sprint ID si bo'yicha filter", example = "sprint-123")
+    @Schema(hidden = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
 
     @Schema(description = "Biriktirilgan foydalanuvchi ID si", example = "user-123")

@@ -51,6 +51,7 @@ public class TaskCreateRequest {
     @Min(value = 0, message = "loggedHours 0 dan kam bo'lishi mumkin emas")
     private Double loggedHours;
 
-    @Schema(description = "Biriktirilgan sprint ID si", example = "sprint-67890")
+    @Schema(hidden = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
 }

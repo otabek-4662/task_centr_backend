@@ -129,10 +129,6 @@ public class WorkspaceService {
     @Transactional
     public void deleteWorkspace(String id, User currentUser) {
         authorizationService.checkOwner(id, currentUser);
-
-        taskRepository.deleteByWorkspaceId(id);
-        sprintRepository.deleteByWorkspaceId(id);
-        columnRepository.deleteByWorkspaceId(id);
         workspaceRepository.deleteById(id);
     }
 }

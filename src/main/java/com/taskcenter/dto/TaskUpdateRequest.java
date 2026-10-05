@@ -35,5 +35,7 @@ public class TaskUpdateRequest {
     @Min(value = 0, message = "loggedHours 0 dan kam bo'lishi mumkin emas")
     private Double loggedHours;
 
+    @io.swagger.v3.oas.annotations.media.Schema(hidden = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
 }
