@@ -4,6 +4,14 @@ tg.expand();
 if (tg.colorScheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 const API = location.origin;
+
+function haptic(type, style) {
+    try {
+        if (!tg.HapticFeedback) return;
+        if (type === 'impact') tg.HapticFeedback.impactOccurred(style);
+        if (type === 'notification') tg.HapticFeedback.notificationOccurred(style);
+    } catch(e) {}
+}
 let token = null;
 let currentWsId = null;
 let currentUserId = null;
@@ -443,12 +451,12 @@ function renderBoard() {
       delayOnTouchOnly: true,
       ghostClass: 'sortable-ghost',
       dragClass: 'sortable-drag',
-      onStart: () => tg.HapticFeedback.impactOccurred('light'),
+      onStart: () => haptic('impact', 'light'),
       onEnd: (ev) => {
         const taskId = ev.item.dataset.id;
         const newColId = ev.to.dataset.col;
         if (ev.from !== ev.to) {
-          tg.HapticFeedback.impactOccurred('medium');
+          haptic('impact', 'medium');
           moveTask(taskId, newColId);
         }
       }
@@ -467,7 +475,7 @@ function renderBoard() {
 function promptAddColumn() {
     const title = prompt("Yangi ustun nomi:");
     if (!title) return;
-    tg.HapticFeedback.impactOccurred('light');
+    haptic('impact', 'light');
     api(endpoints.columns(currentWsId), { method: 'POST', body: JSON.stringify({title}) })
       .then(res => { colsData.push(res.data); renderBoard(); })
       .catch(e => tg.showAlert(e.message));
@@ -490,7 +498,7 @@ function promptDeleteColumn(colId) {
     }
     tg.showConfirm("Ustunni chopamizmi?", (ok) => {
         if (!ok) return;
-        tg.HapticFeedback.impactOccurred('medium');
+        haptic('impact', 'medium');
         api(`/api/workspaces/${currentWsId}/columns/${colId}`, { method: 'DELETE' })
           .then(() => { colsData = colsData.filter(c => c.id !== colId); renderBoard(); })
           .catch(e => tg.showAlert(e.message));
@@ -501,7 +509,7 @@ function setFilter(el) {
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   currentFilter = el.dataset.filter;
-  tg.HapticFeedback.impactOccurred('light');
+  haptic('impact', 'light');
   applyFilters();
 }
 
@@ -543,7 +551,7 @@ let pressTimer;
 function onCardTouchStart(e, tId) {
     pressTimer = setTimeout(() => {
         pressTimer = null;
-        tg.HapticFeedback.impactOccurred('heavy');
+        haptic('impact', 'heavy');
         openSheet('quick', tId);
     }, 600);
 }
@@ -617,7 +625,7 @@ async function moveTask(taskId, targetColId) {
         showToast("Ko'chirildi");
     }
   } catch (e) {
-    tg.HapticFeedback.notificationOccurred('error');
+    haptic('notification', 'error');
     task.columnId = oldColId; 
     renderBoard();
     tg.showAlert("Xatolik: " + e.message);
@@ -625,7 +633,7 @@ async function moveTask(taskId, targetColId) {
 }
 
 function celebrate() {
-    tg.HapticFeedback.notificationOccurred('success');
+    haptic('notification', 'success');
     const confetti = document.createElement('div');
     confetti.className = 'confetti';
     confetti.innerHTML = `<svg width="100%" height="100%"><rect width="100%" height="100%" fill="none"/></svg>`;
@@ -691,7 +699,7 @@ async function quickAddTask(inputEl, colId) {
         tasksData.push(res.data);
         inputEl.value = '';
         renderBoard();
-        tg.HapticFeedback.notificationOccurred('success');
+        haptic('notification', 'success');
     } catch(e) {
         tg.showAlert("Xato: " + e.message);
     }
@@ -700,7 +708,7 @@ async function quickAddTask(inputEl, colId) {
 }
 
 function openSheet(mode, taskId = null, defaultColId = null) {
-  tg.HapticFeedback.impactOccurred('light');
+  haptic('impact', 'light');
   document.getElementById('sheet-overlay').classList.add('active');
   document.getElementById('bottom-sheet').classList.add('active');
   
@@ -841,7 +849,7 @@ async function saveTask() {
   const assigneeId = document.querySelector('#f-assignee-picker .member-avatar.active')?.dataset.id || null;
   
   if (!title) {
-    tg.HapticFeedback.notificationOccurred('error');
+    haptic('notification', 'error');
     return tg.showAlert("Sarlavha bo'sh bo'lishi mumkin emas!");
   }
   
@@ -873,12 +881,12 @@ async function saveTask() {
       }
       tasksData.push(res.data);
     }
-    tg.HapticFeedback.notificationOccurred('success');
+    haptic('notification', 'success');
     showToast("Saqlandi");
     closeSheet();
     renderBoard();
   } catch (e) {
-    tg.HapticFeedback.notificationOccurred('error');
+    haptic('notification', 'error');
     tg.showAlert("Xatolik: " + e.message);
   } finally {
     tg.MainButton.hideProgress();
@@ -892,7 +900,7 @@ async function deleteTask() {
     try {
       await api(endpoints.taskDetails(currentWsId, currentTaskId), { method: 'DELETE' });
       tasksData = tasksData.filter(t => t.id !== currentTaskId);
-      tg.HapticFeedback.notificationOccurred('success');
+      haptic('notification', 'success');
       showToast("Chopildi!");
       closeSheet();
       renderBoard();
@@ -945,7 +953,7 @@ async function addComment() {
   const input = document.getElementById('comment-input');
   const text = input.value.trim();
   if(!text || !currentTaskId) return;
-  tg.HapticFeedback.impactOccurred('light');
+  haptic('impact', 'light');
   input.disabled = true;
   try {
     await api(endpoints.comments(currentTaskId), { method: 'POST', body: JSON.stringify({ content: text }) });
@@ -990,7 +998,7 @@ async function addChecklist() {
   const input = document.getElementById('checklist-input');
   const title = input.value.trim();
   if(!title || !currentTaskId) return;
-  tg.HapticFeedback.impactOccurred('light');
+  haptic('impact', 'light');
   input.disabled = true;
   try {
     await api(`/api/workspaces/${currentWsId}/tasks/${currentTaskId}/checklists`, { method: 'POST', body: JSON.stringify({ title }) });
@@ -1021,7 +1029,7 @@ function switchTab(tabId) {
     document.getElementById('tab-' + tabId).style.display = 'flex';
     document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
     currentTab = tabId;
-    tg.HapticFeedback.impactOccurred('light');
+    haptic('impact', 'light');
     
     if (tabId === 'mytasks') loadMyTasks();
     if (tabId === 'stats') loadStats();

@@ -162,9 +162,11 @@ select#ws {
   align-items: stretch;
   padding: 16px;
   gap: 16px;
-  scrollbar-width: none; 
+  scrollbar-width: thin; 
+  scrollbar-color: var(--btn-color) var(--bg-color);
 }
-#board-container::-webkit-scrollbar { display: none; }
+#board-container::-webkit-scrollbar { height: 6px; }
+#board-container::-webkit-scrollbar-thumb { background: var(--btn-color); border-radius: 4px; }
 
 .col { 
   flex: 0 0 85vw;
