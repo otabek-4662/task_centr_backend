@@ -57,3 +57,17 @@ TMA yomon tarmoq sharoitlarida ham ishonchli ishlashi uchun bir qator usullarni 
 - **Blinking & Highlight:** Yangi ochilgan yoki ulashilgan vazifalar 2 soniya davomida porlab (glow effect) turadi.
 - **Skeleton Loaders:** Ma'lumotlar kelgunga qadar bo'sh oq ekran emas, balki jonlantirilgan kulrang skeletlar (skeleton) ko'rsatiladi.
 - **Confetti:** Vazifa yakuniy ustunga (`bajarildi`, `done`, `tugadi`) ko'chirilganda foydalanuvchini tabriklash uchun konfetti effekti ishlaydi.
+
+## 🔄 8. WebSocket Real-Time Sinxronizatsiya (Jonli sinxronlash)
+
+TMA endi sahifani qo'lda yangilamasdan (F5 / pull-to-refresh siz) boshqa foydalanuvchilar yoki bot tomonidan kiritilgan o'zgarishlarni bir zumda qabul qiladi:
+- **Ulanish:** STOMP 1.2 protokoli orqali native WebSocket `/ws` endpointiga ulanadi. Avtorizatsiya uchun `Authorization: Bearer <jwt>` yuboriladi.
+- **Obuna (Subscription):** Tanlangan guruh bo'yicha `/topic/workspace/{workspaceId}` mavzusiga obuna bo'linadi. Guruh o'zgarganda avtomatik qayta obuna bo'ladi.
+- **Hodisalar (Events):**
+  - `TASK_CREATED`: Yangi vazifa doskaga qo'shiladi, bildirishnoma (toast) va haptic tebranish beriladi.
+  - `TASK_UPDATED` / `TASK_MOVED`: Vazifa ma'lumotlari, ustuni va tartibi silliq yangilanadi. Ochiq ko'rish oynasi bo'lsa, sarlavha va matnlar ham dinamik yangilanadi.
+  - `TASK_DELETED`: Vazifa kartochkasi o'chiriladi, agar uning batafsil oynasi ochiq bo'lsa, oyna yopiladi.
+  - `COLUMN_*` / `TASKS_REORDERED`: Ustunlar va kartochkalar orqa fonda jimsiz sinxronlanadi.
+- **Jonli indikator:** Header qismida "Jonli" holat indikatori (yashil miltillovchi nuqta) orqali ulanish holati ko'rinadi.
+- **Avto-tiklanish (Resilience):** Tarmoq uzilganda eksponensial kechikish bilan qayta ulanadi va tarmoq tiklanganda ma'lumotlar avtomatik to'liq yangilanadi.
+

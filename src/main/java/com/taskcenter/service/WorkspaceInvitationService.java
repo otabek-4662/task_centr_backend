@@ -142,6 +142,7 @@ public class WorkspaceInvitationService {
                 .role(invitation.getRole())
                 .build();
         memberRepository.save(member);
+        authorizationService.evictRole(invitation.getWorkspaceId(), currentUser.getId());
 
         invitation.setStatus(InvitationStatus.ACCEPTED);
         invitationRepository.save(invitation);

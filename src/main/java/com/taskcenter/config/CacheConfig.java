@@ -27,6 +27,7 @@ public class CacheConfig {
             "users",
             "workspaces",
             "workspaceMembers",
+            "workspaceRoles",
             "labels",
             "columns"
         );

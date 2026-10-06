@@ -49,6 +49,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Token muvaffaqiyatli yangilandi", response));
     }
 
+    @Operation(summary = "Logout - sessiyani yakunlash", description = "Refresh tokenni bekor qilish va sessiyani yopish. Body: {refreshToken}")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody com.taskcenter.dto.TokenRefreshRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success("Muvaffaqiyatli tizimdan chiqildi", null));
+    }
+
     @Operation(summary = "Parolni tiklash so'rovi (Email orqali havola yuborish)", description = "Body: {email}. Brevo orqali emailingizga tiklash havolasi yuboriladi.")
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.taskcenter.dto.ForgotPasswordRequest request) {

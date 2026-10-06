@@ -67,7 +67,7 @@ public class SensitiveDataRobustnessTest {
         mvc.perform(post("/api/workspaces/" + wsId + "/members")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"sens_user_b\",\"role\":\"MEMBER\"}"))
+                        .content("{\"usernameOrEmail\":\"sens_user_b\",\"role\":\"MEMBER\"}"))
                 .andExpect(status().isCreated());
 
         // user_a lists users in workspace
@@ -87,14 +87,14 @@ public class SensitiveDataRobustnessTest {
         mvc.perform(post("/api/workspaces/" + wsId + "/members")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"sens_user_d\",\"role\":\"MEMBER\"}"))
+                        .content("{\"usernameOrEmail\":\"sens_user_d\",\"role\":\"MEMBER\"}"))
                 .andExpect(status().isCreated());
 
         String colId = getFirstColumn(tokenA, wsId);
         String taskId = createTask(tokenA, wsId, colId, "Secret Task");
 
         // Assign user_d
-        String bJson = mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + tokenB))
+        String bJson = mvc.perform(get("/api/me").header("Authorization", "Bearer " + tokenB))
                 .andReturn().getResponse().getContentAsString();
         String userIdB = JsonPath.read(bJson, "$.data.id");
 

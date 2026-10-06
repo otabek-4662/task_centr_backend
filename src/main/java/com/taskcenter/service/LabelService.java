@@ -50,12 +50,8 @@ public class LabelService {
     public void deleteLabel(String workspaceId, String id, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
-        Label label = labelRepository.findById(id)
+        Label label = labelRepository.findByIdAndWorkspaceId(id, workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Label topilmadi: " + id));
-
-        if (!workspaceId.equals(label.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Label ushbu workspace ga tegishli emas");
-        }
 
         labelRepository.deleteById(id);
     }

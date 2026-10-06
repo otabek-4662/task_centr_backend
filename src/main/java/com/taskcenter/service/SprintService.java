@@ -427,12 +427,14 @@ public class SprintService {
     }
 
     private Sprint getSprintAndValidateWorkspace(String workspaceId, String sprintId) {
-        Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + sprintId));
-        if (!sprint.getWorkspaceId().equals(workspaceId)) {
-            throw new BadRequestException("Sprint ushbu workspacega tegishli emas");
-        }
-        return sprint;
+        return sprintRepository.findByIdAndWorkspaceId(sprintId, workspaceId)
+                .or(() -> sprintRepository.findById(sprintId).filter(s -> workspaceId.equals(s.getWorkspaceId())))
+                .orElseThrow(() -> {
+                    if (sprintRepository.existsById(sprintId)) {
+                        return new BadRequestException("Sprint ushbu workspacega tegishli emas");
+                    }
+                    return new ResourceNotFoundException("Sprint topilmadi: " + sprintId);
+                });
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {

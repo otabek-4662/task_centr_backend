@@ -151,22 +151,61 @@ public class AuthService {
     public com.taskcenter.dto.TokenRefreshResponse refresh(com.taskcenter.dto.TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
 
-        return refreshTokenRepository.findByToken(requestRefreshToken)
-                .map(token -> {
-                    if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
-                        refreshTokenRepository.delete(token);
-                        throw new com.taskcenter.exception.ForbiddenException("Refresh token muddati tugagan. Iltimos, qaytadan tizimga kiring");
-                    }
-                    return token;
-                })
-                .map(token -> {
-                    User user = userRepository.findById(token.getUserId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
-                    
-                    String newAccessToken = tokenProvider.generateTokenFromUser(user);
-                    return new com.taskcenter.dto.TokenRefreshResponse(newAccessToken, requestRefreshToken);
-                })
+        RefreshToken token = refreshTokenRepository.findByToken(requestRefreshToken)
                 .orElseThrow(() -> new ResourceNotFoundException("Refresh token bazada topilmadi"));
+
+        if (Boolean.TRUE.equals(token.getRevoked())) {
+            // Token Reuse Detection: bekor qilingan token qayta ishlatildi (token o'g'irlangan bo'lishi mumkin)
+            refreshTokenRepository.deleteByUserId(token.getUserId());
+            throw new com.taskcenter.exception.ForbiddenException(
+                    "Xavfsizlik ogohlantirishi: Ushbu refresh token allaqachon ishlatilgan! " +
+                    "Sessiya o'g'irlanishining oldini olish maqsadida barcha sessiyalar bekor qilindi. Qaytadan kiring.");
+        }
+
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(token);
+            throw new com.taskcenter.exception.ForbiddenException("Refresh token muddati tugagan. Iltimos, qaytadan tizimga kiring");
+        }
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
+
+        // Refresh token rotation: eski tokenni bekor qilish va yangi refresh token berish
+        String newRefreshTokenStr = UUID.randomUUID().toString();
+        token.setRevoked(true);
+        token.setReplacedByToken(newRefreshTokenStr);
+        refreshTokenRepository.save(token);
+
+        RefreshToken newRefreshToken = RefreshToken.builder()
+                .userId(user.getId())
+                .token(newRefreshTokenStr)
+                .expiryDate(LocalDateTime.now().plusDays(30))
+                .revoked(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        refreshTokenRepository.save(newRefreshToken);
+
+        String newAccessToken = tokenProvider.generateTokenFromUser(user);
+        return new com.taskcenter.dto.TokenRefreshResponse(newAccessToken, newRefreshTokenStr);
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        refreshTokenRepository.findByToken(refreshToken.trim())
+                .ifPresent(token -> {
+                    token.setRevoked(true);
+                    refreshTokenRepository.save(token);
+                });
+    }
+
+    @Transactional
+    public void logoutAll(String userId) {
+        if (userId != null && !userId.isBlank()) {
+            refreshTokenRepository.deleteByUserId(userId);
+        }
     }
 
     @Transactional

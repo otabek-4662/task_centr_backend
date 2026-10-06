@@ -11,7 +11,9 @@ import java.util.List;
 public interface ColumnRepository extends JpaRepository<BoardColumn, String> {
     List<BoardColumn> findByWorkspaceIdOrderByOrderAsc(String workspaceId);
 
-    @EntityGraph(attributePaths = {"tasks", "tasks.labels", "tasks.assignees"})
+    java.util.Optional<BoardColumn> findByIdAndWorkspaceId(String id, String workspaceId);
+
+    @EntityGraph(attributePaths = {"tasks", "tasks.labels", "tasks.assignees", "tasks.checklistItems", "tasks.watchers"})
     @Query("SELECT c FROM BoardColumn c WHERE c.workspaceId = :workspaceId ORDER BY c.order ASC")
     List<BoardColumn> findByWorkspaceIdWithTasks(@Param("workspaceId") String workspaceId);
 

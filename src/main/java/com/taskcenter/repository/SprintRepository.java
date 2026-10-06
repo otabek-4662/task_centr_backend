@@ -17,6 +17,8 @@ public interface SprintRepository extends JpaRepository<Sprint, String> {
 
     Optional<Sprint> findByWorkspaceIdAndStatus(String workspaceId, SprintStatus status);
 
+    Optional<Sprint> findByIdAndWorkspaceId(String id, String workspaceId);
+
     @Transactional
     void deleteByWorkspaceId(String workspaceId);
 }

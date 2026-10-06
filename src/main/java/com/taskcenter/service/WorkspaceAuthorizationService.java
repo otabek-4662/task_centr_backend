@@ -8,6 +8,8 @@ import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.model.WorkspaceRole;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.repository.WorkspaceRepository;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -18,11 +20,20 @@ public class WorkspaceAuthorizationService {
 
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository memberRepository;
+    private final CacheManager cacheManager;
 
     public WorkspaceAuthorizationService(WorkspaceRepository workspaceRepository,
                                          WorkspaceMemberRepository memberRepository) {
+        this(workspaceRepository, memberRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorkspaceAuthorizationService(WorkspaceRepository workspaceRepository,
+                                         WorkspaceMemberRepository memberRepository,
+                                         CacheManager cacheManager) {
         this.workspaceRepository = workspaceRepository;
         this.memberRepository = memberRepository;
+        this.cacheManager = cacheManager;
     }
 
     public Optional<WorkspaceRole> getRole(Workspace workspace, String userId) {
@@ -32,8 +43,61 @@ public class WorkspaceAuthorizationService {
         if (workspace.getOwnerId().equals(userId)) {
             return Optional.of(WorkspaceRole.OWNER);
         }
-        return memberRepository.findByWorkspaceIdAndUserId(workspace.getId(), userId)
+        return getRoleCached(workspace.getId(), userId);
+    }
+
+    public Optional<WorkspaceRole> getRole(String workspaceId, String userId) {
+        if (workspaceId == null || userId == null) {
+            return Optional.empty();
+        }
+        Workspace workspace = requireWorkspace(workspaceId);
+        if (workspace.getOwnerId().equals(userId)) {
+            return Optional.of(WorkspaceRole.OWNER);
+        }
+        return getRoleCached(workspaceId, userId);
+    }
+
+    private Optional<WorkspaceRole> getRoleCached(String workspaceId, String userId) {
+        String cacheKey = workspaceId + ":" + userId;
+        Cache cache = (cacheManager != null) ? cacheManager.getCache("workspaceRoles") : null;
+        if (cache != null) {
+            Cache.ValueWrapper wrapper = cache.get(cacheKey);
+            if (wrapper != null) {
+                @SuppressWarnings("unchecked")
+                Optional<WorkspaceRole> cached = (Optional<WorkspaceRole>) wrapper.get();
+                return cached;
+            }
+        }
+
+        Optional<WorkspaceRole> role = memberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
                 .map(WorkspaceMember::getRole);
+
+        if (cache != null) {
+            cache.put(cacheKey, role);
+        }
+        return role;
+    }
+
+    public void evictRole(String workspaceId, String userId) {
+        if (cacheManager != null && workspaceId != null && userId != null) {
+            Cache cache = cacheManager.getCache("workspaceRoles");
+            if (cache != null) {
+                cache.evict(workspaceId + ":" + userId);
+            }
+        }
+    }
+
+    public void evictWorkspace(String workspaceId) {
+        if (cacheManager != null && workspaceId != null) {
+            Cache wsCache = cacheManager.getCache("workspaces");
+            if (wsCache != null) {
+                wsCache.evict(workspaceId);
+            }
+            Cache roleCache = cacheManager.getCache("workspaceRoles");
+            if (roleCache != null) {
+                roleCache.clear();
+            }
+        }
     }
 
     public boolean hasRole(Workspace workspace, String userId, WorkspaceRole... allowedRoles) {
@@ -62,8 +126,22 @@ public class WorkspaceAuthorizationService {
     }
 
     public Workspace requireWorkspace(String workspaceId) {
-        return workspaceRepository.findById(workspaceId)
+        if (workspaceId == null) {
+            throw new ResourceNotFoundException("Workspace topilmadi: null");
+        }
+        Cache cache = (cacheManager != null) ? cacheManager.getCache("workspaces") : null;
+        if (cache != null) {
+            Workspace cached = cache.get(workspaceId, Workspace.class);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        Workspace ws = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace topilmadi: " + workspaceId));
+        if (cache != null) {
+            cache.put(workspaceId, ws);
+        }
+        return ws;
     }
 
     public Workspace checkAccess(String workspaceId, User currentUser) {

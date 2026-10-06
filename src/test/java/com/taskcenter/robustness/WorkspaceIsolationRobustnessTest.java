@@ -117,7 +117,7 @@ public class WorkspaceIsolationRobustnessTest {
         mvc.perform(post("/api/workspaces/" + wsId + "/members")
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"user_member_1\",\"role\":\"MEMBER\"}"))
+                        .content("{\"usernameOrEmail\":\"user_member_1\",\"role\":\"MEMBER\"}"))
                 .andExpect(status().isCreated());
 
         // member tries to delete column
@@ -137,7 +137,7 @@ public class WorkspaceIsolationRobustnessTest {
         mvc.perform(post("/api/workspaces/" + wsId + "/members")
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"user_member_2\",\"role\":\"MEMBER\"}"))
+                        .content("{\"usernameOrEmail\":\"user_member_2\",\"role\":\"MEMBER\"}"))
                 .andExpect(status().isCreated());
 
         // can access
@@ -146,7 +146,7 @@ public class WorkspaceIsolationRobustnessTest {
                 .andExpect(status().isOk());
 
         // remove member (need member's ID)
-        String userJson = mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + memberToken))
+        String userJson = mvc.perform(get("/api/me").header("Authorization", "Bearer " + memberToken))
                 .andReturn().getResponse().getContentAsString();
         String memberId = JsonPath.read(userJson, "$.data.id");
 

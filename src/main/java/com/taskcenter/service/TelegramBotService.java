@@ -862,7 +862,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
             Task t = tasks.get(i);
             List<InlineKeyboardButton> rowInline = new ArrayList<>();
             InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText("📌 " + t.getTitle());
+            String title = t.getTitle() != null ? t.getTitle() : "Nomsiz";
+            if (title.length() > 36) {
+                title = title.substring(0, 33) + "...";
+            }
+            button.setText("📌 " + title);
             button.setCallbackData("TASK_VIEW_" + t.getId());
             rowInline.add(button);
             rowsInline.add(rowInline);
@@ -1184,6 +1188,55 @@ public class TelegramBotService extends TelegramLongPollingBot {
         executeWithRetry(message, chatId, 0);
     }
 
+    private final java.util.concurrent.BlockingQueue<QueuedTelegramMessage> outboundMessageQueue = new java.util.concurrent.LinkedBlockingQueue<>();
+
+    private static class QueuedTelegramMessage {
+        final SendMessage message;
+        final Long chatId;
+        final int attempts;
+
+        QueuedTelegramMessage(SendMessage message, Long chatId, int attempts) {
+            this.message = message;
+            this.chatId = chatId;
+            this.attempts = attempts;
+        }
+    }
+
+    public void enqueueMessage(Long chatId, String text) {
+        enqueueMessage(chatId, text, null);
+    }
+
+    public void enqueueMessage(Long chatId, String text, InlineKeyboardMarkup keyboard) {
+        if (chatId == null || text == null) return;
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        message.setParseMode("HTML");
+        if (keyboard != null) {
+            message.setReplyMarkup(keyboard);
+        }
+        outboundMessageQueue.offer(new QueuedTelegramMessage(message, chatId, 0));
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void startQueueWorker() {
+        Thread worker = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    QueuedTelegramMessage item = outboundMessageQueue.take();
+                    executeWithRetry(item.message, item.chatId, item.attempts);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    log.error("Telegram queue worker xatoligi: {}", e.getMessage());
+                }
+            }
+        }, "telegram-queue-worker");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
     private static final Object rateLimitLock = new Object();
     private static long lastMessageTime = 0;
 
@@ -1191,9 +1244,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
         synchronized (rateLimitLock) {
             long now = System.currentTimeMillis();
             long elapsed = now - lastMessageTime;
-            if (elapsed < 35) { // ~28 msgs/sec
+            if (elapsed < 40) { // ~25 msgs/sec (safe under Telegram 30/s limit)
                 try {
-                    Thread.sleep(35 - elapsed);
+                    Thread.sleep(40 - elapsed);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

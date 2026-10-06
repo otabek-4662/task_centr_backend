@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -128,15 +129,58 @@ public class TaskService {
         return new org.springframework.data.domain.PageImpl<>(dtos, pageable, idPage.getTotalElements());
     }
 
+    private Task getTaskAndValidateWorkspace(String id, String workspaceId) {
+        Optional<Task> taskOpt = taskRepository.findByIdAndWorkspaceIdWithDetails(id, workspaceId);
+        if (taskOpt.isPresent()) {
+            return taskOpt.get();
+        }
+        Optional<Task> fallback = taskRepository.findByIdWithDetails(id)
+                .or(() -> taskRepository.findById(id));
+        if (fallback.isPresent()) {
+            if (!workspaceId.equals(fallback.get().getWorkspaceId())) {
+                throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas: " + id);
+            }
+            return fallback.get();
+        }
+        throw new ResourceNotFoundException("Task topilmadi: " + id);
+    }
+
+    private Task getTaskSimpleAndValidateWorkspace(String id, String workspaceId) {
+        Optional<Task> taskOpt = taskRepository.findByIdAndWorkspaceId(id, workspaceId);
+        if (taskOpt.isPresent()) {
+            return taskOpt.get();
+        }
+        Optional<Task> fallback = taskRepository.findByIdWithDetails(id)
+                .or(() -> taskRepository.findById(id));
+        if (fallback.isPresent()) {
+            if (!workspaceId.equals(fallback.get().getWorkspaceId())) {
+                throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas: " + id);
+            }
+            return fallback.get();
+        }
+        throw new ResourceNotFoundException("Task topilmadi: " + id);
+    }
+
+    private BoardColumn getColumnAndValidateWorkspace(String columnId, String workspaceId) {
+        Optional<BoardColumn> colOpt = columnRepository.findByIdAndWorkspaceId(columnId, workspaceId);
+        if (colOpt.isPresent()) {
+            return colOpt.get();
+        }
+        Optional<BoardColumn> fallback = columnRepository.findById(columnId);
+        if (fallback.isPresent()) {
+            if (!workspaceId.equals(fallback.get().getWorkspaceId())) {
+                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas: " + columnId);
+            }
+            return fallback.get();
+        }
+        throw new ResourceNotFoundException("Column topilmadi: " + columnId);
+    }
+
     @Transactional(readOnly = true)
     public TaskDto getTaskById(String workspaceId, String id, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
         return TaskDto.fromEntity(task);
     }
 
@@ -158,12 +202,7 @@ public class TaskService {
     public TaskDto createTask(String workspaceId, TaskCreateRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        BoardColumn column = columnRepository.findById(req.getColumnId())
-                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + req.getColumnId()));
-
-        if (!workspaceId.equals(column.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
-        }
+        BoardColumn column = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
 
         String lexoRank = req.getLexoRank();
         if (lexoRank == null || lexoRank.isBlank()) {
@@ -217,22 +256,13 @@ public class TaskService {
     public TaskDto updateTask(String workspaceId, String id, TaskUpdateRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         boolean columnChanged = false;
         String oldColumnTitle = null;
         String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
-            BoardColumn newColumn = columnRepository.findById(req.getColumnId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Yangi column topilmadi: " + req.getColumnId()));
-            if (!workspaceId.equals(newColumn.getWorkspaceId())) {
-                throw new ResourceNotFoundException("Yangi column ushbu workspace ga tegishli emas");
-            }
+            BoardColumn newColumn = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
             String oldColId = task.getColumnId();
             BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
             oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
@@ -329,21 +359,13 @@ public class TaskService {
     public TaskDto reorderTask(String workspaceId, String id, TaskReorderRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         boolean columnChanged = false;
         String oldColumnTitle = null;
         String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
-            BoardColumn column = columnRepository.findById(req.getColumnId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + req.getColumnId()));
-            if (!workspaceId.equals(column.getWorkspaceId())) {
-                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
-            }
+            BoardColumn column = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
             String oldColId = task.getColumnId();
             BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
             oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
@@ -374,12 +396,7 @@ public class TaskService {
     public void deleteTask(String workspaceId, String id, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskSimpleAndValidateWorkspace(id, workspaceId);
 
         taskRepository.deleteById(id);
         
@@ -394,12 +411,7 @@ public class TaskService {
     public TaskDto cloneTask(String workspaceId, String id, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task originalTask = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(originalTask.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task originalTask = getTaskAndValidateWorkspace(id, workspaceId);
 
         String maxRank = taskRepository.findMaxLexoRankByColumnId(originalTask.getColumnId());
         String newRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
@@ -458,12 +470,7 @@ public class TaskService {
     public void toggleWatch(String workspaceId, String id, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         boolean isWatching = task.getWatchers().stream().anyMatch(u -> u.getId().equals(currentUser.getId()));
         if (isWatching) {
@@ -479,12 +486,7 @@ public class TaskService {
     public TaskDto toggleArchive(String workspaceId, String id, boolean archive, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         task.setIsArchived(archive);
         Task saved = taskRepository.save(task);
@@ -504,12 +506,7 @@ public class TaskService {
     public TaskDto toggleAssignee(String workspaceId, String id, String userId, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        Task task = taskRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
-
-        if (!workspaceId.equals(task.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Task ushbu workspace ga tegishli emas");
-        }
+        Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         User assignee = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));

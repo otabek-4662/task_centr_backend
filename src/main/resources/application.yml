@@ -83,6 +83,8 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
+    webhook-url: ${TELEGRAM_BOT_WEBHOOK_URL:}
+    webhook-secret: ${TELEGRAM_BOT_WEBHOOK_SECRET:}
   miniapp:
     max-age-sec: ${TELEGRAM_MINIAPP_MAX_AGE_SEC:3600}
     base-url: ${TELEGRAM_MINIAPP_BASE_URL:https://task-centr-backend.onrender.com}

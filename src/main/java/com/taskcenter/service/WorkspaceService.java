@@ -123,6 +123,7 @@ public class WorkspaceService {
         }
 
         Workspace updated = workspaceRepository.save(workspace);
+        authorizationService.evictWorkspace(id);
         return WorkspaceDto.fromEntity(updated);
     }
 
@@ -130,5 +131,6 @@ public class WorkspaceService {
     public void deleteWorkspace(String id, User currentUser) {
         authorizationService.checkOwner(id, currentUser);
         workspaceRepository.deleteById(id);
+        authorizationService.evictWorkspace(id);
     }
 }

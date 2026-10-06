@@ -123,4 +123,79 @@ class AuthControllerTest {
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer garbage.token.here"))
                 .andExpect(status().isForbidden());
     }
+
+    private String registerAndGetRefreshToken(String name, String password) throws Exception {
+        MvcResult result = mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.refreshToken").exists())
+                .andReturn();
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.data.refreshToken");
+    }
+
+    @Test
+    void refresh_success_rotatesToken() throws Exception {
+        String name = uniqueName();
+        String oldRefreshToken = registerAndGetRefreshToken(name, "password123");
+
+        MvcResult result = mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").exists())
+                .andExpect(jsonPath("$.data.refreshToken").exists())
+                .andReturn();
+
+        String newRefreshToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.refreshToken");
+        org.junit.jupiter.api.Assertions.assertNotEquals(oldRefreshToken, newRefreshToken);
+    }
+
+    @Test
+    void refresh_tokenReuseDetection_invalidatesAllSessions() throws Exception {
+        String name = uniqueName();
+        String oldRefreshToken = registerAndGetRefreshToken(name, "password123");
+
+        // 1-marta refresh qilish - muvaffaqiyatli, yangi token beriladi
+        MvcResult result = mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String newRefreshToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.refreshToken");
+
+        // 2-marta o'sha bekor qilingan eski tokenni qayta yuborish (Token Reuse Attack!)
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+
+        // Natijada barcha sessiyalar bekor qilingan: yangi token ham o'chirilgan bo'lishi kerak
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + newRefreshToken + "\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void logout_revokesToken() throws Exception {
+        String name = uniqueName();
+        String refreshToken = registerAndGetRefreshToken(name, "password123");
+
+        mvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Bekor qilingan token bilan refresh qilish urinishi
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isForbidden());
+    }
 }

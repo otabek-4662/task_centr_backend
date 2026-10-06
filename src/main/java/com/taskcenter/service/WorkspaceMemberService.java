@@ -180,6 +180,7 @@ public class WorkspaceMemberService {
                 .role(roleToAssign)
                 .build();
         memberRepository.save(member);
+        authorizationService.evictRole(workspaceId, targetUser.getId());
 
         return WorkspaceMemberResponseDto.fromEntity(targetUser, member.getRole());
     }
@@ -224,6 +225,7 @@ public class WorkspaceMemberService {
 
         member.setRole(request.getRole());
         memberRepository.save(member);
+        authorizationService.evictRole(workspaceId, targetUserId);
 
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
@@ -265,10 +267,12 @@ public class WorkspaceMemberService {
                 throw new ForbiddenException("Faqat workspace egasi boshqa adminni jamoadan chiqarishi mumkin");
             }
             memberRepository.delete(member);
+            authorizationService.evictRole(workspaceId, targetUserId);
         } else {
             WorkspaceMember member = memberRepository.findByWorkspaceIdAndUserId(workspaceId, targetUserId)
                     .orElseThrow(() -> new ResourceNotFoundException("Siz ushbu workspace a'zosi emassiz"));
             memberRepository.delete(member);
+            authorizationService.evictRole(workspaceId, targetUserId);
         }
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,6 +80,7 @@ public class TelegramSchedulerService {
      * Har kuni 18:00 (Asia/Tashkent) da ertangi muddatli vazifalar uchun eslatma.
      */
     @Scheduled(cron = "${telegram.scheduler.reminder-cron:0 0 18 * * *}", zone = "Asia/Tashkent")
+    @SchedulerLock(name = "scheduleDueTomorrowReminders", lockAtMostFor = "15m", lockAtLeastFor = "5m")
     public void scheduleDueTomorrowReminders() {
         LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
         tryRunGlobalJob("REMINDER_" + localNow.toLocalDate(), () -> sendDueTomorrowReminders(LocalDateTime.now(clock)));
@@ -88,6 +90,7 @@ public class TelegramSchedulerService {
      * Har kuni 08:00 (Asia/Tashkent) da kunlik digest.
      */
     @Scheduled(cron = "${telegram.scheduler.digest-cron:0 0 8 * * *}", zone = "Asia/Tashkent")
+    @SchedulerLock(name = "scheduleDailyDigest", lockAtMostFor = "15m", lockAtLeastFor = "5m")
     public void scheduleDailyDigest() {
         LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
         tryRunGlobalJob("DIGEST_" + localNow.toLocalDate(), () -> sendDailyDigest(LocalDateTime.now(clock)));
@@ -99,6 +102,7 @@ public class TelegramSchedulerService {
     }
 
     @Scheduled(fixedRate = 1800000)
+    @SchedulerLock(name = "catchUpSchedules", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void catchUpSchedules() {
         catchUpMissedSchedules();
     }

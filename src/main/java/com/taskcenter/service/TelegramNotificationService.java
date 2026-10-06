@@ -81,16 +81,12 @@ public class TelegramNotificationService {
             Map<String, User> commentRecipients = new HashMap<>();
             if (taskWithDetails.getAssignees() != null) {
                 for (User u : taskWithDetails.getAssignees()) {
-                    if (isWorkspaceMember(taskWithDetails.getWorkspaceId(), u.getId())) {
-                        commentRecipients.put(u.getId(), u);
-                    }
+                    commentRecipients.put(u.getId(), u);
                 }
             }
             if (taskWithDetails.getWatchers() != null) {
                 for (User u : taskWithDetails.getWatchers()) {
-                    if (isWorkspaceMember(taskWithDetails.getWorkspaceId(), u.getId())) {
-                        commentRecipients.put(u.getId(), u);
-                    }
+                    commentRecipients.put(u.getId(), u);
                 }
             }
 

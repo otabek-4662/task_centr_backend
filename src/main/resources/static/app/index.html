@@ -34,9 +34,15 @@
 <div id="tab-board" class="tab-content active">
   <header id="main-header">
     <div class="ws-switcher"><select id="ws" aria-label="Guruh tanlash"></select></div>
-    <button id="btn-refresh" class="icon-btn" data-action="refresh-board" aria-label="Yangilash">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div id="live-indicator" class="live-indicator" title="Jonli aloqa">
+        <span class="live-dot"></span>
+        <span class="live-text">Jonli</span>
+      </div>
+      <button id="btn-refresh" class="icon-btn" data-action="refresh-board" aria-label="Yangilash">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      </button>
+    </div>
   </header>
 
   <div class="filters" id="main-filters">
@@ -179,7 +185,7 @@
   </div>
 </div>
 
-<script src="app.js?v=10"></script>
-<script src="ui-bind.js?v=10"></script>
+<script src="app.js?v=11"></script>
+<script src="ui-bind.js?v=11"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface LabelRepository extends JpaRepository<Label, String> {
     List<Label> findByWorkspaceId(String workspaceId);
+    java.util.Optional<Label> findByIdAndWorkspaceId(String id, String workspaceId);
 
     @Transactional
     void deleteByWorkspaceId(String workspaceId);

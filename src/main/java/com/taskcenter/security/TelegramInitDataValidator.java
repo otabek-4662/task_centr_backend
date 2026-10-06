@@ -28,7 +28,10 @@ public class TelegramInitDataValidator {
 
     /** To'g'ri bo'lsa parametrlar xaritasini, aks holda empty qaytaradi. */
     public Optional<Map<String, String>> validate(String initData) {
-        if (initData == null || initData.isBlank() || botToken == null || botToken.isBlank()) return Optional.empty();
+        if (botToken == null || botToken.isBlank()) {
+            throw new IllegalStateException("Telegram bot token sozlanmagan! (telegram.bot.token)");
+        }
+        if (initData == null || initData.isBlank()) return Optional.empty();
 
         Map<String, String> params = new TreeMap<>();
         for (String pair : initData.split("&")) {

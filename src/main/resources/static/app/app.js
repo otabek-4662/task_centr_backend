@@ -161,6 +161,7 @@ async function initCore() {
   const r = await api('/api/v1/auth/telegram', { method: 'POST', body: JSON.stringify({ initData: tg.initData }) });
   token = r?.data?.token || r?.token;
   currentUserId = r?.data?.user?.id || r?.user?.id;
+  initWebSocket();
   
   try {
       const configRes = await api('/api/v1/config/public', {}, false);
@@ -319,6 +320,7 @@ async function handleLogin() {
 async function loadBoard(wsId) {
   currentWsId = wsId;
   tg.CloudStorage.setItem('last_ws_id', wsId);
+  subscribeWsWorkspace(wsId);
   const container = document.getElementById('board-container');
   container.innerHTML = Array(3).fill(0).map(() => `
     <div class="col" style="background:var(--sec-bg-color); opacity: 0.7;">
@@ -1299,6 +1301,9 @@ async function checkAndRefreshBoard() {
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkAndRefreshBoard();
+        if (token && (!ws || ws.readyState !== WebSocket.OPEN)) {
+            initWebSocket();
+        }
     }
 });
 setInterval(checkAndRefreshBoard, 30000);
@@ -1335,12 +1340,205 @@ function fallbackCopy(text) {
     document.body.removeChild(el);
 }
 
-window.addEventListener('offline', () => showToast("Internet tarmog'i uzildi!"));
+window.addEventListener('offline', () => {
+    showToast("Internet tarmog'i uzildi!");
+    updateLiveIndicator('disconnected');
+});
 window.addEventListener('online', () => {
     showToast("Internet tarmog'i tiklandi!");
+    if (token) initWebSocket();
     if (currentTab === 'board' && currentWsId) {
         checkAndRefreshBoard();
     }
 });
+
+// ===== WebSocket Real-Time Client for TMA =====
+let ws = null;
+let wsSubscribedWsId = null;
+let wsHeartbeatTimer = null;
+let wsReconnectTimer = null;
+let wsReconnectAttempts = 0;
+
+function updateLiveIndicator(status) {
+    const el = document.getElementById('live-indicator');
+    if (!el) return;
+    el.className = 'live-indicator ' + status;
+    const txt = el.querySelector('.live-text');
+    if (txt) {
+        if (status === 'connected') txt.textContent = 'Jonli';
+        else if (status === 'connecting') txt.textContent = 'Ulanmoqda';
+        else txt.textContent = 'Oflayn';
+    }
+}
+
+function initWebSocket() {
+    if (!token) return;
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${proto}//${location.host}/ws`;
+
+    try {
+        updateLiveIndicator('connecting');
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            wsReconnectAttempts = 0;
+            const connectFrame = `CONNECT\naccept-version:1.2,1.1,1.0\nheart-beat:10000,10000\nAuthorization:Bearer ${token}\n\n\0`;
+            ws.send(connectFrame);
+        };
+
+        ws.onmessage = (event) => {
+            const data = event.data;
+            if (typeof data !== 'string') return;
+
+            if (data.startsWith('CONNECTED')) {
+                updateLiveIndicator('connected');
+                startWsHeartbeat();
+                if (currentWsId) {
+                    subscribeWsWorkspace(currentWsId);
+                }
+            } else if (data.startsWith('MESSAGE')) {
+                const bodyIndex = data.indexOf('\n\n');
+                if (bodyIndex !== -1) {
+                    const body = data.substring(bodyIndex + 2).replace(/\0$/, '');
+                    try {
+                        const eventObj = JSON.parse(body);
+                        handleRealTimeEvent(eventObj);
+                    } catch (err) {
+                        console.warn('WebSocket JSON parse error:', err);
+                    }
+                }
+            }
+        };
+
+        ws.onclose = () => {
+            stopWsHeartbeat();
+            wsSubscribedWsId = null;
+            updateLiveIndicator('disconnected');
+            scheduleWsReconnect();
+        };
+
+        ws.onerror = (err) => {
+            console.warn('WebSocket connection error:', err);
+            try { ws.close(); } catch(e) {}
+        };
+    } catch (e) {
+        console.warn('Failed to start WebSocket:', e);
+        scheduleWsReconnect();
+    }
+}
+
+function startWsHeartbeat() {
+    stopWsHeartbeat();
+    wsHeartbeatTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('\n');
+        }
+    }, 15000);
+}
+
+function stopWsHeartbeat() {
+    if (wsHeartbeatTimer) {
+        clearInterval(wsHeartbeatTimer);
+        wsHeartbeatTimer = null;
+    }
+}
+
+function scheduleWsReconnect() {
+    if (wsReconnectTimer) return;
+    wsReconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(1.5, wsReconnectAttempts), 15000);
+    wsReconnectTimer = setTimeout(() => {
+        wsReconnectTimer = null;
+        if (token) initWebSocket();
+    }, delay);
+}
+
+function subscribeWsWorkspace(wsId) {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !wsId) return;
+
+    if (wsSubscribedWsId && wsSubscribedWsId !== wsId) {
+        ws.send(`UNSUBSCRIBE\nid:sub-ws-${wsSubscribedWsId}\n\n\0`);
+    }
+
+    wsSubscribedWsId = wsId;
+    ws.send(`SUBSCRIBE\nid:sub-ws-${wsId}\ndestination:/topic/workspace/${wsId}\n\n\0`);
+}
+
+function handleRealTimeEvent(ev) {
+    if (!ev || !ev.type) return;
+    if (ev.workspaceId && currentWsId && ev.workspaceId !== currentWsId) return;
+
+    const type = ev.type;
+    const data = ev.data;
+
+    const isDragging = document.querySelector('.sortable-ghost') !== null;
+    if (isDragging) return;
+
+    switch (type) {
+        case 'TASK_CREATED':
+            if (data && data.id) {
+                if (!tasksData.some(t => t.id === data.id)) {
+                    tasksData.push(data);
+                    renderBoard();
+                    showToast("Yangi g'alva: " + (data.title || ""));
+                    haptic('notification', 'success');
+                }
+            }
+            break;
+
+        case 'TASK_UPDATED':
+        case 'TASK_MOVED':
+            if (data && data.id) {
+                const idx = tasksData.findIndex(t => t.id === data.id);
+                if (idx !== -1) {
+                    tasksData[idx] = { ...tasksData[idx], ...data };
+                } else {
+                    tasksData.push(data);
+                }
+                renderBoard();
+
+                if (currentTaskId === data.id) {
+                    const dTitle = document.getElementById('d-title');
+                    const dDesc = document.getElementById('d-desc');
+                    if (dTitle && data.title) dTitle.textContent = data.title;
+                    if (dDesc && data.description !== undefined) dDesc.textContent = data.description || '';
+                }
+            }
+            break;
+
+        case 'TASK_DELETED':
+            const deletedId = data?.taskId || data?.id || (typeof data === 'string' ? data : null);
+            if (deletedId) {
+                tasksData = tasksData.filter(t => t.id !== deletedId);
+                renderBoard();
+                if (currentTaskId === deletedId) {
+                    closeSheet();
+                    showToast("G'alva o'chirildi");
+                }
+            }
+            break;
+
+        case 'TASKS_REORDERED':
+        case 'COLUMN_CREATED':
+        case 'COLUMN_UPDATED':
+        case 'COLUMN_DELETED':
+            checkAndRefreshBoard();
+            break;
+
+        case 'CHECKLIST_UPDATED':
+            if (currentTaskId && typeof loadChecklists === 'function') {
+                loadChecklists(currentTaskId);
+            }
+            break;
+
+        default:
+            checkAndRefreshBoard();
+            break;
+    }
+}
 
 init();

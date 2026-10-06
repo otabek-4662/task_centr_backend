@@ -283,6 +283,16 @@ body:has(.quick-add input:focus) .bottom-tab-bar,body:has(.quick-add input:focus
 .offline-banner{padding:8px 16px;background:var(--warn);color:#2b1d00;font-size:13px;font-weight:600;text-align:center}
 .confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10000}
 
+/* ===== Live Real-Time Indicator ===== */
+.live-indicator{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--sec-bg-color);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--hint-color);transition:all .2s var(--ease);user-select:none}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#8a94a0;transition:background .3s,box-shadow .3s}
+.live-indicator.connected{color:var(--ok);border-color:rgba(48,164,108,.25);background:rgba(48,164,108,.08)}
+.live-indicator.connected .live-dot{background:var(--ok);box-shadow:0 0 6px rgba(48,164,108,.8);animation:live-pulse 2s infinite}
+.live-indicator.connecting{color:var(--warn);border-color:rgba(245,165,36,.25);background:rgba(245,165,36,.08)}
+.live-indicator.connecting .live-dot{background:var(--warn)}
+.live-indicator.disconnected{color:var(--hint-color)}
+@keyframes live-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.8}}
+
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes skeleton-loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes slideUpFade{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}

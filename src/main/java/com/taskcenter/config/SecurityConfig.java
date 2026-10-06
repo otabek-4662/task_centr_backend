@@ -129,8 +129,11 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
-                // Admin only endpoints
-                .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+                // Admin only endpoints (workspaceId parametri berilmaganda faqat admin ko'ra oladi)
+                .requestMatchers(request -> "GET".equalsIgnoreCase(request.getMethod())
+                        && ("/api/users".equals(request.getRequestURI()) || "/api/users".equals(request.getServletPath()))
+                        && (request.getParameter("workspaceId") == null || request.getParameter("workspaceId").isBlank())).hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/users").hasAnyRole("USER", "ADMIN")
                 // Joriy foydalanuvchi o'z Telegram ulanishini uzishi mumkin (admin qoidasidan OLDIN turishi shart)
                 .requestMatchers(HttpMethod.DELETE, "/api/users/me/telegram").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/users/me/telegram").authenticated()

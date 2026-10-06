@@ -74,16 +74,17 @@ public class ColumnService {
         return dto;
     }
 
+    private BoardColumn getColumnAndValidateWorkspace(String id, String workspaceId) {
+        return columnRepository.findByIdAndWorkspaceId(id, workspaceId)
+                .or(() -> columnRepository.findById(id).filter(c -> workspaceId.equals(c.getWorkspaceId())))
+                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
+    }
+
     @Transactional
     public ColumnDto updateColumn(String workspaceId, String id, ColumnCreateRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
-        BoardColumn column = columnRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
-
-        if (!workspaceId.equals(column.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
-        }
+        BoardColumn column = getColumnAndValidateWorkspace(id, workspaceId);
 
         if (request.getTitle() != null) {
             if (Boolean.TRUE.equals(column.getIsDefault()) && !column.getTitle().equals(request.getTitle())) {
@@ -114,12 +115,7 @@ public class ColumnService {
     public ColumnDto patchColumn(String workspaceId, String id, ColumnPatchRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
-        BoardColumn column = columnRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
-
-        if (!workspaceId.equals(column.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
-        }
+        BoardColumn column = getColumnAndValidateWorkspace(id, workspaceId);
 
         if (request.getTitle() != null) {
             if (Boolean.TRUE.equals(column.getIsDefault()) && !column.getTitle().equals(request.getTitle())) {
@@ -152,12 +148,7 @@ public class ColumnService {
 
         List<ColumnDto> result = new ArrayList<>();
         for (ColumnReorderItem item : items) {
-            BoardColumn column = columnRepository.findById(item.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + item.getId()));
-
-            if (!workspaceId.equals(column.getWorkspaceId())) {
-                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas: " + item.getId());
-            }
+            BoardColumn column = getColumnAndValidateWorkspace(item.getId(), workspaceId);
 
             if (item.getOrder() != null) {
                 column.setOrder(item.getOrder());
@@ -181,12 +172,7 @@ public class ColumnService {
         List<ColumnDto> result = new ArrayList<>();
         for (int i = 0; i < columnIds.size(); i++) {
             String colId = columnIds.get(i);
-            BoardColumn column = columnRepository.findById(colId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + colId));
-
-            if (!workspaceId.equals(column.getWorkspaceId())) {
-                throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas: " + colId);
-            }
+            BoardColumn column = getColumnAndValidateWorkspace(colId, workspaceId);
 
             column.setOrder(i + 1);
             result.add(ColumnDto.fromEntity(columnRepository.save(column)));
@@ -205,12 +191,7 @@ public class ColumnService {
     public void deleteColumn(String workspaceId, String id, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
-        BoardColumn column = columnRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Column topilmadi: " + id));
-
-        if (!workspaceId.equals(column.getWorkspaceId())) {
-            throw new ResourceNotFoundException("Column ushbu workspace ga tegishli emas");
-        }
+        BoardColumn column = getColumnAndValidateWorkspace(id, workspaceId);
 
         if (Boolean.TRUE.equals(column.getIsDefault())) {
             throw new com.taskcenter.exception.BadRequestException("Standart (isDefault) ustunlarni o'chirish mumkin emas");
