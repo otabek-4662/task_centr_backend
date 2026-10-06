@@ -81,12 +81,16 @@ public class TelegramNotificationService {
             Map<String, User> commentRecipients = new HashMap<>();
             if (taskWithDetails.getAssignees() != null) {
                 for (User u : taskWithDetails.getAssignees()) {
-                    commentRecipients.put(u.getId(), u);
+                    if (isWorkspaceMember(taskWithDetails.getWorkspaceId(), u.getId())) {
+                        commentRecipients.put(u.getId(), u);
+                    }
                 }
             }
             if (taskWithDetails.getWatchers() != null) {
                 for (User u : taskWithDetails.getWatchers()) {
-                    commentRecipients.put(u.getId(), u);
+                    if (isWorkspaceMember(taskWithDetails.getWorkspaceId(), u.getId())) {
+                        commentRecipients.put(u.getId(), u);
+                    }
                 }
             }
 
@@ -95,7 +99,7 @@ public class TelegramNotificationService {
                 commentRecipients.remove(mentionUserId);
             }
 
-            LocalTime now = LocalTime.now(clock);
+            LocalTime now = LocalTime.now(clock.withZone(java.time.ZoneId.of("Asia/Tashkent")));
 
             // 4. Mention xabarlarini yuborish
             String mentionMsg = TelegramUtil.escapeHtml(actorName) + " sizni eslab o'tdi: " + escapedComment;
@@ -149,7 +153,7 @@ public class TelegramNotificationService {
                     + TelegramUtil.escapeHtml(newColumnTitle) + " ga o'tdi";
 
             InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(taskWithDetails.getId(), taskWithDetails.getTitle(), miniappBaseUrl);
-            LocalTime now = LocalTime.now(clock);
+            LocalTime now = LocalTime.now(clock.withZone(java.time.ZoneId.of("Asia/Tashkent")));
 
             for (User recipient : recipients.values()) {
                 try {
@@ -174,7 +178,7 @@ public class TelegramNotificationService {
 
         try {
             String msg = "Sizni '" + TelegramUtil.escapeHtml(workspace.getTitle()) + "' ga taklif qilishdi";
-            LocalTime now = LocalTime.now(clock);
+            LocalTime now = LocalTime.now(clock.withZone(java.time.ZoneId.of("Asia/Tashkent")));
             sendIfEligible(receiver, actor, msg, null, receiver.isTelegramNotifyInvites(), now);
         } catch (Exception e) {
             log.error("Telegram taklif bildirishnomasi yuborishda xatolik: userId={}", receiver.getId(), e);
@@ -196,7 +200,7 @@ public class TelegramNotificationService {
                     + "\n\nQozonda qaynatish vaqti keldi! ☕️";
 
             InlineKeyboardMarkup keyboard = TelegramUtil.createTaskViewKeyboard(task.getId(), task.getTitle(), miniappBaseUrl);
-            LocalTime now = LocalTime.now(clock);
+            LocalTime now = LocalTime.now(clock.withZone(java.time.ZoneId.of("Asia/Tashkent")));
 
             sendIfEligible(assignee, actor, msg, keyboard, assignee.isTelegramNotifyAssigned(), now);
         } catch (Exception e) {

@@ -257,9 +257,15 @@ class SecurityTest {
     void appEndpoint_headers_arePresent() throws Exception {
         mvc.perform(get("/app/index.html"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("frame-ancestors https://web.telegram.org")))
+                .andExpect(header().string("Content-Security-Policy", "default-src 'self'; script-src 'self' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"))
                 .andExpect(header().string("Referrer-Policy", "no-referrer"))
                 .andExpect(header().exists("X-Content-Type-Options"))
                 .andExpect(header().doesNotExist("X-Frame-Options"));
+    }
+
+    @Test
+    void favicon_isPublic_notForbidden() throws Exception {
+        mvc.perform(get("/favicon.ico"))
+                .andExpect(status().is(org.hamcrest.Matchers.not(403)));
     }
 }

@@ -49,6 +49,8 @@ public class TelegramReminderLog {
         /** @deprecated Eski tip, bazadagi mavjud yozuvlar uchun saqlanadi */
         OVERDUE,
         /** Ertangi muddatli tasklar uchun eslatma */
-        DUE_TOMORROW
+        DUE_TOMORROW,
+        /** Global background job lock */
+        GLOBAL_JOB_LOCK
     }
 }

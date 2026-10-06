@@ -662,6 +662,7 @@ class TelegramBotServiceTest {
                 .title("Test Done Task")
                 .lexoRank("aaa")
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
@@ -710,6 +711,7 @@ class TelegramBotServiceTest {
                 .columnId("col-done")
                 .title("Already Done Task")
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
@@ -755,6 +757,7 @@ class TelegramBotServiceTest {
                 .columnId("col-1")
                 .title("No Done Column Task")
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
@@ -886,6 +889,7 @@ class TelegramBotServiceTest {
                 .title("Snooze Task")
                 .dueDate(LocalDate.of(2026, 10, 1))
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
@@ -933,6 +937,7 @@ class TelegramBotServiceTest {
                 .title("Later Snooze Task")
                 .dueDate(LocalDate.of(2026, 12, 25))
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
 
         Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
@@ -1248,6 +1253,7 @@ class TelegramBotServiceTest {
                 .columnId("col-1")
                 .dueDate(LocalDate.of(2026, 10, 1))
                 .build();
+        task.getAssignees().add(user);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(authorizationService.checkCanEdit("ws-1", user)).thenReturn(new Workspace());
         
@@ -1694,5 +1700,316 @@ class TelegramBotServiceTest {
         verify(telegramBotService).execute(captor.capture());
         assertThat(captor.getValue().getText()).contains("Secret Task");
         assertThat(captor.getValue().getReplyMarkup()).isNotNull();
+    }
+
+    @Test
+    void onUpdateReceived_myTasks_60Tasks_limitsTo80AndDoesNotFail() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/my_tasks");
+        when(message.getChatId()).thenReturn(901L);
+        update.setMessage(message);
+
+        User user = User.builder().id("u1").build();
+        when(userRepository.findByTelegramChatId(901L)).thenReturn(Optional.of(user));
+
+        List<Task> tasks = new java.util.ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            tasks.add(Task.builder().id("t" + i).title("Task " + i).build());
+        }
+        when(taskRepository.findActiveTasksByUserId(user.getId())).thenReturn(tasks);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup markup = (org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup) captor.getValue().getReplyMarkup();
+        assertThat(markup.getKeyboard()).hasSize(61); // 60 tasks + 1 web app button
+    }
+
+    @Test
+    void onUpdateReceived_callback_viewTask_10000charDesc_truncatesProperly() throws Exception {
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setData("TASK_VIEW_taskLarge");
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(902L);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        User user = User.builder().id("u1").telegramChatId(902L).build();
+        when(userRepository.findByTelegramChatId(902L)).thenReturn(Optional.of(user));
+
+        String largeDesc = "A".repeat(10000);
+        Task task = Task.builder()
+                .id("taskLarge")
+                .workspaceId("ws1")
+                .title("T".repeat(300))
+                .description(largeDesc)
+                .priority(com.taskcenter.model.Priority.HIGH)
+                .columnId("col1")
+                .build();
+        when(taskRepository.findById("taskLarge")).thenReturn(Optional.of(task));
+        doReturn(new com.taskcenter.model.Workspace()).when(authorizationService).checkAccess("ws1", user);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        String text = captor.getValue().getText();
+        assertThat(text.length()).isLessThanOrEqualTo(4000);
+        assertThat(text).contains("...");
+    }
+
+    @Test
+    void onUpdateReceived_callback_unknownFormat_callsAnswerCallbackQuery() throws Exception {
+        Long chatId = 605L;
+
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("unknown123");
+        callbackQuery.setData("UNKNOWN_FORMAT_CALLBACK");
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<AnswerCallbackQuery> answerCaptor = ArgumentCaptor.forClass(AnswerCallbackQuery.class);
+        verify(telegramBotService, atLeastOnce()).execute(answerCaptor.capture());
+    }
+
+    @Test
+    void onUpdateReceived_callback_taskDone_notAssigneeOrCreatorOrAdmin_rejected() throws Exception {
+        Long chatId = 903L;
+        String taskId = UUID.randomUUID().toString();
+        String wsId = "ws-done";
+
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(wsId)
+                .columnId("col-1")
+                .title("Test Task")
+                .createdBy("otherUser")
+                .build();
+        task.getAssignees().add(User.builder().id("otherUser").build());
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
+        when(authorizationService.checkCanEdit(wsId, user)).thenReturn(ws);
+        when(authorizationService.isOwnerOrAdmin(wsId, user.getId())).thenReturn(false);
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-903");
+        callbackQuery.setData("TASK_DONE_" + taskId);
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<AnswerCallbackQuery> answerCaptor = ArgumentCaptor.forClass(AnswerCallbackQuery.class);
+        verify(telegramBotService, atLeastOnce()).execute(answerCaptor.capture());
+        assertThat(answerCaptor.getAllValues().stream().map(AnswerCallbackQuery::getText).toList())
+            .anyMatch(t -> t != null && t.contains("Bu vazifa sizga biriktirilmagan."));
+    }
+
+    @Test
+    void onUpdateReceived_callback_taskDone_isAssignee_success() throws Exception {
+        Long chatId = 904L;
+        String taskId = UUID.randomUUID().toString();
+        String wsId = "ws-done";
+
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(wsId)
+                .columnId("col-1")
+                .title("Test Task")
+                .createdBy("otherUser")
+                .build();
+        task.getAssignees().add(user);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
+        when(authorizationService.checkCanEdit(wsId, user)).thenReturn(ws);
+        when(authorizationService.isOwnerOrAdmin(wsId, user.getId())).thenReturn(false);
+
+        BoardColumn col1 = BoardColumn.builder().id("col-1").workspaceId(wsId).title("To Do").order(1).isDone(false).build();
+        BoardColumn doneCol = BoardColumn.builder().id("col-done").workspaceId(wsId).title("Done").order(2).isDone(true).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc(wsId)).thenReturn(List.of(col1, doneCol));
+        when(columnRepository.findById("col-done")).thenReturn(Optional.of(doneCol));
+        when(workspaceRepository.findById(wsId)).thenReturn(Optional.of(ws));
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-904");
+        callbackQuery.setData("TASK_DONE_" + taskId);
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        when(message.getMessageId()).thenReturn(100);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        verify(taskRepository).save(task);
+        assertThat(task.getColumnId()).isEqualTo("col-done");
+    }
+
+    @Test
+    void onUpdateReceived_callback_taskDone_isCreator_success() throws Exception {
+        Long chatId = 905L;
+        String taskId = UUID.randomUUID().toString();
+        String wsId = "ws-done";
+
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(wsId)
+                .columnId("col-1")
+                .title("Test Task")
+                .createdBy("u1") // is creator
+                .build();
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
+        when(authorizationService.checkCanEdit(wsId, user)).thenReturn(ws);
+        when(authorizationService.isOwnerOrAdmin(wsId, user.getId())).thenReturn(false);
+
+        BoardColumn col1 = BoardColumn.builder().id("col-1").workspaceId(wsId).title("To Do").order(1).isDone(false).build();
+        BoardColumn doneCol = BoardColumn.builder().id("col-done").workspaceId(wsId).title("Done").order(2).isDone(true).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc(wsId)).thenReturn(List.of(col1, doneCol));
+        when(columnRepository.findById("col-done")).thenReturn(Optional.of(doneCol));
+        when(workspaceRepository.findById(wsId)).thenReturn(Optional.of(ws));
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-905");
+        callbackQuery.setData("TASK_DONE_" + taskId);
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        when(message.getMessageId()).thenReturn(100);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        verify(taskRepository).save(task);
+        assertThat(task.getColumnId()).isEqualTo("col-done");
+    }
+
+    @Test
+    void onUpdateReceived_callback_taskDone_isAdmin_success() throws Exception {
+        Long chatId = 906L;
+        String taskId = UUID.randomUUID().toString();
+        String wsId = "ws-done";
+
+        User user = User.builder().id("u1").telegramChatId(chatId).build();
+        when(userRepository.findByTelegramChatId(chatId)).thenReturn(Optional.of(user));
+
+        Task task = Task.builder()
+                .id(taskId)
+                .workspaceId(wsId)
+                .columnId("col-1")
+                .title("Test Task")
+                .createdBy("otherUser")
+                .build();
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+
+        Workspace ws = Workspace.builder().id(wsId).title("Test WS").ownerId("owner1").build();
+        when(authorizationService.checkCanEdit(wsId, user)).thenReturn(ws);
+        when(authorizationService.isOwnerOrAdmin(wsId, user.getId())).thenReturn(true); // is admin/owner
+
+        BoardColumn col1 = BoardColumn.builder().id("col-1").workspaceId(wsId).title("To Do").order(1).isDone(false).build();
+        BoardColumn doneCol = BoardColumn.builder().id("col-done").workspaceId(wsId).title("Done").order(2).isDone(true).build();
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc(wsId)).thenReturn(List.of(col1, doneCol));
+        when(columnRepository.findById("col-done")).thenReturn(Optional.of(doneCol));
+        when(workspaceRepository.findById(wsId)).thenReturn(Optional.of(ws));
+
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setId("cb-906");
+        callbackQuery.setData("TASK_DONE_" + taskId);
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(chatId);
+        when(message.getMessageId()).thenReturn(100);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        telegramBotService.onUpdateReceived(update);
+
+        verify(taskRepository).save(task);
+        assertThat(task.getColumnId()).isEqualTo("col-done");
+    }
+
+    @Test
+    void onUpdateReceived_start_withLinkToken_alreadyLinkedToDifferentChat_notifiesOldChat() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start VALID_TOKEN");
+        when(message.getChatId()).thenReturn(1002L);
+        update.setMessage(message);
+
+        User user = User.builder()
+                .id("u1")
+                .telegramLinkToken("VALID_TOKEN")
+                .telegramLinkTokenExpiresAt(LocalDateTime.now().plusMinutes(5))
+                .telegramChatId(1001L) // old chat
+                .build();
+
+        when(userRepository.findByTelegramLinkToken("VALID_TOKEN")).thenReturn(Optional.of(user));
+        when(userRepository.findByTelegramChatId(1002L)).thenReturn(Optional.empty());
+
+        telegramBotService.onUpdateReceived(update);
+
+        verify(userRepository).save(user);
+        assertThat(user.getTelegramChatId()).isEqualTo(1002L);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService, atLeastOnce()).execute(captor.capture());
+        
+        boolean notifiedOldChat = captor.getAllValues().stream()
+                .anyMatch(sm -> "1001".equals(sm.getChatId()) && sm.getText().contains("Akkauntingiz boshqa Telegram'ga ulandi."));
+        assertThat(notifiedOldChat).isTrue();
     }
 }

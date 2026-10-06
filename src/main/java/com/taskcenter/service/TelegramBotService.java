@@ -23,6 +23,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.core.task.TaskExecutor;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -90,7 +91,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
 
         public boolean isExpired() {
-            return createdAt.isBefore(LocalDateTime.now().minusMinutes(15));
+            return createdAt.isBefore(LocalDateTime.now().minusMinutes(30));
         }
 
         public String getTitle() { return title; }
@@ -144,6 +145,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return botUsername;
+    }
+
+    @Scheduled(fixedRate = 1800000)
+    public void cleanupTaskCreationStates() {
+        taskCreationStates.entrySet().removeIf(entry -> entry.getValue().isExpired());
     }
 
     @Async
@@ -223,10 +229,17 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 handleUnlink(chatId);
             } else {
                 TaskCreationState state = taskCreationStates.get(chatId);
-                if (state != null && !state.isExpired() && state.getStep() == TaskCreationStep.AWAITING_TITLE) {
-                    handleTaskCreationTitleInput(chatId, text);
+                if (state != null) {
+                    if (state.isExpired()) {
+                        taskCreationStates.remove(chatId);
+                        sendMessage(chatId, "⚠️ Jarayon muddati o'tgan. Iltimos, yangi vazifa yaratish uchun /create_task buyrug'ini bering.");
+                    } else if (state.getStep() == TaskCreationStep.AWAITING_TITLE) {
+                        handleTaskCreationTitleInput(chatId, text);
+                    } else {
+                        taskCreationStates.remove(chatId);
+                        sendMessage(chatId, "Kechirasiz, bu buyruqni tushunmadim. Quyidagi menyu tugmalaridan foydalaning yoki /help buyrug'ini bering.");
+                    }
                 } else {
-                    taskCreationStates.remove(chatId);
                     sendMessage(chatId, "Kechirasiz, bu buyruqni tushunmadim. Quyidagi menyu tugmalaridan foydalaning yoki /help buyrug'ini bering.");
                 }
             }
@@ -268,6 +281,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 if (alreadyLinked.isPresent() && !alreadyLinked.get().getId().equals(user.getId())) {
                     sendMessage(chatId, "⚠️ Ushbu Telegram raqam allaqachon boshqa akkauntga ulangan. Bitta raqam faqat bitta akkauntga ulanishi mumkin.");
                     return;
+                }
+
+                if (user.getTelegramChatId() != null && !user.getTelegramChatId().equals(chatId)) {
+                    sendMessage(user.getTelegramChatId(), "⚠️ Akkauntingiz boshqa Telegram'ga ulandi.");
                 }
 
                 user.setTelegramChatId(chatId);
@@ -827,26 +844,36 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private void sendTasksList(Long chatId, List<Task> tasks, String titleHeader) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(titleHeader);
+
+        int maxTasks = 80;
+        int displayCount = Math.min(tasks.size(), maxTasks);
+
+        StringBuilder textBuilder = new StringBuilder(titleHeader);
+        if (tasks.size() > maxTasks) {
+            int remaining = tasks.size() - maxTasks;
+            textBuilder.append("\n\n... va yana ").append(remaining).append(" ta vazifa. Hammasini Mini App'da ko'ring.");
+        }
+        message.setText(textBuilder.toString());
 
         InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
 
-        for (Task t : tasks) {
+        for (int i = 0; i < displayCount; i++) {
+            Task t = tasks.get(i);
             List<InlineKeyboardButton> rowInline = new ArrayList<>();
             InlineKeyboardButton button = new InlineKeyboardButton();
             button.setText("📌 " + t.getTitle());
             button.setCallbackData("TASK_VIEW_" + t.getId());
             rowInline.add(button);
             rowsInline.add(rowInline);
-
-            List<InlineKeyboardButton> webAppRow = new ArrayList<>();
-            InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
-            webAppBtn.setText("📱 Ochish");
-            webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/?task=" + t.getId()));
-            webAppRow.add(webAppBtn);
-            rowsInline.add(webAppRow);
         }
+
+        List<InlineKeyboardButton> webAppRow = new ArrayList<>();
+        InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
+        webAppBtn.setText("📱 Ochish");
+        webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/"));
+        webAppRow.add(webAppBtn);
+        rowsInline.add(webAppRow);
 
         markupInline.setKeyboard(rowsInline);
         message.setReplyMarkup(markupInline);
@@ -882,6 +909,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (taskOpt.isPresent()) {
                 Task task = taskOpt.get();
                 
+                if (Boolean.TRUE.equals(task.getIsArchived())) {
+                    sendMessage(chatId, "⚠️ Ushbu vazifa arxivlangan.");
+                    return;
+                }
+
                 try {
                     authorizationService.checkAccess(task.getWorkspaceId(), user);
                 } catch (Exception e) {
@@ -919,6 +951,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (taskOpt.isPresent()) {
                 Task task = taskOpt.get();
                 
+                if (Boolean.TRUE.equals(task.getIsArchived())) {
+                    sendMessage(chatId, "⚠️ Vazifa arxivlangan. Holatini o'zgartirib bo'lmaydi.");
+                    return;
+                }
+
                 try {
                     authorizationService.checkAccess(task.getWorkspaceId(), user);
                 } catch (Exception e) {
@@ -978,6 +1015,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 return;
             }
             Task task = taskOpt.get();
+
+            if (Boolean.TRUE.equals(task.getIsArchived())) {
+                sendMessage(chatId, "⚠️ Vazifa arxivlangan. Holatini o'zgartirib bo'lmaydi.");
+                return;
+            }
 
             try {
                 authorizationService.checkAccess(task.getWorkspaceId(), user);
@@ -1049,7 +1091,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (state == null || state.isExpired()) {
                 taskCreationStates.remove(chatId);
                 answerCallback(callbackQuery, "Jarayon eskirgan");
-                sendMessage(chatId, "⚠️ Jarayon muddati o'tgan. Iltimos, /create_task buyrug'ini qaytadan bering.");
+                sendMessage(chatId, "⚠️ Jarayon muddati o'tgan. Iltimos, yangi vazifa yaratish uchun /create_task buyrug'ini bering.");
                 return;
             }
             try {
@@ -1072,7 +1114,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             if (state == null || state.isExpired() || state.getWorkspaceId() == null) {
                 taskCreationStates.remove(chatId);
                 answerCallback(callbackQuery, "Jarayon eskirgan");
-                sendMessage(chatId, "⚠️ Jarayon muddati o'tgan. Iltimos, /create_task buyrug'ini qaytadan bering.");
+                sendMessage(chatId, "⚠️ Jarayon muddati o'tgan. Iltimos, yangi vazifa yaratish uchun /create_task buyrug'ini bering.");
                 return;
             }
             Priority priority;
@@ -1098,6 +1140,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         } else if (callData.equals("UNLINK_NO")) {
             sendMessage(chatId, "Amaliyot bekor qilindi.");
         } else {
+            answerCallback(callbackQuery, null);
             sendMessage(chatId, "Bu tugma eskirgan, xabarni qayta oching");
         }
     }
@@ -1141,11 +1184,30 @@ public class TelegramBotService extends TelegramLongPollingBot {
         executeWithRetry(message, chatId, 0);
     }
 
+    private static final Object rateLimitLock = new Object();
+    private static long lastMessageTime = 0;
+
+    private void enforceRateLimit() {
+        synchronized (rateLimitLock) {
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastMessageTime;
+            if (elapsed < 35) { // ~28 msgs/sec
+                try {
+                    Thread.sleep(35 - elapsed);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            lastMessageTime = System.currentTimeMillis();
+        }
+    }
+
     private void executeWithRetry(SendMessage message, Long chatId, int attempt) {
         try {
+            enforceRateLimit();
             execute(message);
         } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException e) {
-            if (e.getErrorCode() != null && e.getErrorCode() == 429 && attempt == 0) {
+            if (e.getErrorCode() != null && e.getErrorCode() == 429 && attempt < 3) {
                 int retryAfter = (e.getParameters() != null && e.getParameters().getRetryAfter() != null) 
                         ? e.getParameters().getRetryAfter() : 5;
                 CompletableFuture.runAsync(() -> {
@@ -1174,6 +1236,19 @@ public class TelegramBotService extends TelegramLongPollingBot {
             });
         } else {
             log.error("Telegram xabar yuborishda xatolik: {}", msg);
+            sendErrorMessage(chatId);
+        }
+    }
+
+    private void sendErrorMessage(Long chatId) {
+        if (chatId == null) return;
+        try {
+            SendMessage m = new SendMessage();
+            m.setChatId(String.valueOf(chatId));
+            m.setText("Xatolik yuz berdi, keyinroq urinib ko'ring.");
+            execute(m);
+        } catch (Exception e) {
+            log.error("Xatolik xabarini yuborishda ham xatolik: {}", e.getMessage());
         }
     }
 
@@ -1192,6 +1267,15 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         try {
             authorizationService.checkCanEdit(task.getWorkspaceId(), user);
+            
+            boolean isAssignee = task.getAssignees().stream().anyMatch(u -> u.getId().equals(user.getId()));
+            boolean isCreator = user.getId().equals(task.getCreatedBy());
+            boolean isAdminOrOwner = authorizationService.isOwnerOrAdmin(task.getWorkspaceId(), user.getId());
+            
+            if (!isAssignee && !isCreator && !isAdminOrOwner) {
+                answerCallback(callbackQuery, "Bu vazifa sizga biriktirilmagan.");
+                return;
+            }
         } catch (Exception e) {
             answerCallback(callbackQuery, "⚠️ Ruxsat yo'q.");
             return;
@@ -1249,6 +1333,15 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         try {
             authorizationService.checkCanEdit(task.getWorkspaceId(), user);
+            
+            boolean isAssignee = task.getAssignees().stream().anyMatch(u -> u.getId().equals(user.getId()));
+            boolean isCreator = user.getId().equals(task.getCreatedBy());
+            boolean isAdminOrOwner = authorizationService.isOwnerOrAdmin(task.getWorkspaceId(), user.getId());
+            
+            if (!isAssignee && !isCreator && !isAdminOrOwner) {
+                answerCallback(callbackQuery, "Bu vazifa sizga biriktirilmagan.");
+                return;
+            }
         } catch (Exception e) {
             answerCallback(callbackQuery, "⚠️ Ruxsat yo'q.");
             return;
@@ -1322,15 +1415,41 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
     private String buildTaskViewText(Task task, String colName, String workspaceName) {
         StringBuilder sb = new StringBuilder();
-        sb.append("📋 Vazifa: <b>").append(TelegramUtil.escapeHtml(task.getTitle())).append("</b>\n");
+        String title = task.getTitle();
+        if (title != null && title.length() > 200) {
+            title = title.substring(0, 197) + "...";
+        }
+        sb.append("📋 Vazifa: <b>").append(TelegramUtil.escapeHtml(title)).append("</b>\n");
         sb.append("🏢 G'alva: <b>").append(TelegramUtil.escapeHtml(workspaceName)).append("</b>\n");
         sb.append("📊 Holati (Ustun): <b>").append(TelegramUtil.escapeHtml(colName)).append("</b>\n");
         sb.append("⚠️ Muhimligi: <b>").append(TelegramUtil.escapeHtml(task.getPriority() != null ? task.getPriority().name() : "O'rtacha")).append("</b>\n");
         if (task.getDueDate() != null) {
             sb.append("📅 Muddat: <b>").append(task.getDueDate()).append("</b>\n");
         }
+        
+        String prefix = sb.toString();
+        
         if (task.getDescription() != null && !task.getDescription().isBlank()) {
-            sb.append("📝 Tafsilot: ").append(TelegramUtil.escapeHtml(task.getDescription()));
+            String desc = task.getDescription();
+            if (desc.length() > 1500) {
+                desc = desc.substring(0, 1497) + "...";
+            }
+            String escapedDesc = TelegramUtil.escapeHtml(desc);
+            int availableLength = 4000 - prefix.length() - 15;
+            if (escapedDesc.length() > availableLength) {
+                if (availableLength > 3) {
+                    while (TelegramUtil.escapeHtml(desc).length() > availableLength && desc.length() > 10) {
+                        desc = desc.substring(0, desc.length() - 100);
+                    }
+                    if (!desc.endsWith("...")) {
+                        desc = desc.substring(0, Math.max(0, desc.length() - 3)) + "...";
+                    }
+                    escapedDesc = TelegramUtil.escapeHtml(desc);
+                } else {
+                    escapedDesc = "...";
+                }
+            }
+            sb.append("📝 Tafsilot: ").append(escapedDesc);
         }
         return sb.toString();
     }

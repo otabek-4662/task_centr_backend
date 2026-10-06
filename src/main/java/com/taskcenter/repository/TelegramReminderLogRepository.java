@@ -19,4 +19,6 @@ public interface TelegramReminderLogRepository extends JpaRepository<TelegramRem
     @Transactional
     @Query("DELETE FROM TelegramReminderLog r WHERE r.taskId = :taskId")
     void deleteByTaskId(@Param("taskId") String taskId);
+
+    List<TelegramReminderLog> findByUserIdAndTypeAndTaskIdIn(String userId, TelegramReminderLog.ReminderType type, List<String> taskIds);
 }

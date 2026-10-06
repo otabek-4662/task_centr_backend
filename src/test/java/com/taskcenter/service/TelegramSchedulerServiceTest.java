@@ -61,8 +61,8 @@ class TelegramSchedulerServiceTest {
 
         User user = User.builder().id("u1").telegramChatId(111L).build();
         when(userRepository.findByIdIn(Set.of("u1"))).thenReturn(List.of(user));
-        when(reminderLogRepository.existsByTaskIdAndUserIdAndType("t1", "u1",
-                TelegramReminderLog.ReminderType.DUE_TOMORROW)).thenReturn(false);
+        when(reminderLogRepository.findByUserIdAndTypeAndTaskIdIn("u1", 
+                TelegramReminderLog.ReminderType.DUE_TOMORROW, List.of("t1"))).thenReturn(List.of());
 
         service.sendDueTomorrowReminders(now);
 
@@ -101,17 +101,16 @@ class TelegramSchedulerServiceTest {
         when(userRepository.findByIdIn(Set.of("u1"))).thenReturn(List.of(user));
 
         // Birinchi ishlatishda mavjud emas, ikkinchisida bor
-        when(reminderLogRepository.existsByTaskIdAndUserIdAndType("t1", "u1",
-                TelegramReminderLog.ReminderType.DUE_TOMORROW))
-                .thenReturn(false)
-                .thenReturn(true);
+        when(reminderLogRepository.findByUserIdAndTypeAndTaskIdIn("u1", TelegramReminderLog.ReminderType.DUE_TOMORROW, List.of("t1")))
+                .thenReturn(List.of())
+                .thenReturn(List.of(TelegramReminderLog.builder().taskId("t1").build()));
 
         service.sendDueTomorrowReminders(now);
         service.sendDueTomorrowReminders(now);
 
         // Faqat 1 marta yuboriladi
         verify(eventPublisher, times(1)).publishEvent(any(TelegramMessageEvent.class));
-        verify(reminderLogRepository, times(1)).save(any(TelegramReminderLog.class));
+        verify(reminderLogRepository, times(1)).saveAll(anyList());
     }
 
     @Test
@@ -129,7 +128,7 @@ class TelegramSchedulerServiceTest {
                 .telegramQuietEnd(LocalTime.of(8, 0))
                 .build();
         when(userRepository.findByIdIn(Set.of("u1"))).thenReturn(List.of(user));
-        when(reminderLogRepository.existsByTaskIdAndUserIdAndType(any(), any(), any())).thenReturn(false);
+        when(reminderLogRepository.findByUserIdAndTypeAndTaskIdIn(eq("u1"), any(), any())).thenReturn(List.of());
 
         service.sendDueTomorrowReminders(now);
 
@@ -204,14 +203,12 @@ class TelegramSchedulerServiceTest {
         User user2 = User.builder().id("u2").telegramChatId(222L).build();
         when(userRepository.findByIdIn(anySet())).thenReturn(List.of(user1, user2));
 
-        // u1 uchun exists xato chiqaradi — outer catch ga tushadi
-        when(reminderLogRepository.existsByTaskIdAndUserIdAndType("t1", "u1",
-                TelegramReminderLog.ReminderType.DUE_TOMORROW))
+        // u1 uchun xato chiqaradi — outer catch ga tushadi
+        when(reminderLogRepository.findByUserIdAndTypeAndTaskIdIn("u1", TelegramReminderLog.ReminderType.DUE_TOMORROW, List.of("t1")))
                 .thenThrow(new RuntimeException("DB connection lost"));
         // u2 uchun muvaffaqiyat
-        when(reminderLogRepository.existsByTaskIdAndUserIdAndType("t2", "u2",
-                TelegramReminderLog.ReminderType.DUE_TOMORROW))
-                .thenReturn(false);
+        when(reminderLogRepository.findByUserIdAndTypeAndTaskIdIn("u2", TelegramReminderLog.ReminderType.DUE_TOMORROW, List.of("t2")))
+                .thenReturn(List.of());
 
         service.sendDueTomorrowReminders(now);
 

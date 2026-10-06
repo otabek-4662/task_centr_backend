@@ -768,7 +768,7 @@ function openSheet(mode, taskId = null, defaultColId = null) {
     detailView.style.display = 'block';
     
     document.getElementById('d-title').textContent = task.title;
-    document.getElementById('d-desc').textContent = task.description || 'Tavsif yo\'q';
+    document.getElementById('d-desc').textContent = task.description || "Tavsif yo'q";
     
     const dCol = document.getElementById('d-col-select');
     dCol.innerHTML = '';
@@ -1215,7 +1215,7 @@ async function loadStats() {
             if(w.count === 0) return; // Hide zero counts
             const item = document.createElement('div');
             item.className = 'workload-item';
-            item.style.animation = \`slideUpFade 0.4s ease-out \${delay}s both\`;
+            item.style.animation = `slideUpFade 0.4s ease-out ${delay}s both`;
             delay += 0.05;
             item.innerHTML = `
                 <div class="member-avatar" style="width:28px;height:28px;font-size:10px;color:white;background:var(--btn-color)">${getInitials(w.name)}</div>

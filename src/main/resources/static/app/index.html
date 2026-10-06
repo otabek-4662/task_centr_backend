@@ -6,182 +6,180 @@
 <title>G'alvalar boshqaruvi</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<link rel="icon" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="style.css?v=5" rel="stylesheet">
+<link href="style.css?v=10" rel="stylesheet">
 </head>
 <body>
 
 <div id="loader">
   <div class="spinner"></div>
-  <div id="loader-msg" style="color: var(--hint-color); font-weight: 500;">Ma'lumotlar yuklanmoqda...</div>
+  <div id="loader-msg" class="hint">Ma'lumotlar yuklanmoqda...</div>
 </div>
 
-<div id="login-view" style="display: none; padding: 20px; text-align: center;">
-  <h2>Tizimga kirish</h2>
-  <p style="color: var(--hint-color); margin-bottom: 20px; font-size: 14px;">Mini App dan foydalanish va Telegramni ulash uchun akkauntingizga kiring.</p>
-  <div class="form-group" style="text-align: left;">
-    <label>Login yoki Email</label>
-    <input type="text" id="login-username" placeholder="Masalan: admin">
+<div id="login-view" style="display:none;padding:20px;text-align:center">
+  <h2 class="sheet-title">Tizimga kirish</h2>
+  <p class="hint" style="margin:0 0 20px">Mini App dan foydalanish va Telegramni ulash uchun akkauntingizga kiring.</p>
+  <div class="form-group" style="text-align:left">
+    <label for="login-username">Login yoki Email</label>
+    <input type="text" id="login-username" placeholder="Masalan: admin" autocomplete="username">
   </div>
-  <div class="form-group" style="text-align: left;">
-    <label>Quloqqa aytiladigan so'z (Parol)</label>
-    <input type="password" id="login-password" placeholder="Maxfiy so'z">
+  <div class="form-group" style="text-align:left">
+    <label for="login-password">Quloqqa aytiladigan so'z (Parol)</label>
+    <input type="password" id="login-password" placeholder="Maxfiy so'z" autocomplete="current-password">
   </div>
-  <div id="login-error" style="color: var(--tg-theme-destructive-text-color, red); margin-bottom: 15px; font-size: 14px; text-align: left;"></div>
+  <div id="login-error" class="error-text"></div>
 </div>
 
 <div id="tab-board" class="tab-content active">
   <header id="main-header">
-    <div class="ws-switcher">
-      <select id="ws"></select>
-    </div>
-    <button id="btn-refresh" style="background:none;border:none;color:var(--btn-color);font-size:24px;cursor:pointer;padding:0 8px;" onclick="if(currentWsId) loadBoard(currentWsId)">↻</button>
+    <div class="ws-switcher"><select id="ws" aria-label="Guruh tanlash"></select></div>
+    <button id="btn-refresh" class="icon-btn" data-action="refresh-board" aria-label="Yangilash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+    </button>
   </header>
 
   <div class="filters" id="main-filters">
     <div class="search-bar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="text" id="search-input" placeholder="Izlash..." oninput="applyFilters()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="search-input" placeholder="Izlash..." aria-label="Izlash">
     </div>
     <div class="filter-chips">
-      <div class="chip active" data-filter="all" onclick="setFilter(this)">Hammasi</div>
-      <div class="chip" data-filter="mine" onclick="setFilter(this)">Mening g'alvalarim</div>
-      <div class="chip" data-filter="overdue" onclick="setFilter(this)">Kechikkan</div>
-      <div class="chip" data-filter="high" onclick="setFilter(this)">O'ta muhim</div>
+      <div class="chip active" data-filter="all" data-action="filter">Hammasi</div>
+      <div class="chip" data-filter="mine" data-action="filter">Mening g'alvalarim</div>
+      <div class="chip" data-filter="overdue" data-action="filter">Kechikkan</div>
+      <div class="chip" data-filter="high" data-action="filter">O'ta muhim</div>
     </div>
   </div>
 
   <div id="board-container" class="ptr-container"></div>
-  <button class="fab" onclick="openSheet('create')">+</button>
+  <button class="fab" data-action="new-task" aria-label="Yangi g'alva">+</button>
 </div>
 
-<div id="tab-mytasks" class="tab-content ptr-container" style="display: none;">
+<div id="tab-mytasks" class="tab-content ptr-container" style="display:none">
   <div class="tab-header">
     <h2>Mening vazifalarim</h2>
-    <button class="icon-btn" onclick="loadMyTasks()">↻</button>
+    <button class="icon-btn" data-action="refresh-mytasks" aria-label="Yangilash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+    </button>
   </div>
-  <div id="mytasks-container" style="padding: 16px;"></div>
+  <div id="mytasks-container" style="padding:4px 16px 16px"></div>
 </div>
 
-<div id="tab-stats" class="tab-content ptr-container" style="display: none;">
+<div id="tab-stats" class="tab-content ptr-container" style="display:none">
   <div class="tab-header">
     <h2>Statistika</h2>
-    <div class="ws-switcher">
-      <select id="stats-ws" onchange="loadStats()"></select>
-    </div>
+    <div class="ws-switcher"><select id="stats-ws" aria-label="Guruh tanlash"></select></div>
   </div>
-  <div id="stats-container" style="padding: 16px;"></div>
+  <div id="stats-container" style="padding:4px 16px 16px"></div>
 </div>
 
 <nav class="bottom-tab-bar">
-  <div class="tab-btn active" data-tab="board" onclick="switchTab('board')">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+  <div class="tab-btn active" data-tab="board" data-action="tab" role="button" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="14"/></svg>
     <span>Bosh og'riq</span>
   </div>
-  <div class="tab-btn" data-tab="mytasks" onclick="switchTab('mytasks')">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+  <div class="tab-btn" data-tab="mytasks" data-action="tab" role="button" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     <span>Mening vazifalarim</span>
   </div>
-  <div class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+  <div class="tab-btn" data-tab="stats" data-action="tab" role="button" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     <span>Statistika</span>
   </div>
 </nav>
 
-<div id="sheet-overlay" onclick="closeSheet()"></div>
+<div id="sheet-overlay" data-action="close-sheet"></div>
 <div id="bottom-sheet">
   <div class="sheet-handle"></div>
-  
-  <!-- Create / Edit Form -->
-  <div id="task-form-view" style="display: none;">
-    <h2 id="sheet-title" style="margin-top: 0; margin-bottom: 20px; font-size: 20px;">Yangi g'alva</h2>
+
+  <!-- Create / Edit -->
+  <div id="task-form-view" style="display:none">
+    <h2 id="sheet-title" class="sheet-title">Yangi g'alva</h2>
     <input type="hidden" id="f-id">
     <div class="form-group">
-      <label>Ustun</label>
+      <label for="f-col">Ustun</label>
       <select id="f-col"></select>
     </div>
     <div class="form-group">
-      <label>Sarlavha</label>
+      <label for="f-title">Sarlavha</label>
       <input type="text" id="f-title" placeholder="Masalan: Frontni ko'tarish">
     </div>
     <div class="form-group">
-      <label>Ichingizdagi gaplar bo'lsa :</label>
+      <label for="f-desc">Ichingizdagi gaplar bo'lsa :</label>
       <textarea id="f-desc" rows="3" placeholder="Gapning indallosi..."></textarea>
     </div>
-    <div class="form-group" style="display: flex; gap: 12px;">
-      <div style="flex:1;">
-        <label>Muhimlik</label>
+    <div class="form-group form-row">
+      <div>
+        <label for="f-priority">Muhimlik</label>
         <select id="f-priority">
           <option value="LOW">Past</option>
           <option value="MEDIUM" selected>O'rta</option>
           <option value="HIGH">Yuqori</option>
         </select>
       </div>
-      <div style="flex:1;">
-        <label>Muddat</label>
+      <div>
+        <label for="f-date">Muddat</label>
         <input type="date" id="f-date">
       </div>
     </div>
     <div class="form-group">
       <label>Kimga ilamiz?</label>
-      <div class="assignee-picker" id="f-assignee-picker">
-      </div>
+      <div class="assignee-picker" id="f-assignee-picker"></div>
     </div>
   </div>
 
-  <!-- Details View -->
-  <div id="task-detail-view" style="display: none;">
+  <!-- Details -->
+  <div id="task-detail-view" style="display:none">
     <div class="detail-title" id="d-title"></div>
-    <div class="badges" id="d-badges" style="margin-bottom: 16px;"></div>
-    
+    <div class="badges" id="d-badges" style="margin-bottom:16px"></div>
+
     <div class="form-group">
-      <label>Ustun (ko'chirish)</label>
-      <select id="d-col-select" onchange="moveTaskFromSelect(this.value)"></select>
+      <label for="d-col-select">Ustun (ko'chirish)</label>
+      <select id="d-col-select"></select>
     </div>
 
     <div class="detail-desc" id="d-desc"></div>
-    
+
     <div class="detail-actions">
-      <button class="btn-action btn-primary" style="flex:1;" onclick="shareTask()">Ulashish</button>
-      <button class="btn-action btn-primary" style="flex:1;" onclick="openSheet('edit', currentTaskId)">Ta'miri</button>
-      <button class="btn-action btn-danger" style="flex:1;" onclick="deleteTask()">Chopish</button>
+      <button class="btn-action btn-soft" data-action="share-task">Ulashish</button>
+      <button class="btn-action btn-primary" data-action="edit-task">Ta'miri</button>
+      <button class="btn-action btn-danger" data-action="delete-task">Chopish</button>
     </div>
-    
+
     <div class="checklists-section">
       <h3>Ichki vazifalar</h3>
       <div id="checklists-list"></div>
       <div class="comment-input-wrap">
         <input type="text" id="checklist-input" placeholder="Yangi band...">
-        <button onclick="addChecklist()">+</button>
+        <button data-action="add-checklist" aria-label="Band qo'shish">+</button>
       </div>
     </div>
-    
+
     <div class="comments-section">
       <h3>Gap-so'zlar (<span id="comments-count">0</span>)</h3>
-      <div id="comments-list" style="max-height: 250px; overflow-y: auto;"></div>
+      <div id="comments-list" style="max-height:250px;overflow-y:auto"></div>
       <div class="comment-input-wrap">
         <input type="text" id="comment-input" placeholder="Gap qistiring...">
-        <button onclick="addComment()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        <button data-action="add-comment" aria-label="Yuborish">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
     </div>
   </div>
-  
-  <!-- Quick Action View -->
-  <div id="quick-action-view" style="display: none;">
-    <div class="detail-title" id="qa-title" style="margin-bottom: 20px; font-size:18px;"></div>
-    <button class="btn-action btn-primary" style="width:100%; margin-bottom:12px; text-align:left; padding-left:16px;" onclick="closeSheet(); setTimeout(()=>openSheet('edit', currentTaskId), 300)">Ta'miri</button>
-    
-    <div class="form-group" style="margin-bottom:12px;">
-      <select id="qa-col-select" onchange="moveTaskFromSelect(this.value).then(closeSheet)" style="background:var(--btn-color); color:var(--btn-text-color); font-weight:600; border:none; padding:12px 16px; border-radius:12px;">
-      </select>
-    </div>
 
-    <button class="btn-action btn-danger" style="width:100%; text-align:left; padding-left:16px;" onclick="deleteTask()">Chopish</button>
+  <!-- Quick actions -->
+  <div id="quick-action-view" style="display:none">
+    <div class="detail-title" id="qa-title" style="margin-bottom:18px;font-size:18px"></div>
+    <button class="btn-action btn-primary btn-block" data-action="qa-edit">Ta'miri</button>
+    <div class="form-group">
+      <select id="qa-col-select" aria-label="Ustunga ko'chirish"></select>
+    </div>
+    <button class="btn-action btn-danger btn-block" data-action="delete-task">Chopish</button>
   </div>
 </div>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
+<script src="ui-bind.js?v=10"></script>
 </body>
 </html>

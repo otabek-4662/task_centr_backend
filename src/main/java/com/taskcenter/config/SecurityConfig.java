@@ -88,7 +88,8 @@ public class SecurityConfig {
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; " +
                     "script-src 'self' https://telegram.org https://cdn.jsdelivr.net; " +
-                    "style-src 'self' 'unsafe-inline'; " +
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                    "font-src 'self' https://fonts.gstatic.com data:; " +
                     "img-src 'self' data:; " +
                     "connect-src 'self'; " +
                     "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"
@@ -115,8 +116,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/telegram", "/api/auth/**", "/api/webhooks/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/config/public").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico").permitAll()
                 .requestMatchers(
+                    "/favicon.ico",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",

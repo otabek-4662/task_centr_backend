@@ -12,8 +12,11 @@ import com.taskcenter.util.TelegramUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
@@ -21,6 +24,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +80,8 @@ public class TelegramSchedulerService {
      */
     @Scheduled(cron = "${telegram.scheduler.reminder-cron:0 0 18 * * *}", zone = "Asia/Tashkent")
     public void scheduleDueTomorrowReminders() {
-        sendDueTomorrowReminders(LocalDateTime.now(clock));
+        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        tryRunGlobalJob("REMINDER_" + localNow.toLocalDate(), () -> sendDueTomorrowReminders(LocalDateTime.now(clock)));
     }
 
     /**
@@ -84,7 +89,48 @@ public class TelegramSchedulerService {
      */
     @Scheduled(cron = "${telegram.scheduler.digest-cron:0 0 8 * * *}", zone = "Asia/Tashkent")
     public void scheduleDailyDigest() {
-        sendDailyDigest(LocalDateTime.now(clock));
+        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        tryRunGlobalJob("DIGEST_" + localNow.toLocalDate(), () -> sendDailyDigest(LocalDateTime.now(clock)));
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onStartup() {
+        catchUpMissedSchedules();
+    }
+
+    @Scheduled(fixedRate = 1800000)
+    public void catchUpSchedules() {
+        catchUpMissedSchedules();
+    }
+
+    private void catchUpMissedSchedules() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        
+        if (localNow.toLocalTime().isAfter(LocalTime.of(8, 0))) {
+            tryRunGlobalJob("DIGEST_" + localNow.toLocalDate(), () -> sendDailyDigest(now));
+        }
+        if (localNow.toLocalTime().isAfter(LocalTime.of(18, 0))) {
+            tryRunGlobalJob("REMINDER_" + localNow.toLocalDate(), () -> sendDueTomorrowReminders(now));
+        }
+    }
+
+    private void tryRunGlobalJob(String jobId, Runnable job) {
+        boolean exists = reminderLogRepository.existsByTaskIdAndUserIdAndType(jobId, "SYSTEM", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK);
+        if (exists) return;
+        
+        try {
+            reminderLogRepository.save(TelegramReminderLog.builder()
+                    .taskId(jobId)
+                    .userId("SYSTEM")
+                    .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
+                    .build());
+            job.run();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.debug("Job {} already running on another instance", jobId);
+        } catch (Exception e) {
+            log.error("Error running job {}", jobId, e);
+        }
     }
 
     // ────────────────── Inner logic (test uchun) ──────────────────
@@ -96,6 +142,7 @@ public class TelegramSchedulerService {
      *
      * @param now joriy vaqt (test uchun parametr)
      */
+    @Transactional
     void sendDueTomorrowReminders(LocalDateTime now) {
         LocalDate tomorrow = now.toLocalDate().plusDays(1);
 
@@ -181,30 +228,37 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        if (user != null && isInQuietHours(now.toLocalTime(),
+        LocalTime userLocalTime = LocalTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, eslatma yuborilmaydi: userId={}", userId);
             return;
         }
 
-        // Hali yuborilmagan tasklarni filtr va log yoz
+        // Hali yuborilmagan tasklarni filtr va log yoz (N+1 oldini olish uchun bulk fetch qilingan)
+        List<String> userTaskIds = userTasks.stream().map(TelegramReminderTaskDto::getTaskId).collect(Collectors.toList());
+        List<TelegramReminderLog> existingLogs = reminderLogRepository.findByUserIdAndTypeAndTaskIdIn(userId, TelegramReminderLog.ReminderType.DUE_TOMORROW, userTaskIds);
+        Set<String> alreadySentTaskIds = existingLogs.stream().map(TelegramReminderLog::getTaskId).collect(Collectors.toSet());
+
         List<TelegramReminderTaskDto> newTasks = new ArrayList<>();
+        List<TelegramReminderLog> logsToSave = new ArrayList<>();
         for (TelegramReminderTaskDto task : userTasks) {
-            if (reminderLogRepository.existsByTaskIdAndUserIdAndType(
-                    task.getTaskId(), userId,
-                    TelegramReminderLog.ReminderType.DUE_TOMORROW)) {
+            if (alreadySentTaskIds.contains(task.getTaskId())) {
                 continue;
             }
+            logsToSave.add(TelegramReminderLog.builder()
+                    .taskId(task.getTaskId())
+                    .userId(userId)
+                    .type(TelegramReminderLog.ReminderType.DUE_TOMORROW)
+                    .build());
+            newTasks.add(task);
+        }
+        
+        if (!logsToSave.isEmpty()) {
             try {
-                reminderLogRepository.save(TelegramReminderLog.builder()
-                        .taskId(task.getTaskId())
-                        .userId(userId)
-                        .type(TelegramReminderLog.ReminderType.DUE_TOMORROW)
-                        .build());
-                newTasks.add(task);
+                reminderLogRepository.saveAll(logsToSave);
             } catch (Exception e) {
-                log.warn("Eslatma logi saqlashda xato: taskId={}, userId={}: {}",
-                        task.getTaskId(), userId, e.getMessage());
+                log.warn("Eslatma logi saqlashda xato: userId={}: {}", userId, e.getMessage());
             }
         }
 
@@ -214,8 +268,19 @@ public class TelegramSchedulerService {
         StringBuilder sb = new StringBuilder();
         sb.append("⏰ <b>Ertaga muddati tugaydigan vazifalar</b>\n");
         sb.append("📅 ").append(tomorrow).append("\n\n");
+        
+        int shown = 0;
+        int totalTasks = newTasks.size();
         for (TelegramReminderTaskDto t : newTasks) {
-            sb.append("📋 ").append(TelegramUtil.escapeHtml(t.getTitle())).append("\n");
+            String line = "📋 " + TelegramUtil.escapeHtml(t.getTitle()) + "\n";
+            int remaining = totalTasks - shown;
+            String suffix = "... va yana " + remaining + " ta";
+            if (sb.length() + line.length() > TELEGRAM_MAX_TEXT_LENGTH - suffix.length() - 1) {
+                sb.append(suffix);
+                break;
+            }
+            sb.append(line);
+            shown++;
         }
 
         // TASK_VIEW va WebApp inline tugmalar (max 10)
@@ -254,7 +319,8 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        if (user != null && isInQuietHours(now.toLocalTime(),
+        LocalTime userLocalTime = LocalTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, digest yuborilmaydi: userId={}", userId);
             return;
