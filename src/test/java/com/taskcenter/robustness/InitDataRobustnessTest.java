@@ -66,8 +66,10 @@ public class InitDataRobustnessTest {
 
     @Test
     void emptyBotToken_producesRejectionAndNotException() throws Exception {
-        TelegramInitDataValidator emptyTokenValidator = new TelegramInitDataValidator("", 3600);
-        String initData = "auth_date=2000000000&hash=fakehash&user=%7B%22id%22%3A123%7D";
-        assertTrue(emptyTokenValidator.validate(initData).isEmpty());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+            TelegramInitDataValidator emptyTokenValidator = new TelegramInitDataValidator("", 3600);
+            String initData = "auth_date=2000000000&hash=fakehash&user=%7B%22id%22%3A123%7D";
+            emptyTokenValidator.validate(initData);
+        });
     }
 }
