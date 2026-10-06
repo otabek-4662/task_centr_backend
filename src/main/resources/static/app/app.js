@@ -13,6 +13,11 @@ function haptic(type, style) {
     } catch(e) {}
 }
 let token = null;
+let refreshToken = null;
+try {
+    token = localStorage.getItem('tc_token') || null;
+    refreshToken = localStorage.getItem('tc_refresh_token') || null;
+} catch(e){}
 let currentWsId = null;
 let currentUserId = null;
 let colsData = [];
@@ -63,7 +68,70 @@ function esc(s) {
   return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
-let reauthPromise = null;
+let refreshPromise = null;
+
+async function refreshAuthToken() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    // 1. Try refresh token endpoint
+    if (refreshToken) {
+      try {
+        const res = await fetch(API + '/api/v1/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const newAccess = data?.data?.accessToken || data?.accessToken;
+          const newRefresh = data?.data?.refreshToken || data?.refreshToken;
+          if (newAccess) {
+            token = newAccess;
+            if (newRefresh) refreshToken = newRefresh;
+            try {
+              localStorage.setItem('tc_token', token);
+              if (newRefresh) localStorage.setItem('tc_refresh_token', refreshToken);
+            } catch(e){}
+            return token;
+          }
+        }
+      } catch (err) {
+        console.warn('Refresh via /api/v1/auth/refresh failed:', err);
+      }
+    }
+
+    // 2. Fallback to Telegram Mini App initData
+    if (tg.initData) {
+      const authController = new AbortController();
+      const authId = setTimeout(() => authController.abort(), 20000);
+      try {
+        const authRes = await fetch(API + '/api/v1/auth/telegram', {
+          method: 'POST',
+          signal: authController.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: tg.initData })
+        });
+        clearTimeout(authId);
+        if (authRes.ok) {
+          const data = await authRes.json();
+          token = data?.data?.token || data?.token;
+          refreshToken = data?.data?.refreshToken || data?.refreshToken || refreshToken;
+          try {
+            localStorage.setItem('tc_token', token);
+            if (refreshToken) localStorage.setItem('tc_refresh_token', refreshToken);
+          } catch(e){}
+          return token;
+        }
+      } catch (e) {
+        clearTimeout(authId);
+      }
+    }
+    throw new Error('AUTH_FATAL');
+  })().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
 
 async function api(path, opts = {}, retry = true) {
   const controller = new AbortController();
@@ -77,35 +145,15 @@ async function api(path, opts = {}, retry = true) {
     clearTimeout(id);
 
     if (res.status === 401 || res.status === 403) {
-      if (retry && tg.initData && path !== '/api/v1/auth/telegram') {
-        if (!reauthPromise) {
-          reauthPromise = (async () => {
-            const authController = new AbortController();
-            const authId = setTimeout(() => authController.abort(), 20000);
-            try {
-              const authRes = await fetch(API + '/api/v1/auth/telegram', {
-                method: 'POST',
-                signal: authController.signal,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initData: tg.initData })
-              });
-              clearTimeout(authId);
-              if (!authRes.ok) throw new Error('AUTH_FATAL');
-              const data = await authRes.json();
-              token = data?.data?.token || data?.token;
-              return token;
-            } catch (e) {
-              clearTimeout(authId);
-              throw e;
-            }
-          })().finally(() => { reauthPromise = null; });
-        }
+      if (retry && path !== '/api/v1/auth/telegram' && path !== '/api/v1/auth/refresh' && path !== '/api/auth/refresh') {
         try {
-          await reauthPromise;
+          await refreshAuthToken();
           return api(path, opts, false);
         } catch (e) {
-          showFatalError("Sessiya muddati tugadi. Iltimos, ilovani qayta oching.");
-          throw e;
+          if (tg.initData) {
+            showFatalError("Sessiya muddati tugadi. Iltimos, ilovani qayta oching.");
+          }
+          throw new Error('AUTH');
         }
       } else {
         if (res.status === 401) throw new Error('AUTH');
@@ -160,6 +208,11 @@ async function initCore() {
   if (!tg.initData) throw new Error("Bu dastur faqat Telegram ichida ishlaydi.");
   const r = await api('/api/v1/auth/telegram', { method: 'POST', body: JSON.stringify({ initData: tg.initData }) });
   token = r?.data?.token || r?.token;
+  refreshToken = r?.data?.refreshToken || r?.refreshToken || refreshToken;
+  try {
+      if (token) localStorage.setItem('tc_token', token);
+      if (refreshToken) localStorage.setItem('tc_refresh_token', refreshToken);
+  } catch(e){}
   currentUserId = r?.data?.user?.id || r?.user?.id;
   initWebSocket();
   
@@ -291,6 +344,11 @@ async function handleLogin() {
         
         const loginData = await loginRes.json();
         const tempToken = loginData.data?.token || loginData.token;
+        refreshToken = loginData.data?.refreshToken || loginData.refreshToken || null;
+        try {
+            if (tempToken) localStorage.setItem('tc_token', tempToken);
+            if (refreshToken) localStorage.setItem('tc_refresh_token', refreshToken);
+        } catch(e){}
         
         const linkRes = await fetch(API + '/api/users/me/telegram', {
             method: 'POST',
@@ -861,16 +919,16 @@ async function saveTask() {
     if (id) {
       res = await api(endpoints.taskDetails(currentWsId, id), {
         method: 'PUT',
-        body: JSON.stringify({ title, description: desc, priority, dueDate, columnId: colId })
+        body: JSON.stringify({
+          title,
+          description: desc,
+          priority,
+          dueDate,
+          columnId: colId,
+          assigneeIds: assigneeId ? [assigneeId] : []
+        })
       });
-      const oldAssignee = tasksData.find(t => t.id === id).assignees?.[0]?.id;
-      if (oldAssignee !== assigneeId) {
-          if (oldAssignee) await api(endpoints.assign(currentWsId, id, oldAssignee), {method:'POST'}); 
-          if (assigneeId) await api(endpoints.assign(currentWsId, id, assigneeId), {method:'POST'}); 
-      }
       const updated = res.data;
-      if (assigneeId) updated.assignees = [workspaceMembers.find(m => m.id === assigneeId)];
-      else updated.assignees = [];
       tasksData = tasksData.map(t => t.id === id ? updated : t);
     } else {
       res = await api(endpoints.tasks(currentWsId), {
@@ -1042,15 +1100,15 @@ async function loadMyTasks() {
     container.innerHTML = Array(3).fill(0).map(() => `<div class="skeleton card" style="height:60px;margin-bottom:10px;"></div>`).join('');
     
     try {
-        const promises = allWorkspaces.map(w => api(endpoints.tasks(w.id)).then(res => ({ws: w, tasks: res.data})));
-        const results = await Promise.all(promises);
+        const res = await api('/api/users/me/tasks?size=100');
+        const tasks = res?.data?.content || res?.data || [];
         
-        let myTasks = [];
-        results.forEach(({ws, tasks}) => {
-            if (!tasks) return;
-            const userTasks = tasks.filter(t => t.assignees && t.assignees.some(a => a.id === currentUserId));
-            userTasks.forEach(t => t.wsTitle = ws.title || ws.name);
-            myTasks.push(...userTasks);
+        let myTasks = tasks.map(t => {
+            const ws = allWorkspaces.find(w => w.id === t.workspaceId);
+            return {
+                ...t,
+                wsTitle: ws ? (ws.title || ws.name) : "Guruh"
+            };
         });
         
         if (myTasks.length === 0) {
@@ -1358,6 +1416,48 @@ let wsSubscribedWsId = null;
 let wsHeartbeatTimer = null;
 let wsReconnectTimer = null;
 let wsReconnectAttempts = 0;
+let wsIntentionallyClosed = false;
+
+function isTokenExpiredOrNear(tokenStr) {
+    if (!tokenStr) return true;
+    try {
+        const payload = JSON.parse(atob(tokenStr.split('.')[1]));
+        if (!payload.exp) return false;
+        return (payload.exp * 1000 - Date.now()) < 60000;
+    } catch(e) {
+        return true;
+    }
+}
+
+function disconnectWebSocket() {
+    wsIntentionallyClosed = true;
+    stopWsHeartbeat();
+    if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = null;
+    }
+    if (ws) {
+        try { ws.close(); } catch(e) {}
+        ws = null;
+    }
+}
+
+window.logout = function() {
+    disconnectWebSocket();
+    try {
+        localStorage.removeItem('tc_token');
+        localStorage.removeItem('tc_refresh_token');
+    } catch(e) {}
+    token = null;
+    refreshToken = null;
+    const appView = document.getElementById('app');
+    if (appView) appView.style.display = 'none';
+    const loginView = document.getElementById('login-view');
+    if (loginView) loginView.style.display = 'block';
+    tg.MainButton.text = "KIRISH VA ULASH";
+    tg.MainButton.show();
+    tg.MainButton.onClick(handleLogin);
+};
 
 function updateLiveIndicator(status) {
     const el = document.getElementById('live-indicator');
@@ -1373,6 +1473,7 @@ function updateLiveIndicator(status) {
 
 function initWebSocket() {
     if (!token) return;
+    if (wsIntentionallyClosed) return;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         return;
     }
@@ -1400,6 +1501,12 @@ function initWebSocket() {
                 if (currentWsId) {
                     subscribeWsWorkspace(currentWsId);
                 }
+            } else if (data.startsWith('ERROR')) {
+                console.warn('WebSocket STOMP ERROR frame:', data);
+                if (data.toLowerCase().includes('unauthorized') || data.toLowerCase().includes('token') || data.toLowerCase().includes('forbidden')) {
+                    wsAuthFailed = true;
+                    try { ws.close(); } catch(e) {}
+                }
             } else if (data.startsWith('MESSAGE')) {
                 const bodyIndex = data.indexOf('\n\n');
                 if (bodyIndex !== -1) {
@@ -1414,11 +1521,17 @@ function initWebSocket() {
             }
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
             stopWsHeartbeat();
             wsSubscribedWsId = null;
             updateLiveIndicator('disconnected');
-            scheduleWsReconnect();
+            if (wsIntentionallyClosed) return;
+
+            if (wsAuthFailed || event.code === 1008 || event.code === 4401) {
+                scheduleWsReconnect(true);
+            } else {
+                scheduleWsReconnect(false);
+            }
         };
 
         ws.onerror = (err) => {
@@ -1447,13 +1560,33 @@ function stopWsHeartbeat() {
     }
 }
 
-function scheduleWsReconnect() {
+let wsAuthFailed = false;
+
+function scheduleWsReconnect(forcedDueToAuth = false) {
     if (wsReconnectTimer) return;
+    if (wsIntentionallyClosed) return;
+
     wsReconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(1.5, wsReconnectAttempts), 15000);
-    wsReconnectTimer = setTimeout(() => {
+    const delay = (forcedDueToAuth || wsAuthFailed) ? 1000 : Math.min(1000 * Math.pow(1.5, wsReconnectAttempts), 15000);
+    wsReconnectTimer = setTimeout(async () => {
         wsReconnectTimer = null;
-        if (token) initWebSocket();
+        if (wsIntentionallyClosed) return;
+
+        if (forcedDueToAuth || wsAuthFailed || isTokenExpiredOrNear(token)) {
+            try {
+                await refreshAuthToken();
+                wsAuthFailed = false;
+            } catch (err) {
+                console.warn('WS token refresh error:', err);
+                if (err.message === 'AUTH_FATAL') {
+                    showFatalError("Sessiya muddati tugadi. Iltimos, ilovani qayta oching.");
+                    return; // Stop retrying when authentication is no longer valid
+                }
+                scheduleWsReconnect(true);
+                return;
+            }
+        }
+        if (token && !wsIntentionallyClosed) initWebSocket();
     }, delay);
 }
 

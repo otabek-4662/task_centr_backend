@@ -197,6 +197,19 @@ class AuthServiceTest {
     }
 
     @Test
+    void resetPassword_withInvalidToken_throwsBadRequest() {
+        when(passwordResetTokenRepository.findByToken("invalid-token")).thenReturn(Optional.empty());
+
+        com.taskcenter.dto.ResetPasswordRequest req = new com.taskcenter.dto.ResetPasswordRequest();
+        req.setToken("invalid-token");
+        req.setNewPassword("newPassword123");
+
+        assertThatThrownBy(() -> authService.resetPassword(req))
+                .isInstanceOf(com.taskcenter.exception.BadRequestException.class)
+                .hasMessageContaining("yaroqsiz yoki topilmadi");
+    }
+
+    @Test
     void resetPassword_withUsedToken_throwsBadRequest() {
         User user = User.builder().id("u1").name("tester").build();
         com.taskcenter.model.PasswordResetToken token = com.taskcenter.model.PasswordResetToken.builder()

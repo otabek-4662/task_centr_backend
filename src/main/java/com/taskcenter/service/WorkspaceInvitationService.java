@@ -74,6 +74,9 @@ public class WorkspaceInvitationService {
                     });
         } else {
             if (query.contains("@")) {
+                if (!com.taskcenter.service.EmailService.isValidRecipient(query)) {
+                    throw new BadRequestException("Noto'g'ri email manzili: " + query);
+                }
                 receiverEmail = query;
                 final String email = query;
                 invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, null, InvitationStatus.PENDING)

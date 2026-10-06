@@ -21,19 +21,28 @@ public class WorkspaceAuthorizationService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository memberRepository;
     private final CacheManager cacheManager;
+    private final CacheInvalidationService cacheInvalidationService;
 
     public WorkspaceAuthorizationService(WorkspaceRepository workspaceRepository,
                                          WorkspaceMemberRepository memberRepository) {
-        this(workspaceRepository, memberRepository, null);
+        this(workspaceRepository, memberRepository, null, null);
+    }
+
+    public WorkspaceAuthorizationService(WorkspaceRepository workspaceRepository,
+                                         WorkspaceMemberRepository memberRepository,
+                                         CacheManager cacheManager) {
+        this(workspaceRepository, memberRepository, cacheManager, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public WorkspaceAuthorizationService(WorkspaceRepository workspaceRepository,
                                          WorkspaceMemberRepository memberRepository,
-                                         CacheManager cacheManager) {
+                                         CacheManager cacheManager,
+                                         CacheInvalidationService cacheInvalidationService) {
         this.workspaceRepository = workspaceRepository;
         this.memberRepository = memberRepository;
         this.cacheManager = cacheManager;
+        this.cacheInvalidationService = cacheInvalidationService;
     }
 
     public Optional<WorkspaceRole> getRole(Workspace workspace, String userId) {
@@ -88,6 +97,10 @@ public class WorkspaceAuthorizationService {
     }
 
     public void evictWorkspace(String workspaceId) {
+        if (cacheInvalidationService != null && workspaceId != null) {
+            cacheInvalidationService.evictWorkspace(workspaceId);
+            return;
+        }
         if (cacheManager != null && workspaceId != null) {
             Cache wsCache = cacheManager.getCache("workspaces");
             if (wsCache != null) {

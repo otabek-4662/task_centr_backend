@@ -89,20 +89,38 @@ class WebSocketAuthInterceptorTest {
 
         when(jwtTokenProvider.validateToken("invalid-jwt")).thenReturn(false);
 
-        Message<?> result = interceptor.preSend(message, messageChannel);
-        assertNotNull(result);
-
-        StompHeaderAccessor resultAccessor = StompHeaderAccessor.wrap(result);
-        assertNull(resultAccessor.getUser());
+        assertThrows(IllegalArgumentException.class, () -> {
+            interceptor.preSend(message, messageChannel);
+        });
     }
 
     @Test
-    void preSend_nonConnectCommand_ignores() {
-        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+    void preSend_otherCommand_ignores() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
         Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
         Message<?> result = interceptor.preSend(message, messageChannel);
         assertNotNull(result);
         verifyNoInteractions(jwtTokenProvider, userDetailsService);
+    }
+
+    @Test
+    void preSend_unauthenticatedSubscribe_throwsException() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            interceptor.preSend(message, messageChannel);
+        });
+    }
+
+    @Test
+    void preSend_authenticatedSubscribe_allows() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setUser(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("user", "pass"));
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        Message<?> result = interceptor.preSend(message, messageChannel);
+        assertNotNull(result);
     }
 }

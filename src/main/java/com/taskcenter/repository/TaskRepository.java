@@ -66,6 +66,25 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "))")
     Page<String> findIdsByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
 
+    @Query("SELECT t.id FROM Task t JOIN t.assignees a WHERE a.id = :userId " +
+           "AND t.deletedAt IS NULL " +
+           "AND (:#{#filter.workspaceId} IS NULL OR t.workspaceId = :#{#filter.workspaceId}) " +
+           "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
+           "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +
+           "AND (:#{#filter.issueType} IS NULL OR t.issueType = :#{#filter.issueType}) " +
+           "AND (:#{#filter.sprintId} IS NULL OR t.sprintId = :#{#filter.sprintId}) " +
+           "AND (:#{#filter.status} IS NULL OR t.columnId = :#{#filter.status}) " +
+           "AND (:#{#filter.isOverdue} IS NULL OR (:#{#filter.isOverdue} = true AND t.dueDate < :#{#filter.today})) " +
+           "AND (:#{#filter.dueToday} IS NULL OR (:#{#filter.dueToday} = true AND t.dueDate = :#{#filter.today})) " +
+           "AND (:#{#filter.dueThisWeek} IS NULL OR (:#{#filter.dueThisWeek} = true AND t.dueDate >= :#{#filter.today} AND t.dueDate <= :#{#filter.endOfWeek})) " +
+           "AND (:#{#filter.includeArchived} = true OR t.isArchived = false) " +
+           "AND (:#{#filter.search} IS NULL OR (" +
+           "  LOWER(t.title) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')) OR " +
+           "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
+           "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
+           "))")
+    Page<String> findAssignedTaskIdsByUserIdFiltered(@Param("userId") String userId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
+
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
            "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
            "AND (:#{#filter.priority} IS NULL OR t.priority = :#{#filter.priority}) " +

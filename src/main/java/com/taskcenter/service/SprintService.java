@@ -30,19 +30,22 @@ public class SprintService {
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
     private final WebSocketNotifier webSocketNotifier;
+    private final CacheInvalidationService cacheInvalidationService;
 
     public SprintService(SprintRepository sprintRepository,
                          TaskRepository taskRepository,
                          ColumnRepository columnRepository,
                          WorkspaceAuthorizationService authorizationService,
                          TaskActivityService activityService,
-                         WebSocketNotifier webSocketNotifier) {
+                         WebSocketNotifier webSocketNotifier,
+                         CacheInvalidationService cacheInvalidationService) {
         this.sprintRepository = sprintRepository;
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.authorizationService = authorizationService;
         this.activityService = activityService;
         this.webSocketNotifier = webSocketNotifier;
+        this.cacheInvalidationService = cacheInvalidationService;
     }
 
     @Transactional(readOnly = true)
@@ -189,6 +192,9 @@ public class SprintService {
                 .workspaceId(sprint.getWorkspaceId())
                 .data(dto)
                 .build());
+        if (cacheInvalidationService != null) {
+            cacheInvalidationService.evictSprint(sprint.getWorkspaceId(), sprint.getId());
+        }
                 
         return dto;
     }
@@ -280,6 +286,9 @@ public class SprintService {
                         "updatedTasks", tasksToMove.stream().map(TaskDto::fromEntity).collect(Collectors.toList())
                 ))
                 .build());
+        if (cacheInvalidationService != null) {
+            cacheInvalidationService.evictSprint(sprint.getWorkspaceId(), sprint.getId());
+        }
                 
         return dto;
     }
@@ -312,6 +321,9 @@ public class SprintService {
         }
 
         sprintRepository.delete(sprint);
+        if (cacheInvalidationService != null) {
+            cacheInvalidationService.evictSprint(workspaceId, sprintId);
+        }
     }
 
     @Transactional(readOnly = true)

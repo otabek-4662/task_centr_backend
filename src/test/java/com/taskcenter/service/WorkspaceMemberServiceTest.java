@@ -112,6 +112,50 @@ class WorkspaceMemberServiceTest {
     }
 
     @Test
+    @DisplayName("Foydalanuvchi topilmaganda noto'g'ri email formati berilsa BadRequestException beradi")
+    void addMember_invalidEmailFormat_throwsBadRequest() {
+        when(userRepository.findByNameOrEmail("invalid@")).thenReturn(Optional.empty());
+
+        WorkspaceMemberInviteRequest request = WorkspaceMemberInviteRequest.builder()
+                .usernameOrEmail("invalid@")
+                .role(WorkspaceRole.MEMBER)
+                .build();
+
+        assertThatThrownBy(() -> memberService.addMember(workspaceId, request, owner))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Noto'g'ri email manzili");
+    }
+
+    @Test
+    @DisplayName("Foydalanuvchi topilmaganda to'g'ri email formati berilsa taklif yuboriladi")
+    void addMember_validEmailFormat_createsInvitation() {
+        String validEmail = "newuser@example.com";
+        when(userRepository.findByNameOrEmail(validEmail)).thenReturn(Optional.empty());
+        when(invitationRepository.findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(workspaceId, validEmail, com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(Optional.empty());
+        when(invitationRepository.countByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(0L);
+        when(invitationRepository.save(any(com.taskcenter.model.WorkspaceInvitation.class)))
+                .thenAnswer(i -> {
+                    com.taskcenter.model.WorkspaceInvitation inv = i.getArgument(0);
+                    inv.setId("inv-1");
+                    return inv;
+                });
+
+        WorkspaceMemberInviteRequest request = WorkspaceMemberInviteRequest.builder()
+                .usernameOrEmail(validEmail)
+                .role(WorkspaceRole.MEMBER)
+                .build();
+
+        WorkspaceMemberResponseDto response = memberService.addMember(workspaceId, request, owner);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo("inv-1");
+        assertThat(response.getEmail()).isEqualTo(validEmail);
+        verify(emailService, times(1)).sendInvitationEmail(eq(validEmail), anyString(), anyString(), eq(WorkspaceRole.MEMBER.name()), eq("inv-1"));
+    }
+
+    @Test
     @DisplayName("A'zoning rolini muvaffaqiyatli o'zgartirish")
     void updateMemberRole_success() {
 

@@ -29,7 +29,10 @@ public class CacheConfig {
             "workspaceMembers",
             "workspaceRoles",
             "labels",
-            "columns"
+            "columns",
+            "sprints",
+            "taskStats",
+            "sprintStats"
         );
         cacheManager.setCaffeine(caffeineCacheBuilder());
         return cacheManager;

@@ -37,6 +37,7 @@ public class TaskService {
     private final com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository;
     private final TelegramNotificationService telegramNotificationService;
     private final UserRepository userRepository;
+    private final com.taskcenter.repository.LabelRepository labelRepository;
     private final java.time.Clock clock;
 
     public TaskService(TaskRepository taskRepository,
@@ -50,6 +51,25 @@ public class TaskService {
                        TelegramNotificationService telegramNotificationService,
                        UserRepository userRepository,
                        java.time.Clock clock) {
+        this(taskRepository, columnRepository, sprintRepository, authorizationService,
+             activityService, webSocketNotifier, notificationService,
+             telegramReminderLogRepository, telegramNotificationService,
+             userRepository, null, clock);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TaskService(TaskRepository taskRepository,
+                       ColumnRepository columnRepository,
+                       com.taskcenter.repository.SprintRepository sprintRepository,
+                       WorkspaceAuthorizationService authorizationService,
+                       TaskActivityService activityService,
+                       WebSocketNotifier webSocketNotifier,
+                       NotificationService notificationService,
+                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramNotificationService telegramNotificationService,
+                       UserRepository userRepository,
+                       com.taskcenter.repository.LabelRepository labelRepository,
+                       java.time.Clock clock) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
@@ -60,6 +80,7 @@ public class TaskService {
         this.telegramReminderLogRepository = telegramReminderLogRepository;
         this.telegramNotificationService = telegramNotificationService;
         this.userRepository = userRepository;
+        this.labelRepository = labelRepository;
         this.clock = clock;
     }
 
@@ -119,6 +140,39 @@ public class TaskService {
         }
         filter.setToday(LocalDate.now(clock));
         Page<String> idPage = taskRepository.findIdsByWorkspaceIdFiltered(workspaceId, filter, pageable);
+        List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
+        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
+        List<TaskDto> dtos = idPage.getContent().stream()
+                .map(taskMap::get)
+                .filter(java.util.Objects::nonNull)
+                .map(TaskDto::fromEntity)
+                .collect(Collectors.toList());
+        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, idPage.getTotalElements());
+    }
+
+    public Page<TaskDto> getMyTasks(User currentUser, com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable) {
+        if (currentUser == null) {
+            throw new com.taskcenter.exception.ForbiddenException("Foydalanuvchi aniqlanmadi");
+        }
+        if (filter == null) {
+            filter = new com.taskcenter.dto.TaskFilterRequest();
+        }
+        if (filter.getQ() != null && !filter.getQ().isBlank() && (filter.getSearch() == null || filter.getSearch().isBlank())) {
+            filter.setSearch(filter.getQ());
+        }
+        if (filter.getSearch() != null && filter.getSearch().trim().isEmpty()) {
+            filter.setSearch(null);
+        }
+        if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
+            filter.setEndOfWeek(LocalDate.now(clock).with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
+        }
+        filter.setToday(LocalDate.now(clock));
+        filter.setCurrentUserId(currentUser.getId());
+
+        Page<String> idPage = taskRepository.findAssignedTaskIdsByUserIdFiltered(currentUser.getId(), filter, pageable);
+        if (idPage.isEmpty()) {
+            return new org.springframework.data.domain.PageImpl<>(List.of(), pageable, idPage.getTotalElements());
+        }
         List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
         java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
         List<TaskDto> dtos = idPage.getContent().stream()
@@ -338,6 +392,48 @@ public class TaskService {
             } else if (newSprintId == null && task.getSprintId() != null) {
                 task.setSprintId(null);
                 activityService.logActivity(task.getId(), currentUser, TaskActivityType.SPRINT_REMOVED, "sprint", null, "Backlog");
+            }
+        }
+
+        if (req.getAssigneeIds() != null && userRepository != null) {
+            java.util.Set<String> targetIds = req.getAssigneeIds().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toSet());
+            java.util.Set<User> existingAssignees = new java.util.HashSet<>(task.getAssignees());
+            java.util.Set<String> existingIds = existingAssignees.stream().map(User::getId).collect(Collectors.toSet());
+
+            java.util.Set<String> toAddIds = targetIds.stream().filter(uid -> !existingIds.contains(uid)).collect(Collectors.toSet());
+            java.util.Set<String> toRemoveIds = existingIds.stream().filter(uid -> !targetIds.contains(uid)).collect(Collectors.toSet());
+
+            if (!toAddIds.isEmpty() || !toRemoveIds.isEmpty()) {
+                task.getAssignees().removeIf(u -> toRemoveIds.contains(u.getId()));
+                if (!toAddIds.isEmpty()) {
+                    List<User> newUsers = userRepository.findAllById(toAddIds);
+                    for (User newUser : newUsers) {
+                        task.getAssignees().add(newUser);
+                        telegramNotificationService.sendTaskAssignedNotification(task, newUser, currentUser);
+                        activityService.logActivity(task.getId(), currentUser, TaskActivityType.ASSIGNEE_ADDED, "assignee", null, newUser.getFullName() != null ? newUser.getFullName() : newUser.getName());
+                    }
+                }
+                for (String removedId : toRemoveIds) {
+                    activityService.logActivity(task.getId(), currentUser, TaskActivityType.ASSIGNEE_REMOVED, "assignee", removedId, null);
+                }
+            }
+        }
+
+        if (req.getLabelIds() != null && labelRepository != null) {
+            java.util.Set<String> targetLabelIds = req.getLabelIds().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toSet());
+            java.util.Set<com.taskcenter.model.Label> existingLabels = new java.util.HashSet<>(task.getLabels());
+            java.util.Set<String> existingIds = existingLabels.stream().map(com.taskcenter.model.Label::getId).collect(Collectors.toSet());
+
+            if (!targetLabelIds.equals(existingIds)) {
+                task.getLabels().removeIf(l -> !targetLabelIds.contains(l.getId()));
+                if (!targetLabelIds.isEmpty()) {
+                    List<com.taskcenter.model.Label> newLabels = labelRepository.findAllById(targetLabelIds);
+                    task.getLabels().addAll(newLabels);
+                }
             }
         }
 

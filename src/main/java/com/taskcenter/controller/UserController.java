@@ -24,15 +24,17 @@ public class UserController {
 
     private final UserService userService;
     private final RateLimitingService rateLimitingService;
+    private final com.taskcenter.service.TaskService taskService;
 
     @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.max:10}")
     private int telegramLinkUserMax;
     @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.window-minutes:1}")
     private int telegramLinkUserWindow;
 
-    public UserController(UserService userService, RateLimitingService rateLimitingService) {
+    public UserController(UserService userService, RateLimitingService rateLimitingService, com.taskcenter.service.TaskService taskService) {
         this.userService = userService;
         this.rateLimitingService = rateLimitingService;
+        this.taskService = taskService;
     }
 
     @Operation(summary = "Joriy foydalanuvchi profilini olish")
@@ -45,6 +47,16 @@ public class UserController {
     @GetMapping("/auth/me")
     public ApiResponse<UserDto> getAuthMe(@AuthenticationPrincipal User currentUser) {
         return getMe(currentUser);
+    }
+
+    @Operation(summary = "Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha)")
+    @GetMapping({"/users/me/tasks", "/me/tasks"})
+    public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasks(
+            @AuthenticationPrincipal User currentUser,
+            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        Page<com.taskcenter.dto.TaskDto> tasks = taskService.getMyTasks(currentUser, filter, pageable);
+        return ApiResponse.success("ok", tasks);
     }
 
     @Operation(summary = "Workspace dagi foydalanuvchilar ro'yxatini olish")

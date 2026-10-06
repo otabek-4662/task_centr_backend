@@ -111,11 +111,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
                 .frameOptions(frame -> frame.deny())
+                .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/telegram", "/api/auth/**", "/api/webhooks/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/**", "/api/auth/**", "/api/webhooks/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico").permitAll()
                 .requestMatchers(
                     "/favicon.ico",

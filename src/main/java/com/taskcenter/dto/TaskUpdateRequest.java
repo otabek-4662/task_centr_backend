@@ -38,4 +38,10 @@ public class TaskUpdateRequest {
     @io.swagger.v3.oas.annotations.media.Schema(hidden = true)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Biriktirilgan foydalanuvchilar ID lari (to'liq sinxron yangilash)")
+    private java.util.Set<String> assigneeIds;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Teglar (Label) ID lari (to'liq sinxron yangilash)")
+    private java.util.Set<String> labelIds;
 }

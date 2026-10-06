@@ -49,6 +49,9 @@ public class TaskFilterRequest {
     @Schema(description = "Arxivlangan vazifalarni ham qo'shish", example = "false")
     private Boolean includeArchived;
 
+    @Schema(description = "Workspace ID bo'yicha filter", example = "ws-123")
+    private String workspaceId;
+
     private String currentUserId;
     private LocalDate endOfWeek;
     private LocalDate today;

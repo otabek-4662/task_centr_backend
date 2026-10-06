@@ -115,6 +115,9 @@ public class WorkspaceMemberService {
 
         if (targetUserOpt.isEmpty()) {
             if (query.contains("@")) {
+                if (!EmailService.isValidRecipient(query)) {
+                    throw new BadRequestException("Noto'g'ri email manzili: " + query);
+                }
                 Optional<WorkspaceInvitation> existingOpt = invitationRepository.findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(workspaceId, query, InvitationStatus.PENDING);
 
                 if (existingOpt.isPresent()) {

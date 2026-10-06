@@ -29,34 +29,43 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String token = null;
-            String authHeader = accessor.getFirstNativeHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            } else if (authHeader != null && !authHeader.isBlank()) {
-                token = authHeader.trim();
-            } else if (accessor.getFirstNativeHeader("token") != null) {
-                token = accessor.getFirstNativeHeader("token");
-            } else if (accessor.getPasscode() != null && !accessor.getPasscode().isBlank()) {
-                String passcode = accessor.getPasscode();
-                token = passcode.startsWith("Bearer ") ? passcode.substring(7) : passcode;
-            }
-
-            if (token != null && jwtTokenProvider.validateToken(token)) {
-                String username = jwtTokenProvider.getUserNameFromJWT(token);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = 
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                
-                if (accessor.isMutable()) {
-                    accessor.setUser(authentication);
-                } else {
-                    StompHeaderAccessor mutableAccessor = StompHeaderAccessor.wrap(message);
-                    mutableAccessor.setUser(authentication);
-                    message = MessageBuilder.createMessage(message.getPayload(), mutableAccessor.getMessageHeaders());
+        if (accessor != null) {
+            StompCommand cmd = accessor.getCommand();
+            if (StompCommand.CONNECT.equals(cmd)) {
+                String token = null;
+                String authHeader = accessor.getFirstNativeHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                } else if (authHeader != null && !authHeader.isBlank()) {
+                    token = authHeader.trim();
+                } else if (accessor.getFirstNativeHeader("token") != null) {
+                    token = accessor.getFirstNativeHeader("token");
+                } else if (accessor.getPasscode() != null && !accessor.getPasscode().isBlank()) {
+                    String passcode = accessor.getPasscode();
+                    token = passcode.startsWith("Bearer ") ? passcode.substring(7) : passcode;
                 }
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                if (token != null && jwtTokenProvider.validateToken(token)) {
+                    String username = jwtTokenProvider.getUserNameFromJWT(token);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication = 
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    
+                    if (accessor.isMutable()) {
+                        accessor.setUser(authentication);
+                    } else {
+                        StompHeaderAccessor mutableAccessor = StompHeaderAccessor.wrap(message);
+                        mutableAccessor.setUser(authentication);
+                        message = MessageBuilder.createMessage(message.getPayload(), mutableAccessor.getMessageHeaders());
+                    }
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    throw new IllegalArgumentException("Invalid or missing authentication token");
+                }
+            } else if (StompCommand.SUBSCRIBE.equals(cmd) || StompCommand.SEND.equals(cmd)) {
+                if (accessor.getUser() == null) {
+                    throw new IllegalArgumentException("Unauthenticated STOMP session");
+                }
             }
         }
         return message;
