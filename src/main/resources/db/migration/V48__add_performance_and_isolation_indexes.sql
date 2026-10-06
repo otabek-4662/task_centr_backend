@@ -2,13 +2,13 @@
 -- Asosiy ustunlar (workspace_id, column_id, task_id, sprint_id) bo'yicha indekslar
 
 -- Tasks: workspace va column bo'yicha saralash va filtrlash (Board va Kanban uchun)
-CREATE INDEX IF NOT EXISTS idx_tasks_ws_col_rank ON tasks (workspace_id, column_id, lexo_rank);
+CREATE INDEX IF NOT EXISTS idx_tasks_ws_col_rank ON tasks (workspace_id, column_id, task_order);
 
 -- Tasks: ko'p ijarachilik (multi-tenancy) izolyatsiyasi bo'yicha tekshirish
 CREATE INDEX IF NOT EXISTS idx_tasks_id_workspace ON tasks (id, workspace_id);
 
 -- Tasks: sprint bo'yicha saralash va backlog qidiruvi
-CREATE INDEX IF NOT EXISTS idx_tasks_sprint_rank ON tasks (sprint_id, lexo_rank);
+CREATE INDEX IF NOT EXISTS idx_tasks_sprint_rank ON tasks (sprint_id, task_order);
 CREATE INDEX IF NOT EXISTS idx_tasks_ws_sprint_archived ON tasks (workspace_id, sprint_id, is_archived);
 
 -- Tasks: arxiv va soft-delete holati bo'yicha filtrlash
