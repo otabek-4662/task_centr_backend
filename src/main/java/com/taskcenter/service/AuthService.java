@@ -135,16 +135,16 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String jwt = tokenProvider.generateToken(authentication);
-        User user = getUserByName(request.getName());
+        User user = getUserByNameOrEmail(request.getName());
         String refreshToken = createRefreshToken(user.getId());
 
         return new AuthResponse(jwt, refreshToken, AuthResponse.UserDto.fromEntity(user));
     }
 
-    @Cacheable(value = "users", key = "#name")
-    public User getUserByName(String name) {
-        return userRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi: " + name));
+    @Cacheable(value = "users", key = "#nameOrEmail")
+    public User getUserByNameOrEmail(String nameOrEmail) {
+        return userRepository.findByNameOrEmail(nameOrEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi: " + nameOrEmail));
     }
 
     @Transactional

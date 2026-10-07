@@ -21,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -295,7 +297,32 @@ public class TaskService {
                 .sprintId(sprintId)
                 .build();
 
+        if (req.getAssigneeIds() != null && !req.getAssigneeIds().isEmpty() && userRepository != null) {
+            Set<String> targetIds = req.getAssigneeIds().stream()
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (!targetIds.isEmpty()) {
+                List<User> assignees = userRepository.findAllById(targetIds);
+                task.getAssignees().addAll(assignees);
+            }
+        }
+
+        if (req.getLabelIds() != null && !req.getLabelIds().isEmpty() && labelRepository != null) {
+            Set<String> targetLabelIds = req.getLabelIds().stream()
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (!targetLabelIds.isEmpty()) {
+                List<com.taskcenter.model.Label> labels = labelRepository.findAllById(targetLabelIds);
+                task.getLabels().addAll(labels);
+            }
+        }
+
         Task saved = taskRepository.save(task);
+        if (task.getAssignees() != null) {
+            for (User assignee : task.getAssignees()) {
+                telegramNotificationService.sendTaskAssignedNotification(saved, assignee, currentUser);
+            }
+        }
         activityService.logActivity(saved.getId(), currentUser, TaskActivityType.TASK_CREATED, "task", null, saved.getTitle());
         TaskDto taskDto = TaskDto.fromEntity(saved);
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
@@ -503,64 +530,6 @@ public class TaskService {
                 .build());
     }
 
-    @Transactional
-    public TaskDto cloneTask(String workspaceId, String id, User currentUser) {
-        authorizationService.checkCanEdit(workspaceId, currentUser);
-
-        Task originalTask = getTaskAndValidateWorkspace(id, workspaceId);
-
-        String maxRank = taskRepository.findMaxLexoRankByColumnId(originalTask.getColumnId());
-        String newRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
-
-        String prefix = "(Copy) ";
-        String newTitle = prefix + originalTask.getTitle();
-        if (newTitle.length() > 255) {
-            newTitle = prefix + originalTask.getTitle().substring(0, 255 - prefix.length());
-        }
-
-        Task clonedTask = Task.builder()
-                .workspaceId(originalTask.getWorkspaceId())
-                .columnId(originalTask.getColumnId())
-                .title(newTitle)
-                .description(originalTask.getDescription())
-                .lexoRank(newRank)
-                .priority(originalTask.getPriority())
-                .issueType(originalTask.getIssueType())
-                .dueDate(originalTask.getDueDate())
-                .storyPoints(originalTask.getStoryPoints())
-                .estimatedHours(originalTask.getEstimatedHours())
-                .sprintId(originalTask.getSprintId())
-                .build();
-        
-        clonedTask.prePersist();
-
-        if (originalTask.getLabels() != null) {
-            clonedTask.getLabels().addAll(originalTask.getLabels());
-        }
-
-        if (originalTask.getChecklistItems() != null) {
-            for (com.taskcenter.model.TaskChecklistItem item : originalTask.getChecklistItems()) {
-                com.taskcenter.model.TaskChecklistItem clonedItem = com.taskcenter.model.TaskChecklistItem.builder()
-                        .taskId(clonedTask.getId())
-                        .title(item.getTitle())
-                        .isCompleted(item.getIsCompleted())
-                        .orderIndex(item.getOrderIndex())
-                        .build();
-                clonedTask.getChecklistItems().add(clonedItem);
-            }
-        }
-
-        Task saved = taskRepository.save(clonedTask);
-        activityService.logActivity(saved.getId(), currentUser, TaskActivityType.TASK_CREATED, "task", null, saved.getTitle());
-        
-        TaskDto taskDto = TaskDto.fromEntity(saved);
-        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
-                .type("TASK_CREATED")
-                .workspaceId(workspaceId)
-                .data(taskDto)
-                .build());
-        return taskDto;
-    }
 
     @Transactional
     public void toggleWatch(String workspaceId, String id, User currentUser) {

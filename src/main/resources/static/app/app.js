@@ -50,6 +50,49 @@ function showToast(msg) {
     setTimeout(() => t.style.opacity = '0', 2000);
 }
 
+function showErrorNotification(msg) {
+    haptic('notification', 'error');
+    let t = document.getElementById('error-toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'error-toast';
+        t.style = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;box-shadow:0 4px 12px rgba(239, 68, 68, 0.4);z-index:99999;transition:opacity 0.3s, top 0.3s;opacity:0;pointer-events:none;max-width:90%;text-align:center;font-weight:bold;line-height:1.4;white-space:pre-wrap;';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.top = '20px';
+    t.style.opacity = '1';
+    setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.top = '-50px';
+    }, 4000);
+}
+
+window.onerror = function(message, source, lineno, colno, error) {
+    showErrorNotification(`JS xatolik: ${message}`);
+    return false;
+};
+
+window.addEventListener('unhandledrejection', function(event) {
+    if (event.reason && event.reason.isHandled) return;
+    showErrorNotification(`Promise xatolik: ${event.reason?.message || event.reason}`);
+});
+
+// Intercept console.error
+const originalConsoleError = console.error;
+console.error = function(...args) {
+    originalConsoleError.apply(console, args);
+    const msg = args.map(a => (typeof a === 'object' && a !== null ? JSON.stringify(a) : a)).join(' ');
+    showErrorNotification(`Xatolik (Console): ${msg}`);
+};
+
+// Catch resource loading errors (images, scripts, etc.)
+window.addEventListener('error', function(e) {
+    if (e.target && (e.target.src || e.target.href)) {
+        showErrorNotification(`Resurs yuklanmadi: ${e.target.src || e.target.href}`);
+    }
+}, true);
+
 const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 function getColColor(str) {
   let hash = 0;
@@ -161,14 +204,35 @@ async function api(path, opts = {}, retry = true) {
     }
 
     if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || ('HTTP ' + res.status));
+      let txt = await res.text();
+      let errMsg = 'Xatolik (' + res.status + ')';
+      try {
+          let parsed = JSON.parse(txt);
+          errMsg = parsed.message || parsed.error || txt;
+          if (parsed.data && typeof parsed.data === 'object') {
+              let details = Object.entries(parsed.data).map(([k, v]) => `${k}: ${v}`).join('\n');
+              if (details) errMsg += '\n' + details;
+          }
+      } catch(e) {
+          if (txt) errMsg = txt;
+      }
+      showErrorNotification(errMsg);
+      const err = new Error(errMsg);
+      err.isHandled = true;
+      throw err;
     }
     if (res.status === 204) return null;
     return res.json();
   } catch (err) {
     clearTimeout(id);
-    if (err.name === 'AbortError') throw new Error('Tarmoq xatosi (kutilish vaqti tugadi)');
+    if (err.name === 'AbortError') {
+        showErrorNotification('Tarmoq xatosi (kutilish vaqti tugadi)');
+        throw new Error('Tarmoq xatosi (kutilish vaqti tugadi)');
+    }
+    if (!err.isHandled && err.message !== 'AUTH' && err.message !== 'AUTH_FATAL') {
+        showErrorNotification(err.message);
+        err.isHandled = true;
+    }
     throw err;
   }
 }
@@ -326,7 +390,7 @@ async function handleLogin() {
         const loginRes = await fetch(API + '/api/v1/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nameOrEmail: username, password: password })
+            body: JSON.stringify({ name: username, password: password })
         });
         
         if (!loginRes.ok) {
@@ -372,6 +436,7 @@ async function handleLogin() {
     } catch (e) {
         tg.MainButton.hideProgress();
         errDiv.textContent = e.message;
+        showErrorNotification(e.message);
     }
 }
 

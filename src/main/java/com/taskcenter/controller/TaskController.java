@@ -96,16 +96,6 @@ public class TaskController {
         return ApiResponse.success("Vazifa tartibi yangilandi", task);
     }
 
-    @Operation(summary = "Vazifani nusxalash (Clone)")
-    @PostMapping("/{id}/clone")
-    public ApiResponse<TaskDto> cloneTask(
-            @PathVariable String workspaceId,
-            @PathVariable String id,
-            @AuthenticationPrincipal User currentUser) {
-        TaskDto clonedTask = taskService.cloneTask(workspaceId, id, currentUser);
-        return ApiResponse.success("Vazifa nusxalandi", clonedTask);
-    }
-
     @Operation(summary = "Vazifani kuzatish / kuzatishni to'xtatish (Watch)")
     @PostMapping("/{id}/watch")
     public ApiResponse<Void> watchTask(
@@ -151,9 +141,26 @@ public class TaskController {
     public ApiResponse<TaskDto> assignTask(
             @PathVariable String workspaceId,
             @PathVariable String id,
-            @RequestParam String userId,
+            @RequestParam(required = false) String userId,
+            @RequestBody(required = false) com.taskcenter.dto.TaskAssignRequest request,
             @AuthenticationPrincipal User currentUser) {
-        TaskDto task = taskService.toggleAssignee(workspaceId, id, userId, currentUser);
+        String targetUserId = userId;
+        if (targetUserId == null && request != null) {
+            targetUserId = request.getUserId();
+        }
+
+        if (request != null && request.getAssigneeIds() != null) {
+            TaskUpdateRequest updateReq = new TaskUpdateRequest();
+            updateReq.setAssigneeIds(request.getAssigneeIds());
+            TaskDto task = taskService.updateTask(workspaceId, id, updateReq, currentUser);
+            return ApiResponse.success("Biriktirilgan foydalanuvchilar yangilandi", task);
+        }
+
+        if (targetUserId == null || targetUserId.isBlank()) {
+            throw new com.taskcenter.exception.BadRequestException("userId yoki assigneeIds ko'rsatilishi shart");
+        }
+
+        TaskDto task = taskService.toggleAssignee(workspaceId, id, targetUserId, currentUser);
         return ApiResponse.success("Biriktirilgan foydalanuvchilar yangilandi", task);
     }
 }

@@ -54,4 +54,10 @@ public class TaskCreateRequest {
     @Schema(hidden = true)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String sprintId;
+
+    @Schema(description = "Biriktirilgan foydalanuvchilar ID lari", example = "[\"a1b2c3d4-e5f6-7890-abcd-ef1234567890\"]")
+    private java.util.Set<String> assigneeIds;
+
+    @Schema(description = "Teglar (Label) ID lari", example = "[\"label-123\"]")
+    private java.util.Set<String> labelIds;
 }
