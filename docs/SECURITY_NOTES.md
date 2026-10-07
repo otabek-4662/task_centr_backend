@@ -73,3 +73,42 @@ Ushbu hujjat `ReportController`, `WorkspaceInvitationController`, `TelegramWebho
   - Hisoblangan imzo va kelgan imzo `MessageDigest.isEqual` orqali taqqoslanadi (timing-attack xakerlik urinishlariga qarshi xavfsiz).
   - Imzo mos kelmasa, `ForbiddenException("Webhook imzosi noto'g'ri")` qaytariladi.
 - **Xulosa:** GitHub webhook imzo tekshiruvi eng yuqori kriptografik standartda amalga oshirilgan.
+
+### 2.3. TelegramWebhookController (Qo'shimcha tahlil)
+- **Fail-closed tekshiruvi (`TelegramWebhookController.java:41-48`):** 
+  Hozirgi mantiq `expectedSecret` mavjud bo'lsagina tokenni tekshiradi. Agar `telegram.bot.webhook-secret` env o'zgaruvchisi ko'rsatilmagan (bo'sh) bo'lsa, so'rov **o'tib ketadi**. Bu **xavfli** (fail-open) holat.
+  - **Tavsiya:** Mantiqni fail-closed variantiga o'zgartirish (ya'ni secret token bo'lmasa yoki umuman sozlanmagan bo'lsa `401 Unauthorized` yoki `503 Service Unavailable` qaytarish).
+  - **Constant-time taqqoslash:** `expectedSecret.trim().equals(secretToken.trim())` timing-attack uchun zaif. Buni `MessageDigest.isEqual(expectedSecret.trim().getBytes(), secretToken.trim().getBytes())` ga o'zgartirish taklif etiladi.
+  - **Render env:** Render muhitida albatta `telegram.bot.webhook-secret` qiymatini o'rnatish shart qilib belgilanishi kerak.
+
+---
+
+## 3. WorkspaceInvitationService (Email va holat tekshiruvlari)
+
+### 3.1. Email orqali taklif qabul qilish (`WorkspaceInvitationService.java:122-141`)
+- **Email tasdiqlanganligi:** Tizimda (`UserService` yoki ro'yxatdan o'tishda) email verification (tasdiqlash) mexanizmi hozircha topilmadi (`isEmailVerified` tekshiruvi mavjud emas). Shu sababli, agar xaker boshqa birovning email manzili bilan tizimdan ro'yxatdan o'tsa, o'sha emailga kelgan barcha takliflarni qabul qila olish xavfi mavjud.
+- **Tavsiya:** `User` modeliga `emailVerified` maydonini qo'shish va ro'yxatdan o'tishda OTP yoki link orqali tasdiqlashni joriy qilish.
+
+### 3.2. PENDING va Muddat (Expiry) tekshiruvi
+- **Holat tekshiruvi:** `acceptInvitation` va `rejectInvitation` metodlarida taklif holati aniq `PENDING` ekanligi tekshiriladi: `invitation.getStatus() != InvitationStatus.PENDING` (`WorkspaceInvitationService.java:127`).
+- **Muddat (Expiry):** Taklif muddati o'tganligi tekshiriladi: `invitation.getExpiresAt().isBefore(LocalDateTime.now())` (`WorkspaceInvitationService.java:127`).
+
+### 3.3. Ikki marta qabul qilish (Race Condition)
+- **Tahlil:** `acceptInvitation` metodi `@Transactional` bilan himoyalangan, biroq `InvitationStatus.PENDING` tekshiruvida bazaga Pessimistic Lock qo'yilmagan (masalan, `FOR UPDATE` bilan o'qish). Bu narsa bir vaqtning o'zida ikkita parallel so'rov kelganida (race condition) ikkita `WorkspaceMember` yozuvini yaratib yuborish xavfini tug'diradi.
+- **Tavsiya:** Repozitoriydagi `findById` metodiga `@Lock(LockModeType.PESSIMISTIC_WRITE)` qo'shish yoki Optimistic Locking (`@Version`) ishlatish.
+
+---
+
+## 4. IDOR Audit (Insecure Direct Object Reference)
+
+Quyida barcha ko'rsatilgan Controller'larning resurslarga yetishishdagi avtorizatsiya (IDOR) holati tekshiruvi:
+
+| Endpoint (Controller) | Resurs egaligi/a'zolik tekshiriladimi | Qaysi servis metodida (fayl:qator) | Xulosa |
+|-----------------------|---------------------------------------|------------------------------------|--------|
+| **TaskController** | Ha | `TaskService.java:91, 126, 237, 259` | **Xavfsiz**. Har bir zaprosda currentUser'ning workspace'ga a'zoligi (`authorizationService.checkAccess/checkCanEdit`) tekshiriladi. |
+| **TaskDirectController**| Ha | `TaskService.java:250` | **Xavfsiz**. ID orqali bevosita olganda ham task joylashgan `workspaceId` olinib, a'zolik tekshiriladi (`checkAccess(task.getWorkspaceId(), currentUser)`). |
+| **AttachmentController**| Ha | `AttachmentService.java:41, 62, 76` | **Xavfsiz**. Yuklash, ko'rish va o'chirishdan oldin taskning workspace'iga ruxsat tekshiriladi. |
+| **CommentController** | Ha | `CommentService.java:45, 54, 78, 108` | **Xavfsiz**. Izoh qo'shish, ko'rish, tahrirlashda `authorizationService.checkAccess(workspaceId, currentUser)` chaqiriladi. |
+| **TaskChecklistController** | Ha | `TaskChecklistService.java:36` | **Xavfsiz**. `authorizationService.checkCanEdit` va `checkAccess` yordamida himoyalangan. |
+| **FileController** (`/api/files/{fileName}`) | **YO'Q (Katta ehtimol bilan)** | `FileController.java:40` | **Zaiflik (IDOR)**. Endpoint ochiq. Kimdir fayl nomini bilsa (yoki URL ni topsa), authentication principal va workspace a'zoligi tekshirilmasdan bevosita `FileStorageService.loadFileAsResource` chaqiriladi. Buni auth-guard bilan yopish kerak. |
+
