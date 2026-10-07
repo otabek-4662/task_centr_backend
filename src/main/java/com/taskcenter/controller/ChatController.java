@@ -7,6 +7,7 @@ import com.taskcenter.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -81,7 +82,7 @@ public class ChatController {
     @Operation(summary = "Umumiy chat xabarlarini sahifalab olish")
     @GetMapping("/public")
     public ApiResponse<Page<ChatMessageDto>> getPublicMessages(
-            @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<ChatMessageDto> messages = chatService.getPublicMessages(pageable);
         return ApiResponse.success("ok", messages);
     }
@@ -90,7 +91,7 @@ public class ChatController {
     @GetMapping("/direct/{otherUserId}")
     public ApiResponse<Page<ChatMessageDto>> getDirectMessages(
             @PathVariable String otherUserId,
-            @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @ParameterObject @PageableDefault(size = 30, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<ChatMessageDto> messages = chatService.getDirectMessages(currentUser.getId(), otherUserId, pageable);
         return ApiResponse.success("ok", messages);
@@ -160,7 +161,7 @@ public class ChatController {
     @GetMapping("/search")
     public ApiResponse<Page<ChatMessageDto>> searchAllMessages(
             @RequestParam String query,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<ChatMessageDto> results = chatService.searchAllMessages(currentUser.getId(), query, pageable);
         return ApiResponse.success("ok", results);
@@ -170,7 +171,7 @@ public class ChatController {
     @GetMapping("/public/search")
     public ApiResponse<Page<ChatMessageDto>> searchPublicMessages(
             @RequestParam String q,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<ChatMessageDto> results = chatService.searchPublicMessages(q, pageable);
         return ApiResponse.success("ok", results);
     }
@@ -180,7 +181,7 @@ public class ChatController {
     public ApiResponse<Page<ChatMessageDto>> searchDirectMessages(
             @PathVariable String otherUserId,
             @RequestParam String q,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<ChatMessageDto> results = chatService.searchDirectMessages(
                 currentUser.getId(), otherUserId, q, pageable);

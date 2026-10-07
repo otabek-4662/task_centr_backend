@@ -27,7 +27,7 @@ public class NotificationController {
     @Operation(summary = "Mening bildirishnomalarim ro'yxatini olish (Pageable)")
     @GetMapping
     public ApiResponse<Page<NotificationDto>> getMyNotifications(
-            Pageable pageable,
+            @org.springdoc.core.annotations.ParameterObject Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", notificationService.getUserNotifications(currentUser, pageable));
     }

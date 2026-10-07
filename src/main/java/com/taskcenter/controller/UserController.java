@@ -74,7 +74,7 @@ public class UserController {
     public ApiResponse<Page<UserDto>> getUsers(
             @RequestParam String workspaceId,
             @AuthenticationPrincipal User currentUser,
-            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Page<UserDto> users = userService.getUsers(workspaceId, currentUser, pageable);
         return ApiResponse.success("ok", users);
     }

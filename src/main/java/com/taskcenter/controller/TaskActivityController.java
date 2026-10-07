@@ -30,7 +30,7 @@ public class TaskActivityController {
     @GetMapping
     public ApiResponse<Page<TaskActivityDto>> getActivities(
             @PathVariable String taskId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<TaskActivityDto> activities = activityService.getActivities(taskId, pageable, currentUser);
         return ApiResponse.success("ok", activities);

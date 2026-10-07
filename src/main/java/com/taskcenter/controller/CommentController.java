@@ -34,7 +34,7 @@ public class CommentController {
     @GetMapping
     public ApiResponse<Page<CommentDto>> getComments(
             @PathVariable String taskId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable,
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
         Page<CommentDto> comments = commentService.getComments(taskId, pageable, currentUser);
         return ApiResponse.success("ok", comments);

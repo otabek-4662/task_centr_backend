@@ -36,7 +36,7 @@ public class WorkspaceController {
     @GetMapping
     public ApiResponse<Page<WorkspaceListDto>> getWorkspaces(
             @AuthenticationPrincipal User currentUser,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<WorkspaceListDto> workspaces = workspaceService.getWorkspaces(currentUser, pageable);
         return ApiResponse.success("ok", workspaces);
     }
