@@ -5,6 +5,7 @@ import com.taskcenter.dto.WorkspaceReportDto;
 import com.taskcenter.model.User;
 import com.taskcenter.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/reports")
 @Tag(name = "Reports", description = "Loyiha va xodimlar hisobotlari")
+@SecurityRequirement(name = "bearerAuth")
 public class ReportController {
 
     private final ReportService reportService;

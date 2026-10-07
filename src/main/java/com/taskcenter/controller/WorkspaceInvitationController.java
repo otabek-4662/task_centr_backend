@@ -6,6 +6,7 @@ import com.taskcenter.dto.WorkspaceInvitationDto;
 import com.taskcenter.model.User;
 import com.taskcenter.service.WorkspaceInvitationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Workspace Invitations", description = "Workspace ga taklif qilish API lari")
+@SecurityRequirement(name = "bearerAuth")
 public class WorkspaceInvitationController {
 
     private final WorkspaceInvitationService invitationService;
