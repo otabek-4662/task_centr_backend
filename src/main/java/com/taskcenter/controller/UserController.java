@@ -7,6 +7,7 @@ import com.taskcenter.model.User;
 import com.taskcenter.service.UserService;
 import com.taskcenter.security.RateLimitingService;
 import com.taskcenter.exception.RateLimitException;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,20 +44,29 @@ public class UserController {
         return ApiResponse.success("ok", userService.getCurrentUser(currentUser));
     }
 
-    @Operation(summary = "Joriy foydalanuvchi profilini olish (alias)")
+    @Hidden
     @GetMapping("/auth/me")
     public ApiResponse<UserDto> getAuthMe(@AuthenticationPrincipal User currentUser) {
         return getMe(currentUser);
     }
 
     @Operation(summary = "Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha)")
-    @GetMapping({"/users/me/tasks", "/me/tasks"})
+    @GetMapping("/users/me/tasks")
     public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasks(
             @AuthenticationPrincipal User currentUser,
             @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
             @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         Page<com.taskcenter.dto.TaskDto> tasks = taskService.getMyTasks(currentUser, filter, pageable);
         return ApiResponse.success("ok", tasks);
+    }
+
+    @Hidden
+    @GetMapping("/me/tasks")
+    public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasksAlias(
+            @AuthenticationPrincipal User currentUser,
+            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
+            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return getMyTasks(currentUser, filter, pageable);
     }
 
     @Operation(summary = "Workspace dagi foydalanuvchilar ro'yxatini olish")
