@@ -92,7 +92,9 @@ public class UserController {
         return ApiResponse.success("Telegram akkaunt uzildi", null);
     }
 
-    public record TelegramLinkRequest(@jakarta.validation.constraints.NotBlank String initData) {}
+    public record TelegramLinkRequest(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
+            @jakarta.validation.constraints.NotBlank String initData) {}
 
     @Operation(summary = "Mini App orqali Telegram akkauntni ulash")
     @PostMapping("/users/me/telegram")

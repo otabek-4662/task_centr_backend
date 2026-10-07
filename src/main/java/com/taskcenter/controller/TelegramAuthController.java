@@ -44,7 +44,9 @@ public class TelegramAuthController {
         this.authService = authService;
     }
 
-    public record TelegramAuthRequest(@NotBlank String initData) {}
+    public record TelegramAuthRequest(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
+            @NotBlank String initData) {}
 
     @Operation(summary = "Telegram Mini App orqali login")
     @PostMapping("/telegram")
