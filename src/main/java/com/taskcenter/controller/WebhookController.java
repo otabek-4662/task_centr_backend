@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.taskcenter.dto.ApiResponse;
 import com.taskcenter.dto.GitHubPushEventDto;
 import com.taskcenter.service.WebhookService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 
+@Hidden
 @RestController
 @RequestMapping("/api/webhooks")
 @Tag(name = "Webhooks", description = "Tashqi tizimlar bilan integratsiya (GitHub va boshqalar)")

@@ -1,6 +1,7 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.service.TelegramBotService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 @Slf4j
+@Hidden
 @Tag(name = "Telegram Webhook", description = "Telegram Bot webhook so'rovlarini qabul qilish")
 @RestController
 @RequestMapping("/api/webhooks/telegram")
