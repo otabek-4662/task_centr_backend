@@ -8,6 +8,7 @@ import com.taskcenter.repository.LabelRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,6 +48,25 @@ public class LabelService {
     }
 
     @Transactional
+    public LabelDto updateLabel(String workspaceId, String id, LabelDto req, User currentUser) {
+        authorizationService.checkAdmin(workspaceId, currentUser);
+
+        Label label = labelRepository.findByIdAndWorkspaceId(id, workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Label topilmadi: " + id));
+
+        if (req.getName() != null && !req.getName().isBlank()) {
+            label.setName(req.getName().trim());
+        }
+        if (req.getColor() != null && !req.getColor().isBlank()) {
+            label.setColor(req.getColor().trim());
+        }
+        label.setUpdatedAt(LocalDateTime.now());
+
+        Label saved = labelRepository.save(label);
+        return LabelDto.fromEntity(saved);
+    }
+
+    @Transactional
     public void deleteLabel(String workspaceId, String id, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -56,3 +76,4 @@ public class LabelService {
         labelRepository.deleteById(id);
     }
 }
+

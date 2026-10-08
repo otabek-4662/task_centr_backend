@@ -30,9 +30,14 @@ public class ExportController {
         this.exportService = exportService;
     }
 
-    @Operation(summary = "Workspace dagi barcha vazifalarni CSV formatida yuklash")
+    @Operation(
+            operationId = "exportWorkspaceTasksToCsv",
+            summary = "Workspace dagi barcha vazifalarni CSV formatida yuklash",
+            description = "Ishchi maydonga tegishli barcha vazifalarni (sarlavhasi, ustuni, ijrochilari, muhimligi va h.k.) CSV fayl formatida yuklab olish uchun taqdim etadi."
+    )
     @GetMapping("/csv")
     public ResponseEntity<Resource> exportCsv(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser) {
         

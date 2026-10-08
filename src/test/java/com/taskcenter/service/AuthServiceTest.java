@@ -93,7 +93,7 @@ class AuthServiceTest {
         User user = User.builder().id("id1").name("elshod").fullName("Elshod T").role(User.Role.USER).build();
         Authentication auth = new UsernamePasswordAuthenticationToken(user, null);
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(userRepository.findByName("elshod")).thenReturn(Optional.of(user));
+        when(userRepository.findByNameOrEmail("elshod")).thenReturn(Optional.of(user));
         when(tokenProvider.generateToken(auth)).thenReturn("jwt-token");
 
         LoginRequest req = new LoginRequest();

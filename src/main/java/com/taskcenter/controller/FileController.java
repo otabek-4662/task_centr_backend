@@ -27,8 +27,13 @@ public class FileController {
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Fayl yuklash (xabar biriktirmasi uchun)")
+    @Operation(
+            operationId = "uploadGeneralFile",
+            summary = "Fayl yuklash (xabar biriktirmasi uchun)",
+            description = "Chat yoki boshqa joylarda biriktirish uchun fayl yuklaydi va saqlangan fayl havolasi hamda thumbnail ma'lumotlarini qaytaradi."
+    )
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadFile(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Yuklanadigan fayl (rasm, hujjat va h.k.)", required = true)
             @RequestParam("file") MultipartFile file) {
         
         FileUploadResponse response = fileStorageService.storeFileWithThumbnail(file, "chat-attachments");
@@ -36,8 +41,14 @@ public class FileController {
     }
 
     @GetMapping("/{fileName:.+}")
-    @Operation(summary = "Faylni yuklab olish yoki ko'rish")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) {
+    @Operation(
+            operationId = "downloadGeneralFile",
+            summary = "Faylni yuklab olish yoki ko'rish",
+            description = "Fayl nomi orqali saqlangan faylni to'g'ridan-to'g'ri ko'rish yoki yuklab olish imkonini beradi."
+    )
+    public ResponseEntity<Resource> downloadFile(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Yuklab olinadigan fayl nomi (kengaytmasi bilan)", example = "image123.png")
+            @PathVariable String fileName, HttpServletRequest request) {
         Resource resource = fileStorageService.loadFileAsResource("chat-attachments/" + fileName);
 
         String contentType = null;

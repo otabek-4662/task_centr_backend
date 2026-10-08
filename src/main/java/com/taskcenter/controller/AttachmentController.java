@@ -32,29 +32,45 @@ public class AttachmentController {
         this.attachmentService = attachmentService;
     }
 
-    @Operation(summary = "Taskka fayl yoki rasm yuklash")
+    @Operation(
+            operationId = "uploadTaskAttachment",
+            summary = "Taskka fayl yoki rasm yuklash",
+            description = "Vazifaga fayl biriktiradi (maksimal hajm 10 MB). Rasm bo'lsa avtomatik thumbnail hosil qilinadi."
+    )
     @PostMapping(value = "/api/tasks/{taskId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AttachmentDto> uploadAttachment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Yuklanadigan fayl (maksimal 10MB)", required = true)
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User currentUser) {
         AttachmentDto dto = attachmentService.uploadAttachment(taskId, file, currentUser);
         return ApiResponse.success("Fayl muvaffaqiyatli yuklandi", dto);
     }
 
-    @Operation(summary = "Taskka biriktirilgan barcha fayllar ro'yxatini olish")
+    @Operation(
+            operationId = "getTaskAttachments",
+            summary = "Taskka biriktirilgan barcha fayllar ro'yxatini olish",
+            description = "Berilgan vazifaga biriktirilgan barcha fayllar ro'yxati va ularning yuklab olish havolalarini qaytaradi."
+    )
     @GetMapping("/api/tasks/{taskId}/attachments")
     public ApiResponse<List<AttachmentDto>> getAttachments(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @AuthenticationPrincipal User currentUser) {
         List<AttachmentDto> list = attachmentService.getAttachments(taskId, currentUser);
         return ApiResponse.success("ok", list);
     }
 
-    @Operation(summary = "Faylni yuklab olish yoki ko'rish")
+    @Operation(
+            operationId = "downloadTaskAttachment",
+            summary = "Faylni yuklab olish yoki ko'rish",
+            description = "Fayl identifikatori orqali fayl baytlarini yuklab olish yoki brauzerda inline ko'rish imkonini beradi."
+    )
     @GetMapping("/api/attachments/{attachmentId}/download")
     public ResponseEntity<Resource> downloadAttachment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Fayl biriktirmasi (attachment) ID si", example = "att-uuid-123")
             @PathVariable String attachmentId,
             @AuthenticationPrincipal User currentUser) {
         Attachment attachment = attachmentService.getAttachment(attachmentId, currentUser);
@@ -73,9 +89,14 @@ public class AttachmentController {
                 .body(resource);
     }
 
-    @Operation(summary = "Biriktirilgan faylni o'chirish")
+    @Operation(
+            operationId = "deleteTaskAttachment",
+            summary = "Biriktirilgan faylni o'chirish",
+            description = "Vazifaga biriktirilgan faylni diskdan va ma'lumotlar bazasidan butunlay o'chiradi."
+    )
     @DeleteMapping("/api/attachments/{attachmentId}")
     public ApiResponse<Void> deleteAttachment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Fayl biriktirmasi (attachment) ID si", example = "att-uuid-123")
             @PathVariable String attachmentId,
             @AuthenticationPrincipal User currentUser) {
         attachmentService.deleteAttachment(attachmentId, currentUser);

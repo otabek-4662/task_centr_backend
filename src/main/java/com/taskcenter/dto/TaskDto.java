@@ -63,12 +63,14 @@ public class TaskDto {
     @Schema(description = "Bajarilgan checklist elementlari soni", example = "2")
     private Integer completedChecklistItems;
 
-    @Schema(hidden = true)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Schema(description = "Biriktirilgan sprint ID si", example = "sprint-67890")
     private String sprintId;
 
     @Schema(description = "Vazifaga biriktirilgan teglar")
     private List<LabelDto> labels;
+
+    @Schema(description = "Vazifaga biriktirilgan yo'nalishlar (Frontend, Backend, QA va h.k.)")
+    private List<DirectionDto> directions;
 
     @Schema(description = "Vazifaga biriktirilgan ijrochilar")
     private List<UserDto> assignees;
@@ -78,6 +80,12 @@ public class TaskDto {
 
     @Schema(description = "Arxivlanganmi", example = "false")
     private Boolean isArchived;
+
+    @Schema(description = "Yaratilgan vaqt (ISO-8601)", example = "2026-10-08T15:30:00")
+    private java.time.LocalDateTime createdAt;
+
+    @Schema(description = "So'nggi o'zgartirilgan vaqt (ISO-8601)", example = "2026-10-08T15:35:00")
+    private java.time.LocalDateTime updatedAt;
 
     public static TaskDto fromEntity(Task t) {
         return TaskDto.builder()
@@ -99,9 +107,13 @@ public class TaskDto {
                 .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(com.taskcenter.model.TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .directions(t.getDirections() != null ? t.getDirections().stream().map(DirectionDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .watchers(t.getWatchers() != null ? t.getWatchers().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .isArchived(t.getIsArchived())
+                .createdAt(t.getCreatedAt())
+                .updatedAt(t.getUpdatedAt())
                 .build();
     }
 }
+

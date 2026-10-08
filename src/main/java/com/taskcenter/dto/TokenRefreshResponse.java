@@ -5,10 +5,11 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
+@Schema(description = "Yangi tokenlar javobi")
 public class TokenRefreshResponse {
-    @Schema(description = "Yangi JWT Access token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    @Schema(description = "Yangi JWT Access token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", requiredMode = Schema.RequiredMode.REQUIRED)
     private String accessToken;
 
-    @Schema(description = "Yangi JWT Refresh token", example = "d9b2c8a1-4e7f-4f21-b321-123456789abc")
+    @Schema(description = "Yangi JWT Refresh token", example = "d9b2c8a1-4e7f-4f21-b321-123456789abc", requiredMode = Schema.RequiredMode.REQUIRED)
     private String refreshToken;
 }

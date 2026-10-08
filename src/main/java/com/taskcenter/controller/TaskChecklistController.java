@@ -25,42 +25,76 @@ public class TaskChecklistController {
         this.checklistService = checklistService;
     }
 
-    @Operation(summary = "Taskning barcha checklistlarini olish")
+    @Deprecated
+    @Operation(
+            operationId = "getWorkspaceTaskChecklistsLegacy",
+            summary = "Taskning barcha checklistlarini olish (eski uslub)",
+            description = "Eski uslubdagi endpoint. Yangi toza REST varianti: GET /api/tasks/{taskId}/checklists.",
+            deprecated = true
+    )
     @GetMapping
     public ApiResponse<List<ChecklistItemDto>> getChecklists(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", checklistService.getItems(workspaceId, taskId, currentUser));
     }
 
-    @Operation(summary = "Yangi checklist qo'shish")
+    @Deprecated
+    @Operation(
+            operationId = "createWorkspaceTaskChecklistItemLegacy",
+            summary = "Yangi checklist qo'shish (eski uslub)",
+            description = "Eski uslubdagi endpoint. Yangi toza REST varianti: POST /api/tasks/{taskId}/checklists.",
+            deprecated = true
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ChecklistItemDto> addChecklist(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @Valid @RequestBody ChecklistItemCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", checklistService.addItem(workspaceId, taskId, request, currentUser));
     }
 
-    @Operation(summary = "Checklistni yangilash (titleni yoki bajarganlikni)")
+    @Deprecated
+    @Operation(
+            operationId = "updateWorkspaceTaskChecklistItemLegacy",
+            summary = "Checklistni yangilash (eski uslub)",
+            description = "Eski uslubdagi endpoint. Yangi toza REST varianti: PUT /api/tasks/{taskId}/checklists/{itemId}.",
+            deprecated = true
+    )
     @PutMapping("/{itemId}")
     public ApiResponse<ChecklistItemDto> updateChecklist(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Checklist bandi ID si", example = "item-uuid-123")
             @PathVariable String itemId,
             @Valid @RequestBody ChecklistItemUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", checklistService.updateItem(workspaceId, taskId, itemId, request, currentUser));
     }
 
-    @Operation(summary = "Checklistni o'chirish")
+    @Deprecated
+    @Operation(
+            operationId = "deleteWorkspaceTaskChecklistItemLegacy",
+            summary = "Checklistni o'chirish (eski uslub)",
+            description = "Eski uslubdagi endpoint. Yangi toza REST varianti: DELETE /api/tasks/{taskId}/checklists/{itemId}.",
+            deprecated = true
+    )
     @DeleteMapping("/{itemId}")
     public ApiResponse<Void> deleteChecklist(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Checklist bandi ID si", example = "item-uuid-123")
             @PathVariable String itemId,
             @AuthenticationPrincipal User currentUser) {
         checklistService.deleteItem(workspaceId, taskId, itemId, currentUser);

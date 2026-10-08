@@ -27,7 +27,11 @@ public class WebhookController {
     }
 
     @PostMapping("/github")
-    @Operation(summary = "GitHub Push eventni qabul qilish (X-Hub-Signature-256 imzosi majburiy)")
+    @Operation(
+            operationId = "handleGitHubWebhookPush",
+            summary = "GitHub Push eventni qabul qilish (X-Hub-Signature-256 imzosi majburiy)",
+            description = "GitHub webhookdan kelgan push hodisalarini qabul qiladi, HMAC SHA-256 imzosini tekshiradi va tegishli tasklar bilan bog'laydi."
+    )
     public ResponseEntity<ApiResponse<String>> handleGitHubPush(
             @RequestBody byte[] rawBody,
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature,

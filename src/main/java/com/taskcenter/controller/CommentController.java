@@ -30,9 +30,14 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    @Operation(summary = "Task izohlari ro'yxatini sahifalab olish")
+    @Operation(
+            operationId = "getTaskComments",
+            summary = "Task izohlari ro'yxatini sahifalab olish",
+            description = "Vazifaga qoldirilgan barcha izohlarni sahifalab (pagination) va sanasi bo'yicha saralangan holda qaytaradi."
+    )
     @GetMapping
     public ApiResponse<Page<CommentDto>> getComments(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {
@@ -40,10 +45,15 @@ public class CommentController {
         return ApiResponse.success("ok", comments);
     }
 
-    @Operation(summary = "Taskka yangi izoh qo'shish")
+    @Operation(
+            operationId = "createTaskComment",
+            summary = "Taskka yangi izoh qo'shish",
+            description = "Vazifaga yangi sharh/izoh yozadi. Matn 5000 belgidan oshmasligi kerak."
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<CommentDto> addComment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @Valid @RequestBody CommentCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -51,10 +61,16 @@ public class CommentController {
         return ApiResponse.success("Izoh muvaffaqiyatli qo'shildi", comment);
     }
 
-    @Operation(summary = "Izohni tahrirlash")
+    @Operation(
+            operationId = "updateTaskComment",
+            summary = "Izohni tahrirlash",
+            description = "Faqat izoh muallifi tomonidan o'zgartirilishi mumkin."
+    )
     @PutMapping("/{commentId}")
     public ApiResponse<CommentDto> updateComment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Izoh (comment) ID si", example = "comment-uuid-123")
             @PathVariable String commentId,
             @Valid @RequestBody CommentUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -62,10 +78,16 @@ public class CommentController {
         return ApiResponse.success("Izoh muvaffaqiyatli yangilandi", updated);
     }
 
-    @Operation(summary = "Izohni o'chirish")
+    @Operation(
+            operationId = "deleteTaskComment",
+            summary = "Izohni o'chirish",
+            description = "Faqat izoh muallifi yoki loyiha admini tomonidan o'chirilishi mumkin."
+    )
     @DeleteMapping("/{commentId}")
     public ApiResponse<Void> deleteComment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Izoh (comment) ID si", example = "comment-uuid-123")
             @PathVariable String commentId,
             @AuthenticationPrincipal User currentUser) {
         commentService.deleteComment(taskId, commentId, currentUser);

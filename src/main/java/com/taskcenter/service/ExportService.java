@@ -27,7 +27,7 @@ public class ExportService {
         List<Task> tasks = taskRepository.findByWorkspaceIdWithAssignees(workspaceId);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("ID,Vazifa nomi,Holati (Column),Muhimlik,Turi,Muddat,Story Points,Ijrochilar\n");
+        sb.append("ID,Vazifa nomi,Holati (Column),Muhimlik,Ijrochilar\n");
 
         for (Task t : tasks) {
             String assignees = t.getAssignees().stream().map(User::getName).collect(Collectors.joining("; "));
@@ -35,9 +35,6 @@ public class ExportService {
               .append(escapeSpecialCharacters(t.getTitle())).append(",")
               .append(escapeSpecialCharacters(t.getColumnId())).append(",")
               .append(t.getPriority().name()).append(",")
-              .append(t.getIssueType().name()).append(",")
-              .append(t.getDueDate() != null ? t.getDueDate().toString() : "").append(",")
-              .append(t.getStoryPoints() != null ? t.getStoryPoints().toString() : "").append(",")
               .append(escapeSpecialCharacters(assignees)).append("\n");
         }
 

@@ -12,9 +12,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(
+        description = "Workspace a'zosi rolini yangilash so'rovi",
+        example = "{\"role\": \"ADMIN\"}"
+)
 public class WorkspaceMemberRoleUpdateRequest {
 
-    @Schema(description = "Yangi rol (OWNER, ADMIN, MEMBER, VIEWER)", example = "ADMIN")
+    @Schema(description = "Yangi rol (OWNER, ADMIN, MEMBER, VIEWER)", example = "ADMIN", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Rol kiritilishi shart")
     private WorkspaceRole role;
 }

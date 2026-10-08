@@ -29,18 +29,28 @@ public class ColumnController {
         this.columnService = columnService;
     }
 
-    @Operation(summary = "Workspace ga tegishli ustunlar ro'yxatini olish")
+    @Operation(
+            operationId = "getWorkspaceColumns",
+            summary = "Workspace ga tegishli ustunlar ro'yxatini olish",
+            description = "Ishchi maydonga tegishli barcha ustunlar ro'yxatini tartiblangan holatda qaytaradi."
+    )
     @GetMapping
     public ApiResponse<List<ColumnDto>> getColumns(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser) {
         List<ColumnDto> columns = columnService.getColumns(workspaceId, currentUser);
         return ApiResponse.success("ok", columns);
     }
 
-    @Operation(summary = "Yangi ustun yaratish")
+    @Operation(
+            operationId = "createWorkspaceColumn",
+            summary = "Yangi ustun yaratish",
+            description = "Kanban doskasiga yangi ustun qo'shadi. Ustun nomi va ixtiyoriy tartib raqami beriladi."
+    )
     @PostMapping
     public ApiResponse<ColumnDto> createColumn(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @Valid @RequestBody ColumnCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -48,10 +58,16 @@ public class ColumnController {
         return ApiResponse.success("Column yaratildi", column);
     }
 
-    @Operation(summary = "Ustunni to'liq yangilash")
+    @Operation(
+            operationId = "updateWorkspaceColumn",
+            summary = "Ustunni to'liq yangilash",
+            description = "Ustunning sarlavhasi, tartib indeksi va tugallanganlik (isDone) holatini to'liq yangilaydi."
+    )
     @PutMapping("/{id}")
     public ApiResponse<ColumnDto> updateColumn(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ustun (column) ID si", example = "col-uuid-123")
             @PathVariable String id,
             @Valid @RequestBody ColumnCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -59,10 +75,16 @@ public class ColumnController {
         return ApiResponse.success("Column yangilandi", column);
     }
 
-    @Operation(summary = "Ustunni qisman yangilash")
+    @Operation(
+            operationId = "patchWorkspaceColumn",
+            summary = "Ustunni qisman yangilash",
+            description = "Ustunning faqat uzatilgan parametrlarini yangilaydi."
+    )
     @PatchMapping("/{id}")
     public ApiResponse<ColumnDto> patchColumn(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ustun (column) ID si", example = "col-uuid-123")
             @PathVariable String id,
             @Valid @RequestBody ColumnPatchRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -70,9 +92,16 @@ public class ColumnController {
         return ApiResponse.success("Column yangilandi", column);
     }
 
-    @Operation(summary = "Ustunlar tartibini o'zgartirish (reorder)")
+    @Deprecated
+    @Operation(
+            operationId = "reorderWorkspaceColumnsLegacy",
+            summary = "Ustunlar tartibini o'zgartirish (eski variant)",
+            description = "Eski variant (List<ColumnReorderItem>). Frontend uchun tavsiya etilgan qulay variant: PATCH /api/workspaces/{workspaceId}/columns/reorder (oddiy List<String> columnIds massivi).",
+            deprecated = true
+    )
     @PatchMapping
     public ApiResponse<List<ColumnDto>> reorderColumns(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @RequestBody List<ColumnReorderItem> items,
             @AuthenticationPrincipal User currentUser) {
@@ -80,9 +109,14 @@ public class ColumnController {
         return ApiResponse.success("Columnlar tartibi yangilandi", columns);
     }
 
-    @Operation(summary = "Ustunlar tartibini ID lar ro'yxati orqali yangilash (oddiy massiv: ['col1', 'col2'])")
+    @Operation(
+            operationId = "reorderWorkspaceColumns",
+            summary = "Ustunlar tartibini ID lar ro'yxati orqali yangilash (oddiy massiv: ['col1', 'col2'])",
+            description = "Ustunlar ID larining tartibli massivi orqali ustunlar indekslarini qayta belgilaydi."
+    )
     @PatchMapping("/reorder")
     public ApiResponse<List<ColumnDto>> reorderColumnsByIds(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @RequestBody List<String> columnIds,
             @AuthenticationPrincipal User currentUser) {
@@ -90,10 +124,16 @@ public class ColumnController {
         return ApiResponse.success("Columnlar tartibi yangilandi", columns);
     }
 
-    @Operation(summary = "Ustunni o'chirish")
+    @Operation(
+            operationId = "deleteWorkspaceColumn",
+            summary = "Ustunni o'chirish",
+            description = "Ustunni soft-delete qiladi. Ustun ichida vazifalar bo'lsa, xatolik berishi yoki vazifalarni boshqa joyga ko'chirish talab qilinishi mumkin."
+    )
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteColumn(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ustun (column) ID si", example = "col-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         columnService.deleteColumn(workspaceId, id, currentUser);

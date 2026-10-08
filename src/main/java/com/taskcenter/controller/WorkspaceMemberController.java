@@ -28,19 +28,23 @@ public class WorkspaceMemberController {
         this.memberService = memberService;
     }
 
-    @Operation(summary = "Workspace a'zolari ro'yxatini rollari bilan olish")
+    @Operation(operationId = "getWorkspaceMembers", summary = "Workspace a'zolari ro'yxatini rollari bilan olish",
+            description = "Ishchi maydonga a'zo barcha foydalanuvchilar va ularning rollarini (OWNER, ADMIN, MEMBER, VIEWER) qaytaradi.")
     @GetMapping
     public ApiResponse<List<WorkspaceMemberResponseDto>> getMembers(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser) {
         List<WorkspaceMemberResponseDto> members = memberService.getWorkspaceMembers(workspaceId, currentUser);
         return ApiResponse.success("ok", members);
     }
 
-    @Operation(summary = "Workspace ga yangi a'zo taklif qilish / qo'shish")
+    @Operation(operationId = "inviteWorkspaceMember", summary = "Workspace ga yangi a'zo taklif qilish / qo'shish",
+            description = "Foydalanuvchi logini yoki email orqali uni berilgan rol bilan workspace a'zoligiga qo'shadi.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<WorkspaceMemberResponseDto> addMember(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String workspaceId,
             @Valid @RequestBody WorkspaceMemberInviteRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -48,10 +52,13 @@ public class WorkspaceMemberController {
         return ApiResponse.success("A'zo muvaffaqiyatli qo'shildi", response);
     }
 
-    @Operation(summary = "Workspace a'zosining rolini o'zgartirish")
+    @Operation(operationId = "updateWorkspaceMemberRole", summary = "Workspace a'zosining rolini o'zgartirish",
+            description = "Mavjud a'zoning rolini yangilaydi (masalan MEMBER -> ADMIN). Faqat OWNER yoki ADMIN bajara oladi.")
     @PatchMapping("/{userId}")
     public ApiResponse<WorkspaceMemberResponseDto> updateMemberRole(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Foydalanuvchi identifikatori (UUID)", example = "user-123", required = true)
             @PathVariable String userId,
             @Valid @RequestBody WorkspaceMemberRoleUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -59,10 +66,13 @@ public class WorkspaceMemberController {
         return ApiResponse.success("A'zo roli muvaffaqiyatli yangilandi", response);
     }
 
-    @Operation(summary = "Workspace a'zosini chiqarib yuborish yoki jamoani tark etish")
+    @Operation(operationId = "removeWorkspaceMember", summary = "Workspace a'zosini chiqarib yuborish yoki jamoani tark etish",
+            description = "A'zoni workspace tarkibidan chiqaradi. Admin boshqa a'zoni chiqarishi yoki a'zo o'zi chiqib ketishi mumkin.")
     @DeleteMapping("/{userId}")
     public ApiResponse<Void> removeMember(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Foydalanuvchi identifikatori (UUID)", example = "user-123", required = true)
             @PathVariable String userId,
             @AuthenticationPrincipal User currentUser) {
         memberService.removeMember(workspaceId, userId, currentUser);

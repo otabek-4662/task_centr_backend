@@ -10,7 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Tasks Direct", description = "Vazifalar bilan bevosita ishlash (workspace id siz)")
+@Deprecated
+@Tag(name = "Tasks Direct", description = "Vazifalar bilan bevosita ishlash (eski/dublikat API lar)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/tasks")
@@ -22,9 +23,16 @@ public class TaskDirectController {
         this.taskService = taskService;
     }
 
-    @Operation(summary = "Vazifani bevosita ID orqali olish (faqat a'zolar uchun)")
+    @Deprecated
+    @Operation(
+            operationId = "getTaskDirectById",
+            summary = "Vazifani bevosita ID orqali olish (eski/dublikat endpoint)",
+            description = "Eski dublikat endpoint. Yangi integratsiyalar va tavsiya etilgan asosiy yo'l: GET /api/workspaces/{workspaceId}/tasks/{id}. Ushbu endpoint workspaceId bilmagan holatlar uchun vaqtinchalik saqlanmoqda.",
+            deprecated = true
+    )
     @GetMapping("/{id}")
     public ApiResponse<TaskDto> getTaskDirectById(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.getTaskDirectById(id, currentUser);

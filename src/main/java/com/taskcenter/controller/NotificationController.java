@@ -24,7 +24,11 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @Operation(summary = "Mening bildirishnomalarim ro'yxatini olish (Pageable)")
+    @Operation(
+            operationId = "getMyNotifications",
+            summary = "Mening bildirishnomalarim ro'yxatini olish (Pageable)",
+            description = "Joriy foydalanuvchiga tegishli barcha bildirishnomalarni (vazifa biriktirilishi, izohlar, eslatmalar) sahifalab qaytaradi."
+    )
     @GetMapping
     public ApiResponse<Page<NotificationDto>> getMyNotifications(
             @org.springdoc.core.annotations.ParameterObject Pageable pageable,
@@ -32,16 +36,25 @@ public class NotificationController {
         return ApiResponse.success("ok", notificationService.getUserNotifications(currentUser, pageable));
     }
 
-    @Operation(summary = "Bildirishnomani o'qilgan deb belgilash")
+    @Operation(
+            operationId = "markNotificationAsRead",
+            summary = "Bildirishnomani o'qilgan deb belgilash",
+            description = "Bitta bildirishnomaning o'qilganlik holatini (isRead = true) saqlaydi."
+    )
     @PutMapping("/{id}/read")
     public ApiResponse<Void> markAsRead(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Bildirishnoma ID si", example = "notif-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         notificationService.markAsRead(id, currentUser);
         return ApiResponse.success("ok", null);
     }
 
-    @Operation(summary = "Barcha o'qilmaganlarni o'qilgan deb belgilash")
+    @Operation(
+            operationId = "markAllNotificationsAsRead",
+            summary = "Barcha o'qilmaganlarni o'qilgan deb belgilash",
+            description = "Foydalanuvchining barcha o'qilmagan bildirishnomalarini bir vaqtning o'zida o'qilgan deb belgilaydi."
+    )
     @PutMapping("/read-all")
     public ApiResponse<Void> markAllAsRead(
             @AuthenticationPrincipal User currentUser) {

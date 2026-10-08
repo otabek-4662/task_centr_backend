@@ -6,13 +6,17 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
+@Schema(
+        description = "Parolni o'zgartirish so'rovi",
+        example = "{\"oldPassword\": \"OldPassword123!\", \"newPassword\": \"NewSecurePassword123!\"}"
+)
 public class ChangePasswordRequest {
 
-    @Schema(description = "Eski parol", example = "OldPassword123!")
+    @Schema(description = "Eski parol", example = "OldPassword123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
     @NotBlank(message = "Eski quloqqa aytiladigan so'z kiritilishi shart")
     private String oldPassword;
 
-    @Schema(description = "Yangi parol (kamida 6 ta belgi)", example = "NewSecurePassword123!")
+    @Schema(description = "Yangi parol (kamida 6 ta belgi)", example = "NewSecurePassword123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
     @NotBlank(message = "Yangi quloqqa aytiladigan so'z kiritilishi shart")
     @Size(min = 6, max = 100, message = "Yangi quloqqa aytiladigan so'z kamida 6 ta belgidan iborat bo'lishi kerak")
     private String newPassword;

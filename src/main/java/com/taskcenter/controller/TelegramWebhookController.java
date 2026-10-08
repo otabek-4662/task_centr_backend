@@ -34,7 +34,11 @@ public class TelegramWebhookController {
         this.expectedSecret = expectedSecret;
     }
 
-    @Operation(summary = "Telegram Update qabul qilish", description = "Telegram Bot API dan kelgan webhook updates ni qayta ishlash")
+    @Operation(
+            operationId = "handleTelegramWebhookUpdate",
+            summary = "Telegram Update qabul qilish",
+            description = "Telegram Bot API dan kelgan webhook updates ni qayta ishlash"
+    )
     @PostMapping
     public ResponseEntity<Void> handleTelegramUpdate(
             @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secretToken,

@@ -48,7 +48,8 @@ public class TelegramAuthController {
             @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
             @NotBlank String initData) {}
 
-    @Operation(summary = "Telegram Mini App orqali login")
+    @Operation(operationId = "loginWithTelegram", summary = "Telegram Mini App orqali login",
+            description = "Telegram WebApp tomonidan berilgan initData imzosini tekshirib, foydalanuvchiga JWT token va refresh token beradi.")
     @PostMapping("/telegram")
     public ResponseEntity<ApiResponse<AuthResponse>> telegramLogin(@Valid @RequestBody TelegramAuthRequest req) throws Exception {
         Map<String, String> params = validator.validate(req.initData())

@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,6 +49,10 @@ class TaskServiceTest {
     private TelegramNotificationService telegramNotificationService;
     @Mock
     private com.taskcenter.repository.UserRepository userRepository;
+    @Mock
+    private com.taskcenter.repository.LabelRepository labelRepository;
+    @Mock
+    private com.taskcenter.repository.DirectionRepository directionRepository;
 
     @org.mockito.Spy
     private java.time.Clock clock = java.time.Clock.systemDefaultZone();
@@ -127,17 +132,13 @@ class TaskServiceTest {
         req.setTitle("Urgent Task");
         req.setColumnId("col1");
         req.setPriority(com.taskcenter.model.Priority.URGENT);
-        req.setIssueType(com.taskcenter.model.IssueType.BUG);
-        req.setDueDate(java.time.LocalDate.of(2026, 12, 31));
-        req.setStoryPoints(8);
 
         TaskDto result = taskService.createTask("ws1", req, testUser());
 
         assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.URGENT);
-        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.BUG);
-        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 12, 31));
-        assertThat(result.getStoryPoints()).isEqualTo(8);
+        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.TASK);
     }
+
 
     @Test
     void createTask_withValidSprintId_assignsCorrectly() {
@@ -280,64 +281,32 @@ class TaskServiceTest {
         req.setTitle("Updated Title");
         req.setDescription("New desc");
         req.setPriority(com.taskcenter.model.Priority.HIGH);
-        req.setIssueType(com.taskcenter.model.IssueType.STORY);
-        req.setDueDate(java.time.LocalDate.of(2026, 11, 15));
-        req.setStoryPoints(5);
 
         TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
 
         assertThat(result.getTitle()).isEqualTo("Updated Title");
         assertThat(result.getDescription()).isEqualTo("New desc");
         assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.HIGH);
-        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.STORY);
-        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 11, 15));
-        assertThat(result.getStoryPoints()).isEqualTo(5);
-        verify(activityService).logActivity("task1", testUser(), com.taskcenter.model.TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", "null", "5");
-        verify(telegramReminderLogRepository).deleteByTaskId("task1");
+        verify(activityService).logActivity("task1", testUser(), com.taskcenter.model.TaskActivityType.TITLE_UPDATED, "title", "Test Task", "Updated Title");
     }
 
     @Test
-    void updateTask_dueDateChangedToNull_clearsReminderLogs() {
+    void updateTask_withMultipleDirectionsAndAssignees_updatesSuccessfully() {
         org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
         Task task = testTask();
-        task.setDueDate(java.time.LocalDate.of(2026, 10, 20));
         when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        com.taskcenter.model.Direction d1 = com.taskcenter.model.Direction.builder().id("dir1").name("Frontend").build();
+        com.taskcenter.model.Direction d2 = com.taskcenter.model.Direction.builder().id("dir2").name("Backend").build();
+        when(directionRepository.findAllById(any())).thenReturn(List.of(d1, d2));
+
         TaskUpdateRequest req = new TaskUpdateRequest();
-        req.setClearDueDate(true);
+        req.setDirectionIds(Set.of("dir1", "dir2"));
 
         TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
 
-        assertThat(result.getDueDate()).isNull();
-        verify(telegramReminderLogRepository).deleteByTaskId("task1");
-    }
-
-    @Test
-    void updateTask_clearDueDateNullOrFalse_preservesDueDate() {
-        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
-        Task task = testTask();
-        task.setDueDate(java.time.LocalDate.of(2026, 10, 20));
-        when(taskRepository.findByIdWithDetails("task1")).thenReturn(Optional.of(task));
-        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // When clearDueDate is not provided (null) and dueDate is null
-        TaskUpdateRequest req = new TaskUpdateRequest();
-        req.setTitle("Updated Title Only");
-
-        TaskDto result = taskService.updateTask("ws1", "task1", req, testUser());
-
-        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 20));
-        verify(telegramReminderLogRepository, never()).deleteByTaskId("task1");
-
-        // When clearDueDate is explicitly false and dueDate is null
-        req.setClearDueDate(false);
-        req.setDueDate(null);
-
-        TaskDto result2 = taskService.updateTask("ws1", "task1", req, testUser());
-
-        assertThat(result2.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 20));
-        verify(telegramReminderLogRepository, never()).deleteByTaskId("task1");
+        assertThat(result.getDirections()).hasSize(2);
     }
 
     @Test

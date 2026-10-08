@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,6 +41,7 @@ public class TaskService {
     private final TelegramNotificationService telegramNotificationService;
     private final UserRepository userRepository;
     private final com.taskcenter.repository.LabelRepository labelRepository;
+    private final com.taskcenter.repository.DirectionRepository directionRepository;
     private final java.time.Clock clock;
 
     public TaskService(TaskRepository taskRepository,
@@ -56,7 +58,25 @@ public class TaskService {
         this(taskRepository, columnRepository, sprintRepository, authorizationService,
              activityService, webSocketNotifier, notificationService,
              telegramReminderLogRepository, telegramNotificationService,
-             userRepository, null, clock);
+             userRepository, null, null, clock);
+    }
+
+    public TaskService(TaskRepository taskRepository,
+                       ColumnRepository columnRepository,
+                       com.taskcenter.repository.SprintRepository sprintRepository,
+                       WorkspaceAuthorizationService authorizationService,
+                       TaskActivityService activityService,
+                       WebSocketNotifier webSocketNotifier,
+                       NotificationService notificationService,
+                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramNotificationService telegramNotificationService,
+                       UserRepository userRepository,
+                       com.taskcenter.repository.LabelRepository labelRepository,
+                       java.time.Clock clock) {
+        this(taskRepository, columnRepository, sprintRepository, authorizationService,
+             activityService, webSocketNotifier, notificationService,
+             telegramReminderLogRepository, telegramNotificationService,
+             userRepository, labelRepository, null, clock);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -71,6 +91,7 @@ public class TaskService {
                        TelegramNotificationService telegramNotificationService,
                        UserRepository userRepository,
                        com.taskcenter.repository.LabelRepository labelRepository,
+                       com.taskcenter.repository.DirectionRepository directionRepository,
                        java.time.Clock clock) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
@@ -83,6 +104,7 @@ public class TaskService {
         this.telegramNotificationService = telegramNotificationService;
         this.userRepository = userRepository;
         this.labelRepository = labelRepository;
+        this.directionRepository = directionRepository;
         this.clock = clock;
     }
 
@@ -267,7 +289,7 @@ public class TaskService {
         }
 
         Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
-        IssueType issueType = req.getIssueType() != null ? req.getIssueType() : IssueType.TASK;
+        IssueType issueType = IssueType.TASK;
 
         String sprintId = null;
         if (req.getSprintId() != null && !req.getSprintId().isBlank()) {
@@ -290,27 +312,27 @@ public class TaskService {
                 .lexoRank(lexoRank)
                 .priority(priority)
                 .issueType(issueType)
-                .dueDate(req.getDueDate())
-                .storyPoints(req.getStoryPoints())
-                .estimatedHours(req.getEstimatedHours())
-                .loggedHours(req.getLoggedHours())
                 .sprintId(sprintId)
                 .build();
 
         if (req.getAssigneeIds() != null && !req.getAssigneeIds().isEmpty() && userRepository != null) {
-            Set<String> targetIds = req.getAssigneeIds().stream()
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+            Set<String> targetIds = req.getAssigneeIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
             if (!targetIds.isEmpty()) {
                 List<User> assignees = userRepository.findAllById(targetIds);
                 task.getAssignees().addAll(assignees);
             }
         }
 
+        if (req.getDirectionIds() != null && !req.getDirectionIds().isEmpty() && directionRepository != null) {
+            Set<String> targetDirectionIds = req.getDirectionIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            if (!targetDirectionIds.isEmpty()) {
+                List<com.taskcenter.model.Direction> directions = directionRepository.findAllById(targetDirectionIds);
+                task.getDirections().addAll(directions);
+            }
+        }
+
         if (req.getLabelIds() != null && !req.getLabelIds().isEmpty() && labelRepository != null) {
-            Set<String> targetLabelIds = req.getLabelIds().stream()
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+            Set<String> targetLabelIds = req.getLabelIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
             if (!targetLabelIds.isEmpty()) {
                 List<com.taskcenter.model.Label> labels = labelRepository.findAllById(targetLabelIds);
                 task.getLabels().addAll(labels);
@@ -375,33 +397,6 @@ public class TaskService {
             task.setPriority(req.getPriority());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.PRIORITY_UPDATED, "priority", String.valueOf(oldPriority), String.valueOf(req.getPriority()));
         }
-        if (req.getIssueType() != null && req.getIssueType() != task.getIssueType()) {
-            IssueType oldType = task.getIssueType();
-            task.setIssueType(req.getIssueType());
-            activityService.logActivity(task.getId(), currentUser, TaskActivityType.ISSUE_TYPE_UPDATED, "issueType", String.valueOf(oldType), String.valueOf(req.getIssueType()));
-        }
-        if (Boolean.TRUE.equals(req.getClearDueDate())) {
-            LocalDate oldDate = task.getDueDate();
-            task.setDueDate(null);
-            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), "null");
-            clearReminderLogsForTask(task.getId());
-        } else if (req.getDueDate() != null && !req.getDueDate().equals(task.getDueDate())) {
-            LocalDate oldDate = task.getDueDate();
-            task.setDueDate(req.getDueDate());
-            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDate), String.valueOf(req.getDueDate()));
-            clearReminderLogsForTask(task.getId());
-        }
-        if (req.getStoryPoints() != null && !req.getStoryPoints().equals(task.getStoryPoints())) {
-            Integer oldPoints = task.getStoryPoints();
-            task.setStoryPoints(req.getStoryPoints());
-            activityService.logActivity(task.getId(), currentUser, TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", String.valueOf(oldPoints), String.valueOf(req.getStoryPoints()));
-        }
-        if (req.getEstimatedHours() != null && !req.getEstimatedHours().equals(task.getEstimatedHours())) {
-            task.setEstimatedHours(req.getEstimatedHours());
-        }
-        if (req.getLoggedHours() != null && !req.getLoggedHours().equals(task.getLoggedHours())) {
-            task.setLoggedHours(req.getLoggedHours());
-        }
         if (req.getSprintId() != null) {
             String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
             if (newSprintId != null && !newSprintId.equals(task.getSprintId())) {
@@ -423,14 +418,12 @@ public class TaskService {
         }
 
         if (req.getAssigneeIds() != null && userRepository != null) {
-            java.util.Set<String> targetIds = req.getAssigneeIds().stream()
-                    .filter(java.util.Objects::nonNull)
-                    .collect(Collectors.toSet());
-            java.util.Set<User> existingAssignees = new java.util.HashSet<>(task.getAssignees());
-            java.util.Set<String> existingIds = existingAssignees.stream().map(User::getId).collect(Collectors.toSet());
+            Set<String> targetIds = req.getAssigneeIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<User> existingAssignees = new HashSet<>(task.getAssignees());
+            Set<String> existingIds = existingAssignees.stream().map(User::getId).collect(Collectors.toSet());
 
-            java.util.Set<String> toAddIds = targetIds.stream().filter(uid -> !existingIds.contains(uid)).collect(Collectors.toSet());
-            java.util.Set<String> toRemoveIds = existingIds.stream().filter(uid -> !targetIds.contains(uid)).collect(Collectors.toSet());
+            Set<String> toAddIds = targetIds.stream().filter(uid -> !existingIds.contains(uid)).collect(Collectors.toSet());
+            Set<String> toRemoveIds = existingIds.stream().filter(uid -> !targetIds.contains(uid)).collect(Collectors.toSet());
 
             if (!toAddIds.isEmpty() || !toRemoveIds.isEmpty()) {
                 task.getAssignees().removeIf(u -> toRemoveIds.contains(u.getId()));
@@ -448,14 +441,26 @@ public class TaskService {
             }
         }
 
-        if (req.getLabelIds() != null && labelRepository != null) {
-            java.util.Set<String> targetLabelIds = req.getLabelIds().stream()
-                    .filter(java.util.Objects::nonNull)
-                    .collect(Collectors.toSet());
-            java.util.Set<com.taskcenter.model.Label> existingLabels = new java.util.HashSet<>(task.getLabels());
-            java.util.Set<String> existingIds = existingLabels.stream().map(com.taskcenter.model.Label::getId).collect(Collectors.toSet());
+        if (req.getDirectionIds() != null && directionRepository != null) {
+            Set<String> targetDirectionIds = req.getDirectionIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<com.taskcenter.model.Direction> existingDirs = new HashSet<>(task.getDirections());
+            Set<String> existingDirIds = existingDirs.stream().map(com.taskcenter.model.Direction::getId).collect(Collectors.toSet());
 
-            if (!targetLabelIds.equals(existingIds)) {
+            if (!targetDirectionIds.equals(existingDirIds)) {
+                task.getDirections().removeIf(d -> !targetDirectionIds.contains(d.getId()));
+                if (!targetDirectionIds.isEmpty()) {
+                    List<com.taskcenter.model.Direction> newDirs = directionRepository.findAllById(targetDirectionIds);
+                    task.getDirections().addAll(newDirs);
+                }
+            }
+        }
+
+        if (req.getLabelIds() != null && labelRepository != null) {
+            Set<String> targetLabelIds = req.getLabelIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<com.taskcenter.model.Label> existingLabels = new HashSet<>(task.getLabels());
+            Set<String> existingLabelIds = existingLabels.stream().map(com.taskcenter.model.Label::getId).collect(Collectors.toSet());
+
+            if (!targetLabelIds.equals(existingLabelIds)) {
                 task.getLabels().removeIf(l -> !targetLabelIds.contains(l.getId()));
                 if (!targetLabelIds.isEmpty()) {
                     List<com.taskcenter.model.Label> newLabels = labelRepository.findAllById(targetLabelIds);

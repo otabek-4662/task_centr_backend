@@ -21,7 +21,7 @@ public class TaskFilterRequest {
     @Schema(description = "Muhimlik darajasi bo'yicha filter", example = "HIGH")
     private Priority priority;
 
-    @Schema(description = "Vazifa turi bo'yicha filter", example = "BUG")
+    @Schema(hidden = true)
     private IssueType issueType;
 
     @Schema(hidden = true)
@@ -34,16 +34,16 @@ public class TaskFilterRequest {
     @Schema(description = "Ustun ID si", example = "col-123")
     private String columnId;
 
-    @Schema(description = "Muddati o'tib ketgan vazifalar", example = "true")
+    @Schema(hidden = true)
     private Boolean isOverdue;
 
-    @Schema(description = "Bugun qilinishi kerak bo'lgan vazifalar", example = "true")
+    @Schema(hidden = true)
     private Boolean dueToday;
 
     @Schema(description = "Faqat menga biriktirilgan vazifalar", example = "true")
     private Boolean assignedToMe;
 
-    @Schema(description = "Shu hafta qilinishi kerak bo'lgan vazifalar", example = "true")
+    @Schema(hidden = true)
     private Boolean dueThisWeek;
 
     @Schema(description = "Arxivlangan vazifalarni ham qo'shish", example = "false")
@@ -52,7 +52,10 @@ public class TaskFilterRequest {
     @Schema(description = "Workspace ID bo'yicha filter", example = "ws-123")
     private String workspaceId;
 
+    @Schema(hidden = true)
     private String currentUserId;
+    @Schema(hidden = true)
     private LocalDate endOfWeek;
+    @Schema(hidden = true)
     private LocalDate today;
 }

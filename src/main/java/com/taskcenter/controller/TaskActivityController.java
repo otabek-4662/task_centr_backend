@@ -26,9 +26,14 @@ public class TaskActivityController {
         this.activityService = activityService;
     }
 
-    @Operation(summary = "Task o'zgarishlar tarixini sahifalab olish (History)")
+    @Operation(
+            operationId = "getTaskActivities",
+            summary = "Task o'zgarishlar tarixini sahifalab olish (History)",
+            description = "Vazifada amalga oshirilgan barcha o'zgarishlar (status o'zgarishi, izohlar, ijrochi biriktirilishi, tahrirlar) xronologik tarixini sahifalab qaytaradi."
+    )
     @GetMapping
     public ApiResponse<Page<TaskActivityDto>> getActivities(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String taskId,
             @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal User currentUser) {

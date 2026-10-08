@@ -32,7 +32,8 @@ public class WorkspaceController {
         this.workspaceService = workspaceService;
     }
 
-    @Operation(summary = "Foydalanuvchining workspace lari ro'yxatini olish")
+    @Operation(operationId = "getMyWorkspaces", summary = "Foydalanuvchining workspace lari ro'yxatini olish",
+            description = "Joriy foydalanuvchi a'zo bo'lgan barcha ishchi maydonlar ro'yxatini sahifalab (pagination) qaytaradi.")
     @GetMapping
     public ApiResponse<Page<WorkspaceListDto>> getWorkspaces(
             @AuthenticationPrincipal User currentUser,
@@ -41,16 +42,19 @@ public class WorkspaceController {
         return ApiResponse.success("ok", workspaces);
     }
 
-    @Operation(summary = "Bitta workspace ma'lumotlarini ID orqali olish")
+    @Operation(operationId = "getWorkspaceById", summary = "Bitta workspace ma'lumotlarini ID orqali olish",
+            description = "Berilgan ID li ishchi maydonning batafsil ma'lumotlari, egaligi va sozlamalarini qaytaradi.")
     @GetMapping("/{id}")
     public ApiResponse<WorkspaceDto> getWorkspace(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         WorkspaceDto workspace = workspaceService.getWorkspaceById(id, currentUser);
         return ApiResponse.success("ok", workspace);
     }
 
-    @Operation(summary = "Yangi workspace yaratish")
+    @Operation(operationId = "createWorkspace", summary = "Yangi workspace yaratish",
+            description = "Yangi ishchi maydon yaratadi. Foydalanuvchi avtomatik tarzda OWNER roliga ega bo'ladi. Agar initDefaultColumns=true bo'lsa, To Do, In Progress, Done ustunlari avtomatik ochiladi.")
     @PostMapping
     public ApiResponse<WorkspaceDto> createWorkspace(
             @Valid @RequestBody WorkspaceCreateRequest request,
@@ -59,9 +63,11 @@ public class WorkspaceController {
         return ApiResponse.success("G'alva yaratildi", workspace);
     }
 
-    @Operation(summary = "Mavjud workspace ni tahrirlash")
+    @Operation(operationId = "updateWorkspace", summary = "Mavjud workspace ni tahrirlash",
+            description = "Ishchi maydonning sarlavhasi, foni va tavsifini tahrirlaydi. Faqat workspace egasi (OWNER) yoki admin (ADMIN) bajara oladi.")
     @PutMapping("/{id}")
     public ApiResponse<WorkspaceDto> updateWorkspace(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String id,
             @Valid @RequestBody WorkspaceCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -69,9 +75,11 @@ public class WorkspaceController {
         return ApiResponse.success("G'alva yangilandi", workspace);
     }
 
-    @Operation(summary = "Workspace ni o'chirish")
+    @Operation(operationId = "deleteWorkspace", summary = "Workspace ni o'chirish",
+            description = "Ishchi maydonni soft-delete qiladi. Faqat workspace egasi (OWNER) bajara oladi.")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteWorkspace(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         workspaceService.deleteWorkspace(id, currentUser);

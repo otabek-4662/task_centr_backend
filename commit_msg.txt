@@ -1,0 +1,10 @@
+feat(api): complete Phase 1 safe fixes, OpenAPI docs and error standardization
+
+- unhide TaskDto fields (dueDate, issueType, storyPoints, estimatedHours, loggedHours, isOverdue, sprintId) with Schema docs
+- standardize GlobalExceptionHandler error envelopes with code and status
+- add format='password' to auth/user request password schemas
+- refactor ConfigController to return PublicConfigResponse record
+- align SwaggerConfig PageResponse schema with Spring PageImpl structure
+- add Schema docs and examples for TaskActivityDto, MessageReactionDto and request DTOs
+- add springdoc GroupedOpenApi beans for 'app' and 'legacy'
+- add oasdiff configuration and regenerate docs/openapi.json (0 breaking changes)

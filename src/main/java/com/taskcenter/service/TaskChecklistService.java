@@ -32,6 +32,12 @@ public class TaskChecklistService {
         this.webSocketNotifier = webSocketNotifier;
     }
 
+    public String resolveWorkspaceId(String taskId) {
+        return taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi"))
+                .getWorkspaceId();
+    }
+
     private Task checkAccessAndGetTask(String workspaceId, String taskId, User user, boolean write) {
         if (write) authorizationService.checkCanEdit(workspaceId, user);
         else authorizationService.checkAccess(workspaceId, user);

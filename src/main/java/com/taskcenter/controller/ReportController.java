@@ -24,8 +24,13 @@ public class ReportController {
     }
 
     @GetMapping("/summary")
-    @Operation(summary = "Loyiha bo'yicha umumiy hisobot va xodimlar ish yukini olish")
+    @Operation(
+            operationId = "getWorkspaceSummaryReport",
+            summary = "Loyiha bo'yicha umumiy hisobot va xodimlar ish yukini olish",
+            description = "Ishchi maydondagi jami vazifalar, ustunlar bo'yicha taqsimot va har bir xodimning ustidagi faol vazifalar soni (workload) hisobotini beradi."
+    )
     public ResponseEntity<ApiResponse<WorkspaceReportDto>> getWorkspaceSummary(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser) {
         
@@ -34,9 +39,15 @@ public class ReportController {
     }
 
     @GetMapping("/sprints/{sprintId}")
-    @Operation(summary = "Muayyan Sprint bo'yicha ishlash tezligi (Burn-down) hisobotini olish")
+    @Operation(
+            operationId = "getSprintSummaryReport",
+            summary = "Muayyan Sprint bo'yicha ishlash tezligi (Burn-down) hisobotini olish",
+            description = "Tanlangan sprint doirasida vazifalarning holati, tugallanganlik foizi va jamoa tezligi tahlilini qaytaradi."
+    )
     public ResponseEntity<ApiResponse<com.taskcenter.dto.SprintReportDto>> getSprintSummary(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Sprint ID si", example = "sprint-uuid-123")
             @PathVariable String sprintId,
             @AuthenticationPrincipal User currentUser) {
         

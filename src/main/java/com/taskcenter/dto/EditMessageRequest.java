@@ -12,10 +12,14 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(
+        description = "Xabarni tahrirlash so'rovi",
+        example = "{\"content\": \"Tuzatilgan xabar matni\"}"
+)
 public class EditMessageRequest {
 
     @NotBlank(message = "Yangi xabar matni bo'sh bo'lishi mumkin emas")
     @Size(max = 2000, message = "Xabar matni 2000 belgidan oshmasligi kerak")
-    @Schema(description = "Tahrirlangan xabar matni", example = "Tuzatilgan xabar matni")
+    @Schema(description = "Tahrirlangan xabar matni", example = "Tuzatilgan xabar matni", requiredMode = Schema.RequiredMode.REQUIRED)
     private String content;
 }

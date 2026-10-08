@@ -6,9 +6,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
+@Schema(
+        description = "Parolni tiklash so'rovi",
+        example = "{\"email\": \"otabeksotimov9@gmail.com\"}"
+)
 public class ForgotPasswordRequest {
 
-    @Schema(description = "Ro'yxatdan o'tgan email manzil", example = "otabeksotimov9@gmail.com")
+    @Schema(description = "Ro'yxatdan o'tgan email manzil", example = "otabeksotimov9@gmail.com", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "Email kiritilishi shart")
     @Email(message = "Email manzili noto'g'ri formatda")
     private String email;

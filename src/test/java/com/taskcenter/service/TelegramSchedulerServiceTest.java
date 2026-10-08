@@ -44,7 +44,20 @@ class TelegramSchedulerServiceTest {
         service = new TelegramSchedulerService(
                 taskRepository, reminderLogRepository,
                 userRepository, workspaceRepository,
-                eventPublisher, Clock.systemDefaultZone(), "https://test.url");
+                eventPublisher, Clock.systemDefaultZone(), "https://test.url", true);
+    }
+
+    @Test
+    void whenDeadlineDisabled_doesNotSendRemindersOrDigest() {
+        TelegramSchedulerService disabledService = new TelegramSchedulerService(
+                taskRepository, reminderLogRepository,
+                userRepository, workspaceRepository,
+                eventPublisher, Clock.systemDefaultZone(), "https://test.url", false);
+
+        disabledService.sendDueTomorrowReminders(LocalDateTime.now());
+        disabledService.sendDailyDigest(LocalDateTime.now());
+
+        verifyNoInteractions(taskRepository);
     }
 
     // ═══════════════════ DUE_TOMORROW eslatma testlari ═══════════════════

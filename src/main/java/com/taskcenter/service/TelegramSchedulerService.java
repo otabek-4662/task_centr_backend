@@ -56,6 +56,7 @@ public class TelegramSchedulerService {
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final String miniappBaseUrl;
+    private final boolean deadlineEnabled;
 
     public TelegramSchedulerService(
             TaskRepository taskRepository,
@@ -64,7 +65,8 @@ public class TelegramSchedulerService {
             WorkspaceRepository workspaceRepository,
             ApplicationEventPublisher eventPublisher,
             Clock clock,
-            @org.springframework.beans.factory.annotation.Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl) {
+            @org.springframework.beans.factory.annotation.Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl,
+            @org.springframework.beans.factory.annotation.Value("${telegram.reminders.deadline-enabled:false}") boolean deadlineEnabled) {
         this.taskRepository = taskRepository;
         this.reminderLogRepository = reminderLogRepository;
         this.userRepository = userRepository;
@@ -72,6 +74,7 @@ public class TelegramSchedulerService {
         this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.miniappBaseUrl = miniappBaseUrl;
+        this.deadlineEnabled = deadlineEnabled;
     }
 
     // ────────────────── Scheduled entry points ──────────────────
@@ -148,6 +151,10 @@ public class TelegramSchedulerService {
      */
     @Transactional
     void sendDueTomorrowReminders(LocalDateTime now) {
+        if (!deadlineEnabled) {
+            log.debug("Telegram deadline eslatmalari o'chirilgan (telegram.reminders.deadline-enabled=false)");
+            return;
+        }
         LocalDate tomorrow = now.toLocalDate().plusDays(1);
 
         List<TelegramReminderTaskDto> tasks = taskRepository
@@ -184,6 +191,10 @@ public class TelegramSchedulerService {
      * @param now joriy vaqt (test uchun parametr)
      */
     void sendDailyDigest(LocalDateTime now) {
+        if (!deadlineEnabled) {
+            log.debug("Telegram deadline eslatmalari o'chirilgan (telegram.reminders.deadline-enabled=false)");
+            return;
+        }
         LocalDate today = now.toLocalDate();
 
         List<TelegramReminderTaskDto> tasks = taskRepository.findTasksForTelegramDigest(today);

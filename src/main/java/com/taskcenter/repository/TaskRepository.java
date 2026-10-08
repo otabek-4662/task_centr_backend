@@ -16,14 +16,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByWorkspaceIdOrderByLexoRankAsc(String workspaceId);
     List<Task> findByWorkspaceId(String workspaceId);
     
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     Optional<Task> findByPublicId(String publicId);
     
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);
 
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.id = :id AND t.workspaceId = :workspaceId")
     Optional<Task> findByIdAndWorkspaceIdWithDetails(@Param("id") String id, @Param("workspaceId") String workspaceId);
 
@@ -36,7 +36,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t.workspaceId FROM Task t WHERE t.id = :taskId")
     Optional<String> findWorkspaceIdById(@Param("taskId") String taskId);
     
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
     List<Task> findByWorkspaceIdWithDetails(@Param("workspaceId") String workspaceId);
 
@@ -107,10 +107,10 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT MAX(t.lexoRank) FROM Task t WHERE t.columnId = :columnId")
     String findMaxLexoRankByColumnId(@Param("columnId") String columnId);
 
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     List<Task> findBySprintIdOrderByLexoRankAsc(String sprintId);
 
-    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees"})
     List<Task> findBySprintId(String sprintId);
 
     @Query("SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
@@ -119,7 +119,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
     Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"labels", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     List<Task> findByIdIn(List<String> ids);
 
     long countBySprintId(String sprintId);

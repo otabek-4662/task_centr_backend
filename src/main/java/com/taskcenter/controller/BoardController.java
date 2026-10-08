@@ -24,10 +24,16 @@ public class BoardController {
         this.taskService = taskService;
     }
 
-    @Operation(summary = "Workspace doskasini barcha ustunlar va ularning vazifalari bilan olish (sprintId bo'yicha filter qilish mumkin)")
+    @Operation(
+            operationId = "getKanbanBoard",
+            summary = "Workspace doskasini barcha ustunlar va ularning vazifalari bilan olish",
+            description = "Kanban doskasini barcha faol ustunlari va ularga tegishli kartochkalari (vazifalari) bilan birgalikda yig'ma holda qaytaradi. Ixtiyoriy sprintId orqali filtrlash mumkin."
+    )
     @GetMapping
     public ApiResponse<List<ColumnWithCardsDto>> getBoard(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Sprint bo'yicha filtrlash uchun sprint ID si (ixtiyoriy)", example = "sprint-uuid-123")
             @RequestParam(required = false) String sprintId,
             @AuthenticationPrincipal User currentUser) {
         List<ColumnWithCardsDto> board = taskService.getBoard(workspaceId, sprintId, currentUser);

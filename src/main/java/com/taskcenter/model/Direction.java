@@ -1,0 +1,80 @@
+package com.taskcenter.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "directions")
+@SQLDelete(sql = "UPDATE directions SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@Where(clause = "deleted_at IS NULL")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Direction {
+
+    @Id
+    private String id;
+
+    @Version
+    private Long version;
+
+    @Column(nullable = false)
+    private String workspaceId;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column
+    private String color;
+
+    @CreatedBy
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @LastModifiedBy
+    @Column(name = "updated_by")
+    private String updatedBy;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) {
+            this.id = java.util.UUID.randomUUID().toString();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.color == null || this.color.isBlank()) {
+            this.color = "#3B82F6";
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Direction)) return false;
+        Direction other = (Direction) o;
+        return getId() != null && getId().equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}

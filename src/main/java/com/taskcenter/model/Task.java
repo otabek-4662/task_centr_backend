@@ -116,6 +116,16 @@ public class Task {
     @ManyToMany
     @org.hibernate.annotations.BatchSize(size = 25)
     @JoinTable(
+        name = "task_directions",
+        joinColumns = @JoinColumn(name = "task_id"),
+        inverseJoinColumns = @JoinColumn(name = "direction_id")
+    )
+    @Builder.Default
+    private Set<Direction> directions = new HashSet<>();
+
+    @ManyToMany
+    @org.hibernate.annotations.BatchSize(size = 25)
+    @JoinTable(
         name = "task_assignees",
         joinColumns = @JoinColumn(name = "task_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")

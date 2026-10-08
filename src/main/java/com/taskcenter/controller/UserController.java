@@ -38,19 +38,24 @@ public class UserController {
         this.taskService = taskService;
     }
 
-    @Operation(summary = "Joriy foydalanuvchi profilini olish")
+    @Operation(operationId = "getCurrentUser", summary = "Joriy foydalanuvchi profilini olish",
+            description = "Tizimga kirgan foydalanuvchining shaxsiy ma'lumotlari (id, name, fullName, telegram holati) ni qaytaradi.")
     @GetMapping("/me")
     public ApiResponse<UserDto> getMe(@AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", userService.getCurrentUser(currentUser));
     }
 
-    @Hidden
+    @Deprecated
+    @Operation(operationId = "getCurrentUserLegacy", summary = "Joriy foydalanuvchi profilini olish (eski alias)",
+            description = "Eski dublikat endpoint. Yangi loyihalar va frontend integratsiyasi uchun GET /api/me dan foydalaning.",
+            deprecated = true)
     @GetMapping("/auth/me")
     public ApiResponse<UserDto> getAuthMe(@AuthenticationPrincipal User currentUser) {
         return getMe(currentUser);
     }
 
-    @Operation(summary = "Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha)")
+    @Operation(operationId = "getMyAssignedTasks", summary = "Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha)",
+            description = "Foydalanuvchining barcha ishchi maydonlardagi unga biriktirilgan faol vazifalarini filter va pagination bilan qaytaradi.")
     @GetMapping("/users/me/tasks")
     public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasks(
             @AuthenticationPrincipal User currentUser,
@@ -60,7 +65,10 @@ public class UserController {
         return ApiResponse.success("ok", tasks);
     }
 
-    @Hidden
+    @Deprecated
+    @Operation(operationId = "getMyAssignedTasksLegacy", summary = "Joriy foydalanuvchiga biriktirilgan vazifalar (eski alias)",
+            description = "Eski dublikat endpoint. Yangi loyihalar va frontend integratsiyasi uchun GET /api/users/me/tasks dan foydalaning.",
+            deprecated = true)
     @GetMapping("/me/tasks")
     public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasksAlias(
             @AuthenticationPrincipal User currentUser,
@@ -69,9 +77,11 @@ public class UserController {
         return getMyTasks(currentUser, filter, pageable);
     }
 
-    @Operation(summary = "Workspace dagi foydalanuvchilar ro'yxatini olish")
+    @Operation(operationId = "getWorkspaceUsers", summary = "Workspace dagi foydalanuvchilar ro'yxatini olish",
+            description = "Berilgan workspace ga a'zo barcha foydalanuvchilar ro'yxatini sahifalab qaytaradi.")
     @GetMapping("/users")
     public ApiResponse<Page<UserDto>> getUsers(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @RequestParam String workspaceId,
             @AuthenticationPrincipal User currentUser,
             @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
@@ -79,13 +89,15 @@ public class UserController {
         return ApiResponse.success("ok", users);
     }
 
-    @Operation(summary = "Telegram bilan ulash uchun vaqtinchalik token, tayyor havola va amal qilish muddatini olish")
+    @Operation(operationId = "getTelegramLinkToken", summary = "Telegram bilan ulash uchun vaqtinchalik token, tayyor havola va amal qilish muddatini olish",
+            description = "Foydalanuvchi hisobiga Telegram botni ulash uchun bir martalik 10 daqiqalik token va to'g'ridan-to'g'ri Telegram havolasini yaratadi.")
     @GetMapping("/users/me/telegram-link-token")
     public ApiResponse<TelegramLinkDto> getTelegramLinkToken(@AuthenticationPrincipal User currentUser) {
         return ApiResponse.success("ok", userService.createTelegramLink(currentUser));
     }
 
-    @Operation(summary = "Telegram akkauntni uzish (faqat joriy foydalanuvchi uchun)")
+    @Operation(operationId = "unlinkTelegram", summary = "Telegram akkauntni uzish (faqat joriy foydalanuvchi uchun)",
+            description = "Foydalanuvchi hisobidan ulangan Telegram chat identifikatorini o'chiradi va bildirishnomalarni to'xtatadi.")
     @DeleteMapping("/users/me/telegram")
     public ApiResponse<Void> unlinkTelegram(@AuthenticationPrincipal User currentUser) {
         userService.unlinkTelegram(currentUser);
@@ -96,7 +108,8 @@ public class UserController {
             @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
             @jakarta.validation.constraints.NotBlank String initData) {}
 
-    @Operation(summary = "Mini App orqali Telegram akkauntni ulash")
+    @Operation(operationId = "linkTelegram", summary = "Mini App orqali Telegram akkauntni ulash",
+            description = "Telegram WebApp initData imzosini tekshirish orqali akkauntni joriy foydalanuvchiga ulaydi.")
     @PostMapping("/users/me/telegram")
     public ApiResponse<UserDto> linkTelegramViaMiniApp(
             @AuthenticationPrincipal User currentUser,
@@ -108,7 +121,8 @@ public class UserController {
         return ApiResponse.success("Telegram muvaffaqiyatli ulandi", userService.linkTelegramViaInitData(currentUser, request.initData()));
     }
 
-    @Operation(summary = "Profil ma'lumotlarini tahrirlash", description = "Foydalanuvchi to'liq ismi yoki login nomini yangilash.")
+    @Operation(operationId = "updateCurrentUserProfile", summary = "Profil ma'lumotlarini tahrirlash",
+            description = "Foydalanuvchi to'liq ismi (fullName) yoki login nomini (name) yangilash.")
     @PatchMapping("/users/me")
     public ApiResponse<UserDto> updateProfile(
             @AuthenticationPrincipal User currentUser,
@@ -117,7 +131,8 @@ public class UserController {
         return ApiResponse.success("Profil muvaffaqiyatli yangilandi", updated);
     }
 
-    @Operation(summary = "Parolni o'zgartirish", description = "Eski parolni tekshirib yangi parol o'rnatish.")
+    @Operation(operationId = "changePassword", summary = "Parolni o'zgartirish",
+            description = "Eski parolni tekshirib, yangi parol o'rnatadi (kamida 6 ta belgi).")
     @PostMapping("/users/me/change-password")
     public ApiResponse<Void> changePassword(
             @AuthenticationPrincipal User currentUser,
