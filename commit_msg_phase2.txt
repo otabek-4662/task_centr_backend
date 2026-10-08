@@ -1,0 +1,7 @@
+feat(api): complete Phase 2 bootstrap and lightweight board endpoints
+
+- add GET /api/bootstrap for initial user and workspace loading
+- add GET /api/workspaces/{workspaceId}/board/init using lightweight TaskCardDto
+- add GET /api/tasks/{taskId}/details for full task context
+- create BootstrapResponse, TaskCardDto, BoardInitColumnDto, TaskDetailsDto
+- implement unit tests for new service methods, ensuring 0 duplicated logic

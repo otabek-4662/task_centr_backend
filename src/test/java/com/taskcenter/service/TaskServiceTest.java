@@ -595,4 +595,38 @@ class TaskServiceTest {
         verifyNoInteractions(telegramNotificationService);
         verify(webSocketNotifier).notifyWorkspace(eq(workspaceId), any());
     }
+
+    @Test
+    void getBoardInit_Success() {
+        BoardColumn col = BoardColumn.builder().id("col-1").workspaceId("ws-1").build();
+        Task t1 = Task.builder().id("task-1").columnId("col-1").isArchived(false).lexoRank("1").build();
+
+        when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws-1")).thenReturn(List.of(col));
+        when(taskRepository.findBySprintId("sprint-1")).thenReturn(List.of(t1));
+
+        List<com.taskcenter.dto.BoardInitColumnDto> res = taskService.getBoardInit("ws-1", "sprint-1", testUser());
+
+        assertThat(res).isNotNull();
+        assertThat(res).hasSize(1);
+        assertThat(res.get(0).getCards()).hasSize(1);
+        assertThat(res.get(0).getCards().get(0).getId()).isEqualTo("task-1");
+        verify(authorizationService).checkAccess("ws-1", testUser());
+    }
+
+    @Test
+    void getTaskDetails_Success() {
+        Task task = Task.builder()
+                .id("t-1").workspaceId("ws-1").title("Task 1")
+                .checklistItems(java.util.Set.of(com.taskcenter.model.TaskChecklistItem.builder().id("cl-1").title("cl").isCompleted(true).build()))
+                .build();
+        when(taskRepository.findByIdWithDetails("t-1")).thenReturn(Optional.of(task));
+
+        com.taskcenter.dto.TaskDetailsDto details = taskService.getTaskDetails("t-1", testUser());
+
+        assertThat(details).isNotNull();
+        assertThat(details.getTask()).isNotNull();
+        assertThat(details.getTask().getTitle()).isEqualTo("Task 1");
+        assertThat(details.getChecklists()).hasSize(1);
+        verify(authorizationService).checkAccess("ws-1", testUser());
+    }
 }

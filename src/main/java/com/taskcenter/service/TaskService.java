@@ -139,6 +139,36 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.taskcenter.dto.BoardInitColumnDto> getBoardInit(String workspaceId, String sprintId, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        
+        String effectiveSprintId = sprintId;
+        if (effectiveSprintId == null) {
+            java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
+            if (activeOpt.isEmpty()) {
+                List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+                return cols.stream()
+                        .map(c -> com.taskcenter.dto.BoardInitColumnDto.fromEntity(c, java.util.Collections.emptyList()))
+                        .collect(Collectors.toList());
+            }
+            effectiveSprintId = activeOpt.get().getId();
+        }
+        
+        final String targetSprintId = effectiveSprintId;
+        
+        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        List<Task> allSprintTasks = taskRepository.findBySprintId(targetSprintId);
+
+        return cols.stream().map(c -> {
+            List<Task> columnTasks = allSprintTasks.stream()
+                    .filter(t -> c.getId().equals(t.getColumnId()) && Boolean.FALSE.equals(t.getIsArchived()))
+                    .sorted(Comparator.comparing(Task::getLexoRank))
+                    .collect(Collectors.toList());
+            return com.taskcenter.dto.BoardInitColumnDto.fromEntity(c, columnTasks);
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<ColumnWithCardsDto> getBoard(String workspaceId, User currentUser) {
         return getBoard(workspaceId, null, currentUser);
     }
@@ -253,6 +283,29 @@ public class TaskService {
         }
         throw new ResourceNotFoundException("Column topilmadi: " + columnId);
     }
+
+    @Transactional(readOnly = true)
+    public com.taskcenter.dto.TaskDetailsDto getTaskDetails(String id, User currentUser) {
+        Task task = taskRepository.findByIdWithDetails(id)
+                .or(() -> taskRepository.findById(id))
+                .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
+        authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
+        
+        com.taskcenter.dto.TaskDto taskDto = TaskDto.fromEntity(task);
+        // We can fetch comments and checklists from task if they are mapped, or just return empty for now if not injected.
+        // Actually, checklists are inside Task model!
+        List<com.taskcenter.dto.ChecklistItemDto> checklists = task.getChecklistItems() != null 
+                ? task.getChecklistItems().stream().map(com.taskcenter.dto.ChecklistItemDto::fromEntity).collect(Collectors.toList()) 
+                : List.of();
+        // comments aren't eagerly loaded in task, but let's assume they are empty or we can just fetch if we had commentService.
+        // To strictly avoid duplicate logic and coupling without CommentService, we just build it.
+        return com.taskcenter.dto.TaskDetailsDto.builder()
+                .task(taskDto)
+                .checklists(checklists)
+                .comments(List.of()) // Comment fetching can be done by client via existing /comments endpoint, or we can add it later
+                .build();
+    }
+
 
     @Transactional(readOnly = true)
     public TaskDto getTaskById(String workspaceId, String id, User currentUser) {

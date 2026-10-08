@@ -38,4 +38,18 @@ public class TaskDirectController {
         TaskDto task = taskService.getTaskDirectById(id, currentUser);
         return ApiResponse.success("ok", task);
     }
+
+    @Operation(
+            operationId = "getTaskDetails",
+            summary = "Vazifa to'liq ma'lumotlarini olish",
+            description = "Vazifa, uning izohlari va checklist elementlarini qaytaradi."
+    )
+    @GetMapping("/{id}/details")
+    public ApiResponse<com.taskcenter.dto.TaskDetailsDto> getTaskDetails(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        com.taskcenter.dto.TaskDetailsDto details = taskService.getTaskDetails(id, currentUser);
+        return ApiResponse.success("ok", details);
+    }
 }

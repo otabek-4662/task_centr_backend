@@ -39,4 +39,19 @@ public class BoardController {
         List<ColumnWithCardsDto> board = taskService.getBoard(workspaceId, sprintId, currentUser);
         return ApiResponse.success("ok", board);
     }
+    @Operation(
+            operationId = "getKanbanBoardInit",
+            summary = "Workspace doskasini yangi formatda olish",
+            description = "Yangi formatda (TaskCardDto) Kanban doskasini qaytaradi."
+    )
+    @GetMapping("/init")
+    public ApiResponse<List<com.taskcenter.dto.BoardInitColumnDto>> getBoardInit(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String workspaceId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "Sprint bo'yicha filtrlash uchun sprint ID si (ixtiyoriy)", example = "sprint-uuid-123")
+            @RequestParam(required = false) String sprintId,
+            @AuthenticationPrincipal User currentUser) {
+        List<com.taskcenter.dto.BoardInitColumnDto> board = taskService.getBoardInit(workspaceId, sprintId, currentUser);
+        return ApiResponse.success("ok", board);
+    }
 }
