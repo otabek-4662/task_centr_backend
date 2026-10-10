@@ -37,12 +37,14 @@ class TelegramAuthControllerTest {
     private JwtTokenProvider tokenProvider;
     @Mock
     private AuthService authService;
+    @Mock
+    private com.taskcenter.service.WorkspaceInvitationService workspaceInvitationService;
 
     private TelegramAuthController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new TelegramAuthController(validator, mapper, userRepository, tokenProvider, authService);
+        controller = new TelegramAuthController(validator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService);
     }
 
     @Test
@@ -94,6 +96,40 @@ class TelegramAuthControllerTest {
         when(validator.validate(initData)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> controller.telegramLogin(new TelegramAuthController.TelegramAuthRequest(initData)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> {
+                    ResponseStatusException rse = (ResponseStatusException) e;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                });
+    }
+
+    @Test
+    @DisplayName("createPendingInvite initData va inviteToken to'g'ri bo'lsa botLink muvaffaqiyatli qaytadi")
+    void createPendingInvite_valid_returnsBotLink() throws Exception {
+        String initData = "valid_init_data";
+        when(validator.validate(initData)).thenReturn(Optional.of(Map.of(
+                "user", "{\"id\":55555,\"first_name\":\"TelegramGuest\"}"
+        )));
+        when(workspaceInvitationService.registerPendingTelegramChatInvite(55555L, "tok_123"))
+                .thenReturn("https://t.me/test_bot?start=inv_tok_123");
+
+        ResponseEntity<ApiResponse<TelegramAuthController.TelegramPendingInviteResponse>> response =
+                controller.createPendingInvite(new TelegramAuthController.TelegramPendingInviteRequest(initData, "tok_123"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().botLink()).isEqualTo("https://t.me/test_bot?start=inv_tok_123");
+    }
+
+    @Test
+    @DisplayName("createPendingInvite initData yaroqsiz bo'lsa 401 qaytadi")
+    void createPendingInvite_invalidInitData_throws401() {
+        String initData = "invalid_init_data";
+        when(validator.validate(initData)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> controller.createPendingInvite(
+                new TelegramAuthController.TelegramPendingInviteRequest(initData, "tok_123")))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> {
                     ResponseStatusException rse = (ResponseStatusException) e;

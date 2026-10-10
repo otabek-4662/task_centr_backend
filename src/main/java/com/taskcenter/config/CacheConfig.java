@@ -13,8 +13,13 @@ import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableCaching
-@EnableJpaAuditing(auditorAwareRef = "auditorProvider")
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider", dateTimeProviderRef = "dateTimeProvider")
 public class CacheConfig {
+
+    @Bean
+    public org.springframework.data.auditing.DateTimeProvider dateTimeProvider() {
+        return () -> java.util.Optional.of(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+    }
 
     @Bean
     public AuditorAware<String> auditorProvider() {

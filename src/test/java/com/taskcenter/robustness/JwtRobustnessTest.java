@@ -59,7 +59,7 @@ public class JwtRobustnessTest {
     void expiredToken_isRejected() throws Exception {
         String expired = signedWith(secret, new Date(System.currentTimeMillis() - 5_000), "elshod");
         mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + expired))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -67,7 +67,7 @@ public class JwtRobustnessTest {
         String foreign = signedWith("completely-different-secret-that-is-also-256-bits-long-xyz",
                 new Date(System.currentTimeMillis() + 600_000), "elshod");
         mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + foreign))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -80,6 +80,6 @@ public class JwtRobustnessTest {
 
         // Try to access a protected endpoint
         mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + jwt))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

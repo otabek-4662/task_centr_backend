@@ -29,9 +29,12 @@ public class SwaggerConfig {
                 .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
                 .addProperty("message", new StringSchema().example("Xatolik tavsifi").description("Foydalanuvchiga tushunarli xabar"))
                 .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
-                .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi"))
+                .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi (backward compatibility)"))
+                .addProperty("errorCode", new StringSchema().example("INVITE_NOT_FOUND").description("Xatolikning mashina o'qiy oladigan enum kodi"))
+                .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
+                .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"))
                 .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
-                .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601)"));
+                .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"));
 
         Schema<?> pageResponseSchema = createPageResponseSchema();
 
@@ -107,9 +110,12 @@ public class SwaggerConfig {
                         .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
                         .addProperty("message", new StringSchema().example("Xatolik tavsifi").description("Foydalanuvchiga tushunarli xabar"))
                         .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
-                        .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi"))
+                        .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi (backward compatibility)"))
+                        .addProperty("errorCode", new StringSchema().example("INVITE_NOT_FOUND").description("Xatolikning mashina o'qiy oladigan enum kodi"))
+                        .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
+                        .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"))
                         .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
-                        .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601)"));
+                        .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"));
                 openApi.getComponents().addSchemas("ErrorResponse", errorResponseSchema);
             }
 
@@ -138,6 +144,7 @@ public class SwaggerConfig {
             ApiResponse forbidden = new ApiResponse().description("Amalni bajarish uchun ruxsat yetarli emas (403 Forbidden)").content(errorContent);
             ApiResponse notFound = new ApiResponse().description("Resurs topilmadi (404 Not Found)").content(errorContent);
             ApiResponse conflict = new ApiResponse().description("Ma'lumotlar to'qnashuvi yoki dublikat (409 Conflict)").content(errorContent);
+            ApiResponse rateLimited = new ApiResponse().description("So'rovlar soni limiti oshdi (429 Too Many Requests)").content(errorContent);
             ApiResponse serverError = new ApiResponse().description("Server ichki xatoligi (500 Internal Server Error)").content(errorContent);
 
             if (openApi.getPaths() != null) {
@@ -150,6 +157,7 @@ public class SwaggerConfig {
                             if (!responses.containsKey("403")) responses.addApiResponse("403", forbidden);
                             if (!responses.containsKey("404")) responses.addApiResponse("404", notFound);
                             if (!responses.containsKey("409")) responses.addApiResponse("409", conflict);
+                            if (!responses.containsKey("429")) responses.addApiResponse("429", rateLimited);
                             if (!responses.containsKey("500")) responses.addApiResponse("500", serverError);
                         }
 
@@ -274,6 +282,7 @@ public class SwaggerConfig {
                         method.getDeclaringClass().equals(com.taskcenter.controller.BoardController.class) ||
                         method.getDeclaringClass().equals(com.taskcenter.controller.ColumnController.class) ||
                         method.getDeclaringClass().equals(com.taskcenter.controller.TaskController.class) ||
+                        method.getDeclaringClass().equals(com.taskcenter.controller.TaskControllerV2.class) ||
                         method.getDeclaringClass().equals(com.taskcenter.controller.TaskDirectController.class) ||
                         method.getDeclaringClass().equals(com.taskcenter.controller.CommentController.class) ||
                         method.getDeclaringClass().equals(com.taskcenter.controller.AttachmentController.class) ||

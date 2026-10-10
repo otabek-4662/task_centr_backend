@@ -64,6 +64,10 @@ class TelegramBotServiceTest {
     private TelegramReminderLogRepository telegramReminderLogRepository;
     @Mock
     private WebSocketNotifier webSocketNotifier;
+    @Mock
+    private com.taskcenter.repository.WorkspaceInvitationRepository invitationRepository;
+    @Mock
+    private com.taskcenter.repository.WorkspaceMemberRepository memberRepository;
 
     private static final ZoneId ZONE = ZoneId.of("Asia/Tashkent");
     private final Clock clock = Clock.fixed(
@@ -87,7 +91,9 @@ class TelegramBotServiceTest {
                 telegramNotificationService,
                 telegramReminderLogRepository,
                 webSocketNotifier,
-                "https://test.url"
+                "https://test.url",
+                invitationRepository,
+                memberRepository
         ));
 
         try {
@@ -2011,5 +2017,147 @@ class TelegramBotServiceTest {
         boolean notifiedOldChat = captor.getAllValues().stream()
                 .anyMatch(sm -> "1001".equals(sm.getChatId()) && sm.getText().contains("Akkauntingiz boshqa Telegram'ga ulandi."));
         assertThat(notifiedOldChat).isTrue();
+    }
+
+    @Test
+    void onUpdateReceived_start_inviteLink_invitationNotFound() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start inv_not_found_123");
+        when(message.getChatId()).thenReturn(999L);
+        update.setMessage(message);
+
+        when(invitationRepository.findById("not_found_123")).thenReturn(Optional.empty());
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Taklifnoma topilmadi yoki bekor qilingan");
+    }
+
+    @Test
+    void onUpdateReceived_start_inviteLink_showsInvitationDetailsAndButtons() throws Exception {
+        Update update = new Update();
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.hasText()).thenReturn(true);
+        when(message.getText()).thenReturn("/start inv_valid_invite");
+        when(message.getChatId()).thenReturn(999L);
+        update.setMessage(message);
+
+        Workspace ws = Workspace.builder().id("ws1").title("Alpha Project").build();
+        User inviter = User.builder().id("u_inv").name("John Doe").build();
+        com.taskcenter.model.WorkspaceInvitation invitation = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("valid_invite")
+                .workspaceId("ws1")
+                .senderId("u_inv")
+                .role(com.taskcenter.model.WorkspaceRole.MEMBER)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .build();
+
+        when(invitationRepository.findById("valid_invite")).thenReturn(Optional.of(invitation));
+        when(workspaceRepository.findById("ws1")).thenReturn(Optional.of(ws));
+        when(userRepository.findById("u_inv")).thenReturn(Optional.of(inviter));
+
+        telegramBotService.onUpdateReceived(update);
+
+        ArgumentCaptor<SendMessage> captor = ArgumentCaptor.forClass(SendMessage.class);
+        verify(telegramBotService).execute(captor.capture());
+        SendMessage sent = captor.getValue();
+        assertThat(sent.getText()).contains("Alpha Project");
+        assertThat(sent.getText()).contains("John Doe");
+        assertThat(sent.getReplyMarkup()).isNotNull();
+    }
+
+    @Test
+    void onCallbackQuery_acceptInvitation_success() throws Exception {
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setData("ACCEPT_INV:inv_100");
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(777L);
+        when(message.getMessageId()).thenReturn(50);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        User currentUser = User.builder()
+                .id("u_invited")
+                .email("user_123@taskcenter.local")
+                .telegramChatId(777L)
+                .build();
+        Workspace ws = Workspace.builder().id("ws_test").title("Beta Team").build();
+        com.taskcenter.model.WorkspaceInvitation invitation = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv_100")
+                .workspaceId("ws_test")
+                .receiverEmail("real_email@example.com")
+                .role(com.taskcenter.model.WorkspaceRole.MEMBER)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .build();
+
+        when(userRepository.findByTelegramChatId(777L)).thenReturn(Optional.of(currentUser));
+        when(invitationRepository.findById("inv_100")).thenReturn(Optional.of(invitation));
+        when(workspaceRepository.findById("ws_test")).thenReturn(Optional.of(ws));
+        when(memberRepository.existsByWorkspaceIdAndUserId("ws_test", "u_invited")).thenReturn(false);
+
+        telegramBotService.onUpdateReceived(update);
+
+        assertThat(invitation.getStatus()).isEqualTo(com.taskcenter.model.InvitationStatus.ACCEPTED);
+        assertThat(currentUser.getEmail()).isEqualTo("real_email@example.com");
+        verify(memberRepository).save(any(com.taskcenter.model.WorkspaceMember.class));
+        verify(invitationRepository).save(invitation);
+
+        ArgumentCaptor<EditMessageText> editCaptor = ArgumentCaptor.forClass(EditMessageText.class);
+        verify(telegramBotService).execute(editCaptor.capture());
+        assertThat(editCaptor.getValue().getText()).contains("jamoasiga muvaffaqiyatli qo'shildingiz");
+    }
+
+    @Test
+    void onCallbackQuery_rejectInvitation_success() throws Exception {
+        Update update = new Update();
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setData("REJECT_INV:inv_200");
+        Message message = mock(Message.class);
+        Chat chat = new Chat();
+        chat.setType("private");
+        when(message.getChat()).thenReturn(chat);
+        when(message.getChatId()).thenReturn(888L);
+        when(message.getMessageId()).thenReturn(51);
+        callbackQuery.setMessage(message);
+        update.setCallbackQuery(callbackQuery);
+
+        User currentUser = User.builder()
+                .id("u_rejecting")
+                .email("someone@example.com")
+                .telegramChatId(888L)
+                .build();
+        com.taskcenter.model.WorkspaceInvitation invitation = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv_200")
+                .workspaceId("ws_reject")
+                .receiverId("u_rejecting")
+                .role(com.taskcenter.model.WorkspaceRole.MEMBER)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .build();
+
+        when(userRepository.findByTelegramChatId(888L)).thenReturn(Optional.of(currentUser));
+        when(invitationRepository.findById("inv_200")).thenReturn(Optional.of(invitation));
+
+        telegramBotService.onUpdateReceived(update);
+
+        assertThat(invitation.getStatus()).isEqualTo(com.taskcenter.model.InvitationStatus.REJECTED);
+        verify(invitationRepository).save(invitation);
+
+        ArgumentCaptor<EditMessageText> editCaptor = ArgumentCaptor.forClass(EditMessageText.class);
+        verify(telegramBotService).execute(editCaptor.capture());
+        assertThat(editCaptor.getValue().getText()).contains("Taklifnoma rad etildi");
     }
 }

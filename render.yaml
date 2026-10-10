@@ -23,6 +23,16 @@ services:
       # (GitHub -> repo Settings -> Webhooks -> Secret bilan bir xil)
       - key: GITHUB_WEBHOOK_SECRET
         sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: TELEGRAM_AUTH_MAX_AGE_SECONDS
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        sync: false
+      - key: CLIENT_IP_HEADER
+        sync: false
       - key: JWT_EXPIRATION
         value: 604800000
       # Database dan keladigan qiymatlar - quyidagi databases.taskcenter-db dan

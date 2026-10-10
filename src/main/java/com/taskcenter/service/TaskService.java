@@ -3,12 +3,15 @@ package com.taskcenter.service;
 import com.taskcenter.dto.*;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.exception.ValidationException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.IssueType;
 import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
 import com.taskcenter.model.TaskActivityType;
 import com.taskcenter.model.User;
+import com.taskcenter.model.Workspace;
+import com.taskcenter.model.WorkspaceRole;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
@@ -19,9 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -329,6 +334,114 @@ public class TaskService {
         return TaskDto.fromEntity(task);
     }
 
+    private Set<com.taskcenter.model.Direction> resolveDirections(String workspaceId, Set<String> directionIds, Set<String> directionNamesOrIds) {
+        Set<com.taskcenter.model.Direction> result = new HashSet<>();
+        if (directionRepository == null) {
+            return result;
+        }
+
+        if (directionIds != null && !directionIds.isEmpty()) {
+            Set<String> ids = directionIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            if (!ids.isEmpty()) {
+                result.addAll(directionRepository.findAllById(ids));
+            }
+        }
+
+        if (directionNamesOrIds != null && !directionNamesOrIds.isEmpty()) {
+            for (String item : directionNamesOrIds) {
+                if (item == null || item.isBlank()) {
+                    continue;
+                }
+                String trimmed = item.trim();
+
+                boolean alreadyResolved = result.stream()
+                        .anyMatch(d -> (d.getId() != null && d.getId().equals(trimmed)) ||
+                                       (d.getName() != null && d.getName().equalsIgnoreCase(trimmed)));
+                if (alreadyResolved) {
+                    continue;
+                }
+
+                Optional<com.taskcenter.model.Direction> byId = directionRepository.findByIdAndWorkspaceId(trimmed, workspaceId);
+                if (byId != null && byId.isPresent()) {
+                    result.add(byId.get());
+                    continue;
+                }
+
+                Optional<com.taskcenter.model.Direction> byName = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
+                if (byName != null && byName.isPresent()) {
+                    result.add(byName.get());
+                    continue;
+                }
+
+                com.taskcenter.model.Direction newDir = com.taskcenter.model.Direction.builder()
+                        .workspaceId(workspaceId)
+                        .name(trimmed)
+                        .color("#3B82F6")
+                        .build();
+                try {
+                    com.taskcenter.model.Direction saved = directionRepository.saveAndFlush(newDir);
+                    result.add(saved != null ? saved : newDir);
+                } catch (Exception e) {
+                    Optional<com.taskcenter.model.Direction> fallback = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
+                    if (fallback != null && fallback.isPresent()) {
+                        result.add(fallback.get());
+                    } else {
+                        result.add(newDir);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private Set<User> resolveAssignees(Set<String> assigneeIds, Set<String> usersOrIdentifiers) {
+        Set<User> result = new HashSet<>();
+        if (userRepository == null) {
+            return result;
+        }
+
+        if (assigneeIds != null && !assigneeIds.isEmpty()) {
+            Set<String> ids = assigneeIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            if (!ids.isEmpty()) {
+                result.addAll(userRepository.findAllById(ids));
+            }
+        }
+
+        if (usersOrIdentifiers != null && !usersOrIdentifiers.isEmpty()) {
+            for (String item : usersOrIdentifiers) {
+                if (item == null || item.isBlank()) {
+                    continue;
+                }
+                String trimmed = item.trim();
+                if (trimmed.startsWith("@")) {
+                    trimmed = trimmed.substring(1).trim();
+                }
+
+                String identifier = trimmed;
+                boolean alreadyResolved = result.stream()
+                        .anyMatch(u -> (u.getId() != null && u.getId().equals(identifier)) ||
+                                       (u.getName() != null && u.getName().equalsIgnoreCase(identifier)) ||
+                                       (u.getEmail() != null && u.getEmail().equalsIgnoreCase(identifier)));
+                if (alreadyResolved) {
+                    continue;
+                }
+
+                Optional<User> byId = userRepository.findById(identifier);
+                if (byId != null && byId.isPresent()) {
+                    result.add(byId.get());
+                    continue;
+                }
+
+                Optional<User> byNameOrEmail = userRepository.findByNameOrEmail(identifier);
+                if (byNameOrEmail != null && byNameOrEmail.isPresent()) {
+                    result.add(byNameOrEmail.get());
+                    continue;
+                }
+            }
+        }
+        return result;
+    }
+
     @Transactional
     public TaskDto createTask(String workspaceId, TaskCreateRequest req, User currentUser) {
         authorizationService.checkCanEdit(workspaceId, currentUser);
@@ -342,7 +455,7 @@ public class TaskService {
         }
 
         Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
-        IssueType issueType = IssueType.TASK;
+        IssueType issueType = req.getIssueType() != null ? req.getIssueType() : IssueType.TASK;
 
         String sprintId = null;
         if (req.getSprintId() != null && !req.getSprintId().isBlank()) {
@@ -365,23 +478,19 @@ public class TaskService {
                 .lexoRank(lexoRank)
                 .priority(priority)
                 .issueType(issueType)
+                .dueDate(req.getDueDate())
+                .storyPoints(req.getStoryPoints())
                 .sprintId(sprintId)
                 .build();
 
-        if (req.getAssigneeIds() != null && !req.getAssigneeIds().isEmpty() && userRepository != null) {
-            Set<String> targetIds = req.getAssigneeIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
-            if (!targetIds.isEmpty()) {
-                List<User> assignees = userRepository.findAllById(targetIds);
-                task.getAssignees().addAll(assignees);
-            }
+        Set<User> assignees = resolveAssignees(req.getAssigneeIds(), req.getUsers());
+        if (!assignees.isEmpty()) {
+            task.getAssignees().addAll(assignees);
         }
 
-        if (req.getDirectionIds() != null && !req.getDirectionIds().isEmpty() && directionRepository != null) {
-            Set<String> targetDirectionIds = req.getDirectionIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
-            if (!targetDirectionIds.isEmpty()) {
-                List<com.taskcenter.model.Direction> directions = directionRepository.findAllById(targetDirectionIds);
-                task.getDirections().addAll(directions);
-            }
+        Set<com.taskcenter.model.Direction> directions = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
+        if (!directions.isEmpty()) {
+            task.getDirections().addAll(directions);
         }
 
         if (req.getLabelIds() != null && !req.getLabelIds().isEmpty() && labelRepository != null) {
@@ -406,6 +515,86 @@ public class TaskService {
                 .data(taskDto)
                 .build());
         return taskDto;
+    }
+
+    @Transactional
+    public TaskResponseV2 createTaskV2(String workspaceId, TaskCreateRequestV2 req, User currentUser) {
+        Workspace workspace = authorizationService.checkCanEdit(workspaceId, currentUser);
+
+        // Unknown columnId -> 404 NOT_FOUND
+        columnRepository.findByIdAndWorkspaceId(req.columnId(), workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ustun topilmadi: " + req.columnId()));
+
+        // Validation: every id in users must be a member of the workspace, otherwise 400 VALIDATION_ERROR
+        if (req.users() != null && !req.users().isEmpty()) {
+            for (String userId : req.users()) {
+                if (userId == null || userId.isBlank()) {
+                    throw new ValidationException(
+                            "Foydalanuvchi ID si bo'sh bo'lishi mumkin emas",
+                            Map.of("users", "Foydalanuvchi ID si bo'sh bo'lishi mumkin emas")
+                    );
+                }
+                Optional<WorkspaceRole> roleOpt = authorizationService.getRole(workspace, userId.trim());
+                if (roleOpt.isEmpty()) {
+                    throw new ValidationException(
+                            "Foydalanuvchi ushbu workspace a'zosi emas: " + userId,
+                            Map.of("users", "Foydalanuvchi ushbu workspace a'zosi emas: " + userId)
+                    );
+                }
+            }
+        }
+
+        // Reuse existing createTask via mapper (users -> assigneeIds, direction -> existing directions mechanism)
+        TaskCreateRequest v1Req = new TaskCreateRequest();
+        v1Req.setColumnId(req.columnId());
+        v1Req.setTitle(req.title());
+        v1Req.setDescription(req.description());
+        v1Req.setPriority(req.priority());
+        v1Req.setIssueType(req.issueType());
+        v1Req.setDueDate(req.dueDate());
+        v1Req.setStoryPoints(req.storyPoints());
+        if (req.direction() != null) {
+            v1Req.setDirection(new HashSet<>(req.direction()));
+        }
+        if (req.users() != null) {
+            v1Req.setAssigneeIds(new HashSet<>(req.users()));
+        }
+
+        TaskDto createdDto = this.createTask(workspaceId, v1Req, currentUser);
+
+        List<String> directionNames = createdDto.getDirections() != null
+                ? createdDto.getDirections().stream().map(DirectionDto::getName).filter(Objects::nonNull).toList()
+                : List.of();
+
+        List<TaskUserDto> taskUsers = new ArrayList<>();
+        if (createdDto.getAssignees() != null) {
+            for (UserDto assignee : createdDto.getAssignees()) {
+                WorkspaceRole wsRole = authorizationService.getRole(workspace, assignee.getId()).orElse(null);
+                taskUsers.add(new TaskUserDto(
+                        assignee.getId(),
+                        assignee.getName(),
+                        assignee.getFullName() != null ? assignee.getFullName() : assignee.getName(),
+                        assignee.getEmail(),
+                        wsRole,
+                        wsRole != null ? wsRole.getDisplayName() : null
+                ));
+            }
+        }
+
+        return new TaskResponseV2(
+                createdDto.getId(),
+                createdDto.getPublicId(),
+                createdDto.getColumnId(),
+                createdDto.getTitle(),
+                createdDto.getDescription(),
+                createdDto.getPriority(),
+                createdDto.getIssueType(),
+                createdDto.getDueDate(),
+                createdDto.getStoryPoints(),
+                directionNames,
+                taskUsers,
+                createdDto.getCreatedAt()
+        );
     }
 
     @Transactional
@@ -450,6 +639,21 @@ public class TaskService {
             task.setPriority(req.getPriority());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.PRIORITY_UPDATED, "priority", String.valueOf(oldPriority), String.valueOf(req.getPriority()));
         }
+        if (req.getIssueType() != null && req.getIssueType() != task.getIssueType()) {
+            IssueType oldType = task.getIssueType();
+            task.setIssueType(req.getIssueType());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.ISSUE_TYPE_UPDATED, "issueType", String.valueOf(oldType), String.valueOf(req.getIssueType()));
+        }
+        if (req.getDueDate() != null && !req.getDueDate().equals(task.getDueDate())) {
+            LocalDate oldDueDate = task.getDueDate();
+            task.setDueDate(req.getDueDate());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.DUE_DATE_UPDATED, "dueDate", String.valueOf(oldDueDate), String.valueOf(req.getDueDate()));
+        }
+        if (req.getStoryPoints() != null && !req.getStoryPoints().equals(task.getStoryPoints())) {
+            Integer oldPoints = task.getStoryPoints();
+            task.setStoryPoints(req.getStoryPoints());
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", String.valueOf(oldPoints), String.valueOf(req.getStoryPoints()));
+        }
         if (req.getSprintId() != null) {
             String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
             if (newSprintId != null && !newSprintId.equals(task.getSprintId())) {
@@ -470,23 +674,21 @@ public class TaskService {
             }
         }
 
-        if (req.getAssigneeIds() != null && userRepository != null) {
-            Set<String> targetIds = req.getAssigneeIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        if ((req.getAssigneeIds() != null || req.getUsers() != null) && userRepository != null) {
+            Set<User> targetUsers = resolveAssignees(req.getAssigneeIds(), req.getUsers());
+            Set<String> targetIds = targetUsers.stream().map(User::getId).filter(Objects::nonNull).collect(Collectors.toSet());
             Set<User> existingAssignees = new HashSet<>(task.getAssignees());
-            Set<String> existingIds = existingAssignees.stream().map(User::getId).collect(Collectors.toSet());
+            Set<String> existingIds = existingAssignees.stream().map(User::getId).filter(Objects::nonNull).collect(Collectors.toSet());
 
-            Set<String> toAddIds = targetIds.stream().filter(uid -> !existingIds.contains(uid)).collect(Collectors.toSet());
+            Set<User> toAdd = targetUsers.stream().filter(u -> !existingIds.contains(u.getId())).collect(Collectors.toSet());
             Set<String> toRemoveIds = existingIds.stream().filter(uid -> !targetIds.contains(uid)).collect(Collectors.toSet());
 
-            if (!toAddIds.isEmpty() || !toRemoveIds.isEmpty()) {
+            if (!toAdd.isEmpty() || !toRemoveIds.isEmpty()) {
                 task.getAssignees().removeIf(u -> toRemoveIds.contains(u.getId()));
-                if (!toAddIds.isEmpty()) {
-                    List<User> newUsers = userRepository.findAllById(toAddIds);
-                    for (User newUser : newUsers) {
-                        task.getAssignees().add(newUser);
-                        telegramNotificationService.sendTaskAssignedNotification(task, newUser, currentUser);
-                        activityService.logActivity(task.getId(), currentUser, TaskActivityType.ASSIGNEE_ADDED, "assignee", null, newUser.getFullName() != null ? newUser.getFullName() : newUser.getName());
-                    }
+                for (User newUser : toAdd) {
+                    task.getAssignees().add(newUser);
+                    telegramNotificationService.sendTaskAssignedNotification(task, newUser, currentUser);
+                    activityService.logActivity(task.getId(), currentUser, TaskActivityType.ASSIGNEE_ADDED, "assignee", null, newUser.getFullName() != null ? newUser.getFullName() : newUser.getName());
                 }
                 for (String removedId : toRemoveIds) {
                     activityService.logActivity(task.getId(), currentUser, TaskActivityType.ASSIGNEE_REMOVED, "assignee", removedId, null);
@@ -494,17 +696,14 @@ public class TaskService {
             }
         }
 
-        if (req.getDirectionIds() != null && directionRepository != null) {
-            Set<String> targetDirectionIds = req.getDirectionIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
-            Set<com.taskcenter.model.Direction> existingDirs = new HashSet<>(task.getDirections());
-            Set<String> existingDirIds = existingDirs.stream().map(com.taskcenter.model.Direction::getId).collect(Collectors.toSet());
+        if ((req.getDirectionIds() != null || req.getDirection() != null) && directionRepository != null) {
+            Set<com.taskcenter.model.Direction> targetDirs = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
+            Set<String> targetDirIds = targetDirs.stream().map(com.taskcenter.model.Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<String> existingDirIds = task.getDirections().stream().map(com.taskcenter.model.Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
 
-            if (!targetDirectionIds.equals(existingDirIds)) {
-                task.getDirections().removeIf(d -> !targetDirectionIds.contains(d.getId()));
-                if (!targetDirectionIds.isEmpty()) {
-                    List<com.taskcenter.model.Direction> newDirs = directionRepository.findAllById(targetDirectionIds);
-                    task.getDirections().addAll(newDirs);
-                }
+            if (!targetDirIds.equals(existingDirIds)) {
+                task.getDirections().removeIf(d -> d.getId() != null && !targetDirIds.contains(d.getId()));
+                task.getDirections().addAll(targetDirs);
             }
         }
 

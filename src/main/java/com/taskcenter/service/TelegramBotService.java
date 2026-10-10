@@ -14,6 +14,12 @@ import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceRepository;
+import com.taskcenter.model.WorkspaceInvitation;
+import com.taskcenter.model.WorkspaceMember;
+import com.taskcenter.model.InvitationStatus;
+import com.taskcenter.model.InvitationType;
+import com.taskcenter.repository.WorkspaceInvitationRepository;
+import com.taskcenter.repository.WorkspaceMemberRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -73,6 +79,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final TelegramReminderLogRepository telegramReminderLogRepository;
     private final WebSocketNotifier webSocketNotifier;
     private final String miniappBaseUrl;
+    private final WorkspaceInvitationRepository invitationRepository;
+    private final WorkspaceMemberRepository memberRepository;
+    private final WorkspaceInvitationService workspaceInvitationService;
 
     public enum TaskCreationStep {
         AWAITING_TITLE,
@@ -111,6 +120,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
     private final Map<Long, RateLimit> startRateLimits = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public TelegramBotService(
             @Value("${telegram.bot.token:}") String botToken,
             @Value("${telegram.bot.username:}") String botUsername,
@@ -125,7 +135,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
             TelegramNotificationService telegramNotificationService,
             TelegramReminderLogRepository telegramReminderLogRepository,
             WebSocketNotifier webSocketNotifier,
-            @Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl) {
+            @Value("${telegram.miniapp.base-url:https://task-centr-backend.onrender.com}") String miniappBaseUrl,
+            WorkspaceInvitationRepository invitationRepository,
+            WorkspaceMemberRepository memberRepository,
+            @org.springframework.context.annotation.Lazy WorkspaceInvitationService workspaceInvitationService) {
         super(botToken);
         this.botUsername = botUsername;
         this.userRepository = userRepository;
@@ -140,6 +153,53 @@ public class TelegramBotService extends TelegramLongPollingBot {
         this.telegramReminderLogRepository = telegramReminderLogRepository;
         this.webSocketNotifier = webSocketNotifier;
         this.miniappBaseUrl = miniappBaseUrl;
+        this.invitationRepository = invitationRepository;
+        this.memberRepository = memberRepository;
+        this.workspaceInvitationService = workspaceInvitationService;
+    }
+
+    public TelegramBotService(
+            String botToken,
+            String botUsername,
+            UserRepository userRepository,
+            TaskRepository taskRepository,
+            ColumnRepository columnRepository,
+            WorkspaceRepository workspaceRepository,
+            WorkspaceAuthorizationService authorizationService,
+            TaskExecutor taskExecutor,
+            Clock clock,
+            TaskActivityService activityService,
+            TelegramNotificationService telegramNotificationService,
+            TelegramReminderLogRepository telegramReminderLogRepository,
+            WebSocketNotifier webSocketNotifier,
+            String miniappBaseUrl,
+            WorkspaceInvitationRepository invitationRepository,
+            WorkspaceMemberRepository memberRepository) {
+        this(botToken, botUsername, userRepository, taskRepository, columnRepository,
+             workspaceRepository, authorizationService, taskExecutor, clock, activityService,
+             telegramNotificationService, telegramReminderLogRepository, webSocketNotifier,
+             miniappBaseUrl, invitationRepository, memberRepository, null);
+    }
+
+    public TelegramBotService(
+            String botToken,
+            String botUsername,
+            UserRepository userRepository,
+            TaskRepository taskRepository,
+            ColumnRepository columnRepository,
+            WorkspaceRepository workspaceRepository,
+            WorkspaceAuthorizationService authorizationService,
+            TaskExecutor taskExecutor,
+            Clock clock,
+            TaskActivityService activityService,
+            TelegramNotificationService telegramNotificationService,
+            TelegramReminderLogRepository telegramReminderLogRepository,
+            WebSocketNotifier webSocketNotifier,
+            String miniappBaseUrl) {
+        this(botToken, botUsername, userRepository, taskRepository, columnRepository,
+             workspaceRepository, authorizationService, taskExecutor, clock, activityService,
+             telegramNotificationService, telegramReminderLogRepository, webSocketNotifier,
+             miniappBaseUrl, null, null, null);
     }
 
     @Override
@@ -254,6 +314,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 handleTaskLink(chatId, token.substring(5));
                 return;
             }
+            if (token.startsWith("inv_") || token.startsWith("invite_")) {
+                String inviteId = token.startsWith("inv_") ? token.substring(4) : token.substring(7);
+                handleInviteLink(chatId, inviteId);
+                return;
+            }
 
             RateLimit limit = startRateLimits.compute(chatId, (k, v) -> {
                 LocalDateTime now = LocalDateTime.now();
@@ -297,6 +362,20 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         + "Akkauntingiz muvaffaqiyatli ulandi ☕️\n"
                         + "Endi barcha g'alva va bosh og'riqlardan (vazifalardan) xabardor bo'lib turasiz hamda ularni shu yerdan boshqara olasiz!";
                 sendMessageWithMainKeyboard(chatId, welcomeMsg);
+
+                if (workspaceInvitationService != null) {
+                    String pendingToken = workspaceInvitationService.getPendingChatInvite(chatId);
+                    if (pendingToken != null) {
+                        try {
+                            workspaceInvitationService.acceptInvitation(pendingToken, user);
+                            workspaceInvitationService.removePendingChatInvite(chatId);
+                            sendMessage(chatId, "🎉 <b>Akkauntingiz ulandi!</b> Siz avvalgi taklifnoma bo'yicha loyiha jamoasiga avtomatik qo'shildingiz.");
+                        } catch (Exception e) {
+                            log.warn("Telegram auto-join pending invite error: {}", e.getMessage());
+                            workspaceInvitationService.removePendingChatInvite(chatId);
+                        }
+                    }
+                }
             } else {
                 sendMessage(chatId, "⚠️ Noto'g'ri yoki muddati eskirgan token. Iltimos, web ilovaning 'Hujram' bo'limidan yangi token oling.");
             }
@@ -313,6 +392,129 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         + "(Yoki web ilovadagi 'Hujram' sahifasidan ham ulanishingiz mumkin).";
                 sendMessage(chatId, help);
             }
+        }
+    }
+
+    private void handleInviteLink(Long chatId, String tokenOrId) {
+        Optional<WorkspaceInvitation> invOpt;
+        if (workspaceInvitationService != null) {
+            try {
+                invOpt = Optional.of(workspaceInvitationService.findInvitationByTokenOrId(tokenOrId));
+            } catch (Exception e) {
+                invOpt = Optional.empty();
+            }
+        } else if (invitationRepository != null) {
+            invOpt = invitationRepository.findById(tokenOrId);
+        } else {
+            sendMessage(chatId, "⚠️ Taklifnomalar xizmati vaqtincha mavjud emas.");
+            return;
+        }
+
+        if (invOpt.isEmpty()) {
+            sendMessage(chatId, "❌ Taklifnoma topilmadi yoki bekor qilingan.");
+            return;
+        }
+
+        WorkspaceInvitation inv = invOpt.get();
+        if (inv.getStatus() == InvitationStatus.CANCELLED) {
+            sendMessage(chatId, "⚠️ Ushbu taklifnoma administrator tomonidan bekor qilingan.");
+            return;
+        }
+        if (inv.getStatus() == InvitationStatus.REJECTED) {
+            sendMessage(chatId, "ℹ️ Ushbu taklifnoma rad etilgan.");
+            return;
+        }
+        if (inv.getStatus() == InvitationStatus.ACCEPTED && inv.getType() == InvitationType.EMAIL) {
+            sendMessage(chatId, "ℹ️ Ushbu taklifnoma allaqachon qabul qilingan.");
+            return;
+        }
+        if (inv.getExpiresAt() != null && inv.getExpiresAt().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC))) {
+            sendMessage(chatId, "⚠️ Ushbu taklifnomaning amal qilish muddati tugagan.");
+            return;
+        }
+        if (inv.getType() == InvitationType.LINK && inv.getMaxUses() != null && inv.getUseCount() >= inv.getMaxUses()) {
+            sendMessage(chatId, "⚠️ Ushbu taklif havolasining foydalanish limiti tugagan.");
+            return;
+        }
+
+        Workspace workspace = workspaceRepository.findById(inv.getWorkspaceId()).orElse(null);
+        if (workspace == null) {
+            sendMessage(chatId, "❌ Taklif qilingan workspace topilmadi.");
+            return;
+        }
+
+        String inviterName = userRepository.findById(inv.getSenderId())
+                .map(u -> u.getFullName() != null ? u.getFullName() : u.getName())
+                .orElse("Jamoa administratori");
+
+        Optional<User> userOpt = userRepository.findByTelegramChatId(chatId);
+        String wsTitle = TelegramUtil.escapeHtml(workspace.getTitle());
+        String roleName = inv.getRole() != null ? inv.getRole().getDisplayName() : "A'zo";
+
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (workspace.getOwnerId().equals(user.getId()) || (memberRepository != null && memberRepository.existsByWorkspaceIdAndUserId(workspace.getId(), user.getId()))) {
+                sendMessage(chatId, "ℹ️ Siz allaqachon <b>" + wsTitle + "</b> loyihasining a'zosisiz.");
+                return;
+            }
+
+            if (inv.getType() == InvitationType.EMAIL && user.getEmail() != null && user.getEmail().endsWith("@taskcenter.local")) {
+                sendMessage(chatId, "⚠️ Ushbu taklifnoma aniq email egasiga yuborilgan. Telegram profilingizdagi dummy email bilan uni qabul qilib bo'lmaydi. Iltimos, veb ilovada emailingizni tasdiqlang yoki havola-taklifdan (invite link) foydalaning.");
+                return;
+            }
+
+            String msg = "📨 <b>Yangi jamoaga taklifnoma!</b>\n\n"
+                    + "🏢 Ishchi maydon: <b>" + wsTitle + "</b>\n"
+                    + "👤 Taklif etuvchi: <b>" + TelegramUtil.escapeHtml(inviterName) + "</b>\n"
+                    + "🎭 Berilayotgan rol: <b>" + roleName + "</b>\n\n"
+                    + "Taklifni qabul qilasizmi?";
+
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+
+            InlineKeyboardButton acceptBtn = new InlineKeyboardButton();
+            acceptBtn.setText("✅ Qabul qilish");
+            acceptBtn.setCallbackData("ACCEPT_INV:" + tokenOrId);
+            row.add(acceptBtn);
+
+            InlineKeyboardButton rejectBtn = new InlineKeyboardButton();
+            rejectBtn.setText("❌ Rad etish");
+            rejectBtn.setCallbackData("REJECT_INV:" + tokenOrId);
+            row.add(rejectBtn);
+
+            rows.add(row);
+            keyboard.setKeyboard(rows);
+
+            sendMessageWithInlineKeyboard(chatId, msg, keyboard);
+        } else {
+            if (workspaceInvitationService != null) {
+                workspaceInvitationService.storePendingChatInvite(chatId, tokenOrId);
+            }
+
+            String webLink = (miniappBaseUrl != null ? miniappBaseUrl : "https://task-center-frontend.onrender.com")
+                    + "/invite/" + tokenOrId;
+
+            String msg = "📨 <b>Yangi jamoaga taklifnoma!</b>\n\n"
+                    + "🏢 Ishchi maydon: <b>" + wsTitle + "</b>\n"
+                    + "👤 Taklif etuvchi: <b>" + TelegramUtil.escapeHtml(inviterName) + "</b>\n"
+                    + "🎭 Berilayotgan rol: <b>" + roleName + "</b>\n\n"
+                    + "Ushbu jamoaga qo'shilish uchun avval veb ilovada ro'yxatdan o'ting yoki profilingizni Telegram'ga ulang.\n"
+                    + "Hisobingiz ulangandan so'ng siz avtomatik tarzda jamoaga qo'shilasiz!";
+
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+
+            InlineKeyboardButton openBtn = new InlineKeyboardButton();
+            openBtn.setText("🌐 Taklifni ilovada ochish");
+            openBtn.setUrl(webLink);
+            row.add(openBtn);
+
+            rows.add(row);
+            keyboard.setKeyboard(rows);
+
+            sendMessageWithInlineKeyboard(chatId, msg, keyboard);
         }
     }
 
@@ -906,6 +1108,16 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
         User user = userOpt.get();
 
+        if (callData.startsWith("ACCEPT_INV:")) {
+            String inviteId = callData.substring(11);
+            handleAcceptInvitationCallback(callbackQuery, user, inviteId);
+            return;
+        } else if (callData.startsWith("REJECT_INV:")) {
+            String inviteId = callData.substring(11);
+            handleRejectInvitationCallback(callbackQuery, user, inviteId);
+            return;
+        }
+
         if (callData.startsWith("TASK_VIEW_")) {
             String taskId = callData.substring(10);
             Optional<Task> taskOpt = taskRepository.findById(taskId);
@@ -1146,6 +1358,146 @@ public class TelegramBotService extends TelegramLongPollingBot {
         } else {
             answerCallback(callbackQuery, null);
             sendMessage(chatId, "Bu tugma eskirgan, xabarni qayta oching");
+        }
+    }
+
+    private void handleAcceptInvitationCallback(CallbackQuery callbackQuery, User user, String inviteId) {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+
+        if (workspaceInvitationService != null) {
+            try {
+                workspaceInvitationService.acceptInvitation(inviteId, user);
+                String successMsg = "🎉 <b>Tabriklaymiz!</b> Siz jamoaga muvaffaqiyatli qo'shildingiz!";
+                EditMessageText edit = new EditMessageText();
+                edit.setChatId(String.valueOf(chatId));
+                edit.setMessageId(messageId);
+                edit.setText(successMsg);
+                edit.setParseMode("HTML");
+                execute(edit);
+                return;
+            } catch (Exception e) {
+                String errMsg = "⚠️ " + e.getMessage();
+                try {
+                    EditMessageText edit = new EditMessageText();
+                    edit.setChatId(String.valueOf(chatId));
+                    edit.setMessageId(messageId);
+                    edit.setText(errMsg);
+                    execute(edit);
+                } catch (Exception ignored) {
+                    sendMessage(chatId, errMsg);
+                }
+                return;
+            }
+        }
+
+        if (invitationRepository == null || memberRepository == null) {
+            sendMessage(chatId, "⚠️ Taklifnomalar xizmati vaqtincha mavjud emas.");
+            return;
+        }
+
+        Optional<WorkspaceInvitation> invOpt = invitationRepository.findById(inviteId);
+        if (invOpt.isEmpty()) {
+            sendMessage(chatId, "❌ Taklifnoma topilmadi.");
+            return;
+        }
+
+        WorkspaceInvitation inv = invOpt.get();
+        if (inv.getStatus() != InvitationStatus.PENDING || (inv.getExpiresAt() != null && inv.getExpiresAt().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC)))) {
+            sendMessage(chatId, "⚠️ Ushbu taklifnomaning amal qilish muddati o'tgan.");
+            return;
+        }
+
+        Workspace ws = workspaceRepository.findById(inv.getWorkspaceId()).orElse(null);
+        String wsTitle = ws != null ? TelegramUtil.escapeHtml(ws.getTitle()) : "loyihaga";
+
+        if (!memberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), user.getId())) {
+            WorkspaceMember member = WorkspaceMember.builder()
+                    .workspaceId(inv.getWorkspaceId())
+                    .userId(user.getId())
+                    .role(inv.getRole())
+                    .build();
+            memberRepository.save(member);
+            authorizationService.evictRole(inv.getWorkspaceId(), user.getId());
+        }
+
+        if (user.getEmail() != null && user.getEmail().endsWith("@taskcenter.local")
+                && inv.getReceiverEmail() != null && inv.getReceiverEmail().contains("@")) {
+            user.setEmail(inv.getReceiverEmail());
+            userRepository.save(user);
+        }
+
+        inv.setReceiverId(user.getId());
+        inv.setStatus(InvitationStatus.ACCEPTED);
+        invitationRepository.save(inv);
+
+        String successMsg = "🎉 <b>Tabriklaymiz!</b> Siz <b>" + wsTitle + "</b> jamoasiga muvaffaqiyatli qo'shildingiz!";
+        try {
+            EditMessageText edit = new EditMessageText();
+            edit.setChatId(String.valueOf(chatId));
+            edit.setMessageId(messageId);
+            edit.setText(successMsg);
+            edit.setParseMode("HTML");
+            execute(edit);
+        } catch (Exception e) {
+            sendMessage(chatId, successMsg);
+        }
+    }
+
+    private void handleRejectInvitationCallback(CallbackQuery callbackQuery, User user, String inviteId) {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+
+        if (workspaceInvitationService != null) {
+            try {
+                workspaceInvitationService.rejectInvitation(inviteId, user);
+                String rejectMsg = "❌ Taklifnoma rad etildi.";
+                EditMessageText edit = new EditMessageText();
+                edit.setChatId(String.valueOf(chatId));
+                edit.setMessageId(messageId);
+                edit.setText(rejectMsg);
+                edit.setParseMode("HTML");
+                execute(edit);
+                return;
+            } catch (Exception e) {
+                String errMsg = "⚠️ " + e.getMessage();
+                try {
+                    EditMessageText edit = new EditMessageText();
+                    edit.setChatId(String.valueOf(chatId));
+                    edit.setMessageId(messageId);
+                    edit.setText(errMsg);
+                    execute(edit);
+                } catch (Exception ignored) {
+                    sendMessage(chatId, errMsg);
+                }
+                return;
+            }
+        }
+
+        if (invitationRepository == null) {
+            sendMessage(chatId, "⚠️ Taklifnomalar xizmati vaqtincha mavjud emas.");
+            return;
+        }
+
+        Optional<WorkspaceInvitation> invOpt = invitationRepository.findById(inviteId);
+        if (invOpt.isPresent()) {
+            WorkspaceInvitation inv = invOpt.get();
+            if (inv.getStatus() == InvitationStatus.PENDING) {
+                inv.setStatus(InvitationStatus.REJECTED);
+                invitationRepository.save(inv);
+            }
+        }
+
+        String rejectMsg = "❌ Taklifnoma rad etildi.";
+        try {
+            EditMessageText edit = new EditMessageText();
+            edit.setChatId(String.valueOf(chatId));
+            edit.setMessageId(messageId);
+            edit.setText(rejectMsg);
+            edit.setParseMode("HTML");
+            execute(edit);
+        } catch (Exception e) {
+            sendMessage(chatId, rejectMsg);
         }
     }
 

@@ -139,6 +139,54 @@ class TaskServiceTest {
         assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.TASK);
     }
 
+    @Test
+    void createTask_withDirectionNamesAndDetails_savesCorrectly() {
+        org.mockito.Mockito.lenient().when(authorizationService.checkCanEdit("ws1", testUser())).thenReturn(new com.taskcenter.model.Workspace());
+        when(columnRepository.findById("col1")).thenReturn(Optional.of(testColumn()));
+        when(taskRepository.findMaxLexoRankByColumnId("col1")).thenReturn("0000000001");
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId("new-task-dir");
+            t.setPublicId("WFM-DIR");
+            t.setCreatedAt(LocalDateTime.now());
+            return t;
+        });
+
+        com.taskcenter.model.Direction d1 = com.taskcenter.model.Direction.builder().id("dir-1").name("Frontend").workspaceId("ws1").build();
+        when(directionRepository.findByWorkspaceIdAndNameIgnoreCase("ws1", "Frontend")).thenReturn(Optional.of(d1));
+        when(directionRepository.findByWorkspaceIdAndNameIgnoreCase("ws1", "Backend")).thenReturn(Optional.empty());
+        when(directionRepository.saveAndFlush(any(com.taskcenter.model.Direction.class))).thenAnswer(inv -> {
+            com.taskcenter.model.Direction d = inv.getArgument(0);
+            d.setId("dir-backend-new");
+            return d;
+        });
+
+        User u2 = User.builder().id("u2").name("bekmurod").email("bekmurod@example.com").build();
+        lenient().when(userRepository.findById("u1")).thenReturn(Optional.of(testUser()));
+        lenient().when(userRepository.findById("bekmurod@example.com")).thenReturn(Optional.empty());
+        lenient().when(userRepository.findByNameOrEmail("bekmurod@example.com")).thenReturn(Optional.of(u2));
+
+        TaskCreateRequest req = new TaskCreateRequest();
+        req.setColumnId("col1");
+        req.setTitle("Swagger UI integratsiyasini ulash");
+        req.setDescription("Frontendda Swagger UI guruhlarini ko'rsatish");
+        req.setPriority(com.taskcenter.model.Priority.HIGH);
+        req.setIssueType(com.taskcenter.model.IssueType.TASK);
+        req.setDueDate(java.time.LocalDate.of(2026, 10, 15));
+        req.setStoryPoints(5);
+        req.setDirection(Set.of("Frontend", "Backend"));
+        req.setUsers(Set.of("u1", "bekmurod@example.com"));
+
+        TaskDto result = taskService.createTask("ws1", req, testUser());
+
+        assertThat(result.getTitle()).isEqualTo("Swagger UI integratsiyasini ulash");
+        assertThat(result.getPriority()).isEqualTo(com.taskcenter.model.Priority.HIGH);
+        assertThat(result.getIssueType()).isEqualTo(com.taskcenter.model.IssueType.TASK);
+        assertThat(result.getDueDate()).isEqualTo(java.time.LocalDate.of(2026, 10, 15));
+        assertThat(result.getStoryPoints()).isEqualTo(5);
+        assertThat(result.getDirections()).hasSize(2);
+        assertThat(result.getAssignees()).hasSize(2);
+    }
 
     @Test
     void createTask_withValidSprintId_assignsCorrectly() {

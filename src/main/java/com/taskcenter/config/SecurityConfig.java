@@ -2,6 +2,8 @@ package com.taskcenter.config;
 
 import com.taskcenter.security.JwtAuthenticationFilter;
 import com.taskcenter.security.RateLimitFilter;
+import com.taskcenter.security.CustomAuthenticationEntryPoint;
+import com.taskcenter.security.CustomAccessDeniedHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -19,6 +21,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -27,14 +31,23 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitFilter rateLimitFilter;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
+    private final org.springframework.core.env.Environment environment;
     private final String customAllowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RateLimitFilter rateLimitFilter,
-            @Value("${app.cors.allowed-origins:}") String customAllowedOrigins) {
+            CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
+            CustomAccessDeniedHandler customAccessDeniedHandler,
+            org.springframework.core.env.Environment environment,
+            @Value("${CORS_ALLOWED_ORIGINS:${app.cors.allowed-origins:}}") String customAllowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitFilter = rateLimitFilter;
+        this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
+        this.customAccessDeniedHandler = customAccessDeniedHandler;
+        this.environment = environment;
         this.customAllowedOrigins = customAllowedOrigins;
     }
 
@@ -51,14 +64,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        List<String> origins = new ArrayList<>(List.of(
-            "https://*.onrender.com",
-            "https://*.vercel.app",
-            "https://task-manager-frontend.vercel.app",
-            "https://task-center-frontend.onrender.com",
-            "http://localhost:*",
-            "http://127.0.0.1:*"
-        ));
+        List<String> origins = new ArrayList<>();
+
+        // localhost faqat dev profilida
+        if (environment != null && Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+            origins.add("http://localhost:*");
+            origins.add("http://127.0.0.1:*");
+        }
+
+        // faqat CORS_ALLOWED_ORIGINS env'dagi aniq originlar
         if (customAllowedOrigins != null && !customAllowedOrigins.isBlank()) {
             for (String origin : customAllowedOrigins.split(",")) {
                 String trimmed = origin.trim();
@@ -67,9 +81,16 @@ public class SecurityConfig {
                 }
             }
         }
-        config.setAllowedOriginPatterns(origins);
+
+        if (!origins.isEmpty()) {
+            config.setAllowedOriginPatterns(origins);
+        } else {
+            config.setAllowedOriginPatterns(Collections.emptyList());
+        }
+
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Retry-After", "Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L); // Preflight keshini 1 soatga saqlash (OPTIONS so'rovlarini kamaytiradi)
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -114,10 +135,14 @@ public class SecurityConfig {
                 .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(customAuthenticationEntryPoint)
+                .accessDeniedHandler(customAccessDeniedHandler)
+            )
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**", "/api/auth/**", "/api/webhooks/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*").permitAll()
                 .requestMatchers(
                     "/favicon.ico",
                     "/swagger-ui.html",

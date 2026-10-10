@@ -35,6 +35,8 @@ public class WorkspaceMemberService {
     private final WorkspaceAuthorizationService authorizationService;
     private final WorkspaceInvitationRepository invitationRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
+    private final TelegramNotificationService telegramNotificationService;
 
     public WorkspaceMemberService(WorkspaceMemberRepository memberRepository,
                                   UserRepository userRepository,
@@ -42,12 +44,26 @@ public class WorkspaceMemberService {
                                   WorkspaceAuthorizationService authorizationService,
                                   WorkspaceInvitationRepository invitationRepository,
                                   EmailService emailService) {
+        this(memberRepository, userRepository, workspaceRepository, authorizationService, invitationRepository, emailService, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorkspaceMemberService(WorkspaceMemberRepository memberRepository,
+                                  UserRepository userRepository,
+                                  WorkspaceRepository workspaceRepository,
+                                  WorkspaceAuthorizationService authorizationService,
+                                  WorkspaceInvitationRepository invitationRepository,
+                                  EmailService emailService,
+                                  NotificationService notificationService,
+                                  TelegramNotificationService telegramNotificationService) {
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
         this.authorizationService = authorizationService;
         this.invitationRepository = invitationRepository;
         this.emailService = emailService;
+        this.notificationService = notificationService;
+        this.telegramNotificationService = telegramNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -138,17 +154,26 @@ public class WorkspaceMemberService {
                     throw new BadRequestException("Ushbu loyihada kutilayotgan takliflar soni 50 tadan oshib ketdi. Eski takliflarni bekor qiling.");
                 }
 
+                String rawToken = com.taskcenter.util.InvitationTokenUtil.generateToken();
+                String tokenHash = com.taskcenter.util.InvitationTokenUtil.hashToken(rawToken);
+
                 WorkspaceInvitation invitation = WorkspaceInvitation.builder()
                         .workspaceId(workspaceId)
                         .senderId(currentUser.getId())
                         .receiverEmail(query)
+                        .type(com.taskcenter.model.InvitationType.EMAIL)
+                        .tokenHash(tokenHash)
                         .role(roleToAssign)
                         .status(InvitationStatus.PENDING)
                         .expiresAt(LocalDateTime.now().plusDays(7))
                         .build();
+
+                EmailService.EmailDeliveryResult deliveryResult = emailService.sendInvitationEmailDirect(
+                        query, workspace.getTitle(), currentUser.getName(), roleToAssign.name(), rawToken);
+                invitation.setEmailDeliveryStatus(deliveryResult.status());
+                invitation.setEmailDeliveryError(deliveryResult.errorMessage());
+
                 WorkspaceInvitation saved = invitationRepository.save(invitation);
-                
-                emailService.sendInvitationEmail(query, workspace.getTitle(), currentUser.getName(), roleToAssign.name(), saved.getId());
                 
                 return WorkspaceMemberResponseDto.builder()
                         .id(saved.getId())
@@ -184,6 +209,13 @@ public class WorkspaceMemberService {
                 .build();
         memberRepository.save(member);
         authorizationService.evictRole(workspaceId, targetUser.getId());
+
+        if (notificationService != null) {
+            notificationService.notifyUser(targetUser.getId(), "Yangi loyiha", currentUser.getName() + " sizni " + workspace.getTitle() + " g'alvasiga qo'shdi.");
+        }
+        if (telegramNotificationService != null) {
+            telegramNotificationService.sendWorkspaceInviteNotification(workspace, targetUser, currentUser);
+        }
 
         return WorkspaceMemberResponseDto.fromEntity(targetUser, member.getRole());
     }

@@ -113,15 +113,15 @@ class AuthControllerTest {
     }
 
     @Test
-    void me_withoutToken_returns403() throws Exception {
+    void me_withoutToken_returns401() throws Exception {
         mvc.perform(get("/api/auth/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void me_withGarbageToken_returns403() throws Exception {
+    void me_withGarbageToken_returns401() throws Exception {
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer garbage.token.here"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private String registerAndGetRefreshToken(String name, String password) throws Exception {

@@ -63,9 +63,9 @@ class WorkspaceControllerTest {
     }
 
     @Test
-    void list_withoutToken_returns403() throws Exception {
+    void list_withoutToken_returns401() throws Exception {
         mvc.perform(get("/api/workspaces"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

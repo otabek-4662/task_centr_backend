@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.test.context.TestPropertySource(properties = "CORS_ALLOWED_ORIGINS=http://localhost:3000,https://app.taskcenter.com")
 @Transactional
 class SecurityTest {
 
@@ -48,25 +49,25 @@ class SecurityTest {
     }
 
     @Test
-    void protectedEndpoints_withoutToken_return403() throws Exception {
-        mvc.perform(get("/api/workspaces")).andExpect(status().isForbidden());
+    void protectedEndpoints_withoutToken_return401() throws Exception {
+        mvc.perform(get("/api/workspaces")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/workspaces/6a45163133ff7819b28ef909/columns"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/workspaces/6a45163133ff7819b28ef909/board"))
-                .andExpect(status().isForbidden());
-        mvc.perform(get("/api/me")).andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedEndpoint_expiredToken_returns403() throws Exception {
+    void protectedEndpoint_expiredToken_returns401() throws Exception {
         String expired = signedWith(secret, new Date(System.currentTimeMillis() - 5_000));
 
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + expired))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedEndpoint_tamperedToken_returns403() throws Exception {
+    void protectedEndpoint_tamperedToken_returns401() throws Exception {
         String valid = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
         // Tamper a middle char: flipping the last base64 char can decode to
         // identical bytes (it carries only 2 significant bits) and stay valid.
@@ -76,36 +77,36 @@ class SecurityTest {
         String tampered = valid.substring(0, idx) + replacement + valid.substring(idx + 1);
 
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + tampered))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedEndpoint_wrongSecret_returns403() throws Exception {
+    void protectedEndpoint_wrongSecret_returns401() throws Exception {
         String foreign = signedWith(
                 "completely-different-secret-that-is-also-256-bits-long-xyz",
                 new Date(System.currentTimeMillis() + 600_000));
 
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + foreign))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedEndpoint_algNoneToken_returns403() throws Exception {
+    void protectedEndpoint_algNoneToken_returns401() throws Exception {
         String header = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString("{\"alg\":\"none\"}".getBytes(StandardCharsets.UTF_8));
         String payload = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString("{\"sub\":\"elshod\"}".getBytes(StandardCharsets.UTF_8));
 
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + header + "." + payload + "."))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedEndpoint_missingBearerPrefix_returns403() throws Exception {
+    void protectedEndpoint_missingBearerPrefix_returns401() throws Exception {
         String valid = signedWith(secret, new Date(System.currentTimeMillis() + 600_000));
 
         mvc.perform(get("/api/workspaces").header("Authorization", "Token " + valid))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -178,8 +179,8 @@ class SecurityTest {
     }
 
     @Test
-    void telegramUnlink_withoutToken_returns403() throws Exception {
-        mvc.perform(delete("/api/users/me/telegram")).andExpect(status().isForbidden());
+    void telegramUnlink_withoutToken_returns401() throws Exception {
+        mvc.perform(delete("/api/users/me/telegram")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -232,9 +233,9 @@ class SecurityTest {
     }
 
     @Test
-    void taskDirect_noToken_returns403() throws Exception {
+    void taskDirect_noToken_returns401() throws Exception {
         mvc.perform(get("/api/tasks/some-id"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -246,11 +247,11 @@ class SecurityTest {
     }
 
     @Test
-    void telegramMe_noToken_returns403() throws Exception {
+    void telegramMe_noToken_returns401() throws Exception {
         mvc.perform(post("/api/users/me/telegram")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"initData\":\"fake\"}"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -267,5 +268,53 @@ class SecurityTest {
     void favicon_isPublic_notForbidden() throws Exception {
         mvc.perform(get("/favicon.ico"))
                 .andExpect(status().is(org.hamcrest.Matchers.not(403)));
+    }
+
+    @Test
+    void expiredJwt_onPublicLoginEndpoint_returnsNormalResponseNot401() throws Exception {
+        registerAndGetToken("expired_jwt_user");
+        String expired = signedWith(secret, new Date(System.currentTimeMillis() - 5_000));
+
+        // Muddati o'tgan JWT bilan ochiq login endpointiga so'rov yuborilganda 401 TOKEN_EXPIRED emas,
+        // login xizmatining odatiy javobi (200 OK va yangi token) qaytishi kerak.
+        mvc.perform(post("/api/auth/login")
+                        .header("Authorization", "Bearer " + expired)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"expired_jwt_user\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isString());
+    }
+
+    @Test
+    void expiredJwt_onPublicInvitationEndpoint_returnsNormalResponseNot401() throws Exception {
+        String expired = signedWith(secret, new Date(System.currentTimeMillis() - 5_000));
+
+        // Muddati o'tgan JWT bilan ochiq taklif ko'rish endpointiga so'rov yuborilganda 401 TOKEN_EXPIRED emas,
+        // taklif xizmatining odatiy javobi qaytishi kerak (masalan 404 INVITE_NOT_FOUND).
+        mvc.perform(get("/api/invitations/non-existent-token-12345")
+                        .header("Authorization", "Bearer " + expired))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("INVITE_NOT_FOUND"));
+    }
+
+    @Test
+    void cors_unconfiguredOrigin_doesNotGetAllowOriginHeader() throws Exception {
+        mvc.perform(options("/api/workspaces")
+                        .header("Origin", "https://unauthorized-domain.com")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    @Test
+    void cors_defaultDoesNotAllowVercelOrRenderPatterns() throws Exception {
+        mvc.perform(options("/api/workspaces")
+                        .header("Origin", "https://random-tenant.vercel.app")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+
+        mvc.perform(options("/api/workspaces")
+                        .header("Origin", "https://random-tenant.onrender.com")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
 }

@@ -60,6 +60,6 @@ class UserControllerTasksEndpointTest {
     @Test
     void getMyTasks_Unauthenticated_ReturnsUnauthorized() throws Exception {
         mvc.perform(get("/api/users/me/tasks"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

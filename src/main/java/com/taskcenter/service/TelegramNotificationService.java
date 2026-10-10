@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.time.Clock;
 import java.time.LocalTime;
@@ -168,14 +169,45 @@ public class TelegramNotificationService {
      * Bu xabarda TASK_VIEW tugmasi bo'lmaydi.
      */
     public void sendWorkspaceInviteNotification(Workspace workspace, User receiver, User actor) {
+        sendWorkspaceInviteNotification(workspace, receiver, actor, null);
+    }
+
+    public void sendWorkspaceInviteNotification(Workspace workspace, User receiver, User actor, String invitationId) {
         if (workspace == null || receiver == null || actor == null) {
             return;
         }
 
         try {
             String msg = "Sizni '" + TelegramUtil.escapeHtml(workspace.getTitle()) + "' ga taklif qilishdi";
+            InlineKeyboardMarkup keyboard = null;
+
+            if (invitationId != null && !invitationId.isBlank()) {
+                String actorName = actor.getFullName() != null ? actor.getFullName() : actor.getName();
+                msg = "📨 <b>Yangi jamoaga taklifnoma!</b>\n\n"
+                        + "🏢 Ishchi maydon: <b>" + TelegramUtil.escapeHtml(workspace.getTitle()) + "</b>\n"
+                        + "👤 Taklif etuvchi: <b>" + TelegramUtil.escapeHtml(actorName) + "</b>\n\n"
+                        + "Taklifni qabul qilasizmi?";
+
+                keyboard = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+                List<InlineKeyboardButton> row = new ArrayList<>();
+
+                InlineKeyboardButton acceptBtn = new InlineKeyboardButton();
+                acceptBtn.setText("✅ Qabul qilish");
+                acceptBtn.setCallbackData("ACCEPT_INV:" + invitationId);
+                row.add(acceptBtn);
+
+                InlineKeyboardButton rejectBtn = new InlineKeyboardButton();
+                rejectBtn.setText("❌ Rad etish");
+                rejectBtn.setCallbackData("REJECT_INV:" + invitationId);
+                row.add(rejectBtn);
+
+                rows.add(row);
+                keyboard.setKeyboard(rows);
+            }
+
             LocalTime now = LocalTime.now(clock.withZone(java.time.ZoneId.of("Asia/Tashkent")));
-            sendIfEligible(receiver, actor, msg, null, receiver.isTelegramNotifyInvites(), now);
+            sendIfEligible(receiver, actor, msg, keyboard, receiver.isTelegramNotifyInvites(), now);
         } catch (Exception e) {
             log.error("Telegram taklif bildirishnomasi yuborishda xatolik: userId={}", receiver.getId(), e);
         }
@@ -228,6 +260,12 @@ public class TelegramNotificationService {
 
         // Asinxron va AFTER_COMMIT ketishi uchun ApplicationEventPublisher orqali publish qilish
         eventPublisher.publishEvent(new TelegramMessageEvent(recipient.getTelegramChatId(), message, keyboard));
+    }
+
+    public void sendMessage(Long chatId, String message) {
+        if (chatId != null && message != null) {
+            eventPublisher.publishEvent(new TelegramMessageEvent(chatId, message));
+        }
     }
 
     private boolean isWorkspaceMember(String workspaceId, String userId) {

@@ -1,4 +1,8 @@
 spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
   sql:
     init:
       mode: never

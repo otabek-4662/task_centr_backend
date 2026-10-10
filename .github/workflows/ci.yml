@@ -41,3 +41,14 @@ jobs:
           name: surefire-reports
           path: target/surefire-reports/
           retention-days: 7
+
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sudo sh || \
+          (curl -fsSL https://github.com/oasdiff/oasdiff/releases/download/v1.33.0/oasdiff_1.33.0_linux_amd64.tar.gz | sudo tar -xz -C /usr/local/bin oasdiff)
+          oasdiff --version
+
+      - name: Check OpenAPI backward compatibility (oasdiff)
+        run: |
+          oasdiff breaking swagger-v1.json docs/openapi.json --config .oasdiff.yaml --fail-on ERR
+

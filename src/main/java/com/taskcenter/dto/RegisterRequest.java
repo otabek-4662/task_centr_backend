@@ -19,4 +19,7 @@ public class RegisterRequest {
     @NotBlank(message = "Quloqqa aytiladigan so'z bo'sh bo'lishi mumkin emas")
     @Size(min = 6, message = "Quloqqa aytiladigan so'z kamida 6 ta belgidan iborat bo'lishi kerak")
     private String password;
+
+    @Schema(description = "Taklifnoma tokeni (agar ro'yxatdan o'tish taklif havolasi orqali bo'lsa)", example = "raw_token_xyz")
+    private String inviteToken;
 }

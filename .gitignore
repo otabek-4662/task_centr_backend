@@ -38,3 +38,8 @@ logs/
 
 # Reports
 WORKSPACE_TASK_REPORT.md
+
+# Sensitive local test scripts
+test_smtp.py
+test_invite.py
+send_invite_test.py

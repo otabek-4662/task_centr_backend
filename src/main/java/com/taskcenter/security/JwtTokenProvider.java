@@ -77,4 +77,18 @@ public class JwtTokenProvider {
             return false;
         }
     }
+
+    public boolean isExpiredToken(String authToken) {
+        if (authToken == null || authToken.isBlank()) {
+            return false;
+        }
+        try {
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(authToken);
+            return false;
+        } catch (ExpiredJwtException ex) {
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
 }

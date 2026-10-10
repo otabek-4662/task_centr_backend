@@ -43,26 +43,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String name = tokenProvider.getUserNameFromJWT(jwt);
+            if (StringUtils.hasText(jwt)) {
+                if (tokenProvider.validateToken(jwt)) {
+                    String name = tokenProvider.getUserNameFromJWT(jwt);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(name);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(name);
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else if (tokenProvider.isExpiredToken(jwt)) {
+                    log.warn("JWT token muddati tugagan");
+                    request.setAttribute("token_expired", true);
+                }
             }
         } catch (ExpiredJwtException ex) {
             log.warn("JWT token muddati tugagan: {}", ex.getMessage());
+            request.setAttribute("token_expired", true);
+            request.setAttribute("jwt_exception", ex);
         } catch (MalformedJwtException ex) {
             log.warn("JWT token formati noto'g'ri: {}", ex.getMessage());
+            request.setAttribute("jwt_exception", ex);
         } catch (SignatureException ex) {
             log.warn("JWT token imzosi yaroqsiz: {}", ex.getMessage());
+            request.setAttribute("jwt_exception", ex);
         } catch (UsernameNotFoundException ex) {
             log.warn("JWT dagi foydalanuvchi topilmadi: {}", ex.getMessage());
+            request.setAttribute("jwt_exception", ex);
         } catch (Exception ex) {
             log.error("JWT autentifikatsiyada kutilmagan xatolik: {}", ex.getMessage(), ex);
+            request.setAttribute("jwt_exception", ex);
         }
 
         filterChain.doFilter(request, response);

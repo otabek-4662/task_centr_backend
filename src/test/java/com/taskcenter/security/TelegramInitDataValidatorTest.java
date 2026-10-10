@@ -101,4 +101,30 @@ class TelegramInitDataValidatorTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    @DisplayName("hash yo'q bo'lsa Optional.empty qaytadi")
+    void validate_missingHash_returnsEmpty() {
+        String initDataWithoutHash = "query_id=AAHdF6IQAAAAAN0XohDhrOrc&auth_date=" + (Instant.now().getEpochSecond() - 60);
+
+        Optional<Map<String, String>> result = validator.validate(initDataWithoutHash);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("kelajak auth_date (60s dan ko'p) bo'lsa Optional.empty qaytadi")
+    void validate_futureAuthDate_returnsEmpty() {
+        Map<String, String> rawParams = new LinkedHashMap<>();
+        // auth_date is 5 minutes in the future
+        rawParams.put("auth_date", String.valueOf(Instant.now().getEpochSecond() + 300));
+        rawParams.put("query_id", "AAHdF6IQAAAAAN0XohDhrOrc");
+        rawParams.put("user", "{\"id\":12345678,\"first_name\":\"Bekmurod\"}");
+
+        String futureInitData = generateInitData(rawParams, BOT_TOKEN);
+
+        Optional<Map<String, String>> result = validator.validate(futureInitData);
+
+        assertThat(result).isEmpty();
+    }
 }

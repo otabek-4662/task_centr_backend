@@ -21,7 +21,7 @@ public class TelegramInitDataValidator {
 
     public TelegramInitDataValidator(
             @Value("${telegram.bot.token:}") String botToken,
-            @Value("${telegram.miniapp.max-age-sec:3600}") long maxAgeSec) {
+            @Value("${telegram.miniapp.max-age-sec:${TELEGRAM_AUTH_MAX_AGE_SECONDS:3600}}") long maxAgeSec) {
         this.botToken = botToken;
         this.maxAgeSec = maxAgeSec;
     }
@@ -59,7 +59,10 @@ public class TelegramInitDataValidator {
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
-        if (Instant.now().getEpochSecond() - authDate > maxAgeSec) return Optional.empty();
+        long now = Instant.now().getEpochSecond();
+        if (authDate <= 0 || (now - authDate > maxAgeSec) || (authDate - now > 60)) {
+            return Optional.empty();
+        }
 
         return Optional.of(params);
     }

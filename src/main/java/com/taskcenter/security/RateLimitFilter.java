@@ -35,15 +35,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Value("${ratelimit.register.ip.window-minutes:10}")
     private int registerIpWindow;
 
+    private final String clientIpHeader;
+
     public RateLimitFilter(
             RateLimitingService rateLimitingService,
             ObjectMapper objectMapper,
             @Value("${ratelimit.auth.enabled:true}") boolean enabled,
-            @Value("${ratelimit.api.enabled:true}") boolean apiEnabled) {
+            @Value("${ratelimit.api.enabled:true}") boolean apiEnabled,
+            @Value("${CLIENT_IP_HEADER:}") String clientIpHeader) {
         this.rateLimitingService = rateLimitingService;
         this.objectMapper = objectMapper;
         this.enabled = enabled;
         this.apiEnabled = apiEnabled;
+        this.clientIpHeader = clientIpHeader != null ? clientIpHeader.trim() : "";
     }
 
     @Override
@@ -64,12 +68,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
             if (path.equals("/api/auth/login")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("login", clientIp, loginIpMax, loginIpWindow);
-            } else if (path.equals("/api/v1/auth/telegram")) {
+            } else if (path.equals("/api/v1/auth/telegram") || path.equals("/api/v1/auth/telegram/pending-invite")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("telegram-auth", clientIp, telegramIpMax, telegramIpWindow);
             } else if (path.equals("/api/auth/register") || path.equals("/api/auth/forgot-password") || path.equals("/api/auth/reset-password")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("register", clientIp, registerIpMax, registerIpWindow);
+            } else if (path.matches("^/api/invitations/(by-id/)?[^/]+/(accept|reject)$")) {
+                waitTime = rateLimitingService.tryConsumeIpLimit("invite-action", clientIp, 20, 1);
             }
 
+            if (waitTime > 0) {
+                sendRateLimitResponse(response, waitTime);
+                return;
+            }
+        }
+
+        if (enabled && "GET".equalsIgnoreCase(method) && path.startsWith("/api/invitations/") && !path.equals("/api/invitations/me")) {
+            String clientIp = getClientIp(request);
+            long waitTime = rateLimitingService.tryConsumeIpLimit("invite-preview", clientIp, 30, 1);
             if (waitTime > 0) {
                 sendRateLimitResponse(response, waitTime);
                 return;
@@ -85,27 +100,48 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Retry-After", String.valueOf(waitTime));
         
-        ApiResponse<Void> apiResponse = ApiResponse.error("Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.");
+        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
+                .success(false)
+                .code("TOO_MANY_REQUESTS")
+                .errorCode("RATE_LIMITED")
+                .message("Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.")
+                .status(429)
+                .retryAfterSeconds(waitTime)
+                .build();
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        /*
-         * Render's proxy behavior:
-         * Render appends the actual remote IP (the IP of the client connecting to Render) 
-         * to the X-Forwarded-For header. If a client attempts to spoof the header by sending 
-         * their own X-Forwarded-For, Render will append the real IP to the end of the list.
-         * Therefore, the LAST trusted hop (the last IP in the comma-separated list) 
-         * is the actual client IP.
-         */
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            String[] ips = xForwardedFor.split(",");
-            return ips[ips.length - 1].trim();
+    private static final java.util.regex.Pattern IPV4_PATTERN =
+            java.util.regex.Pattern.compile("^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.){3}(25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)$");
+
+    private static boolean isValidIp(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return false;
         }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
+        String candidate = ip.trim();
+        if (IPV4_PATTERN.matcher(candidate).matches()) {
+            return true;
+        }
+        if (candidate.contains(":") && candidate.matches("^[0-9a-fA-F:]+$")) {
+            try {
+                java.net.InetAddress addr = java.net.InetAddress.getByName(candidate);
+                return addr instanceof java.net.Inet6Address;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        if (!clientIpHeader.isEmpty()) {
+            String headerVal = request.getHeader(clientIpHeader);
+            if (headerVal != null && !headerVal.isBlank()) {
+                String candidate = headerVal.split(",")[0].trim();
+                if (isValidIp(candidate)) {
+                    return candidate;
+                }
+            }
         }
         return request.getRemoteAddr();
     }

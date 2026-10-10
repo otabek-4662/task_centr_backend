@@ -184,7 +184,7 @@ public class WorkspaceAuthorizationService {
     public Workspace checkAdmin(String workspaceId, User currentUser) {
         Workspace workspace = requireWorkspace(workspaceId);
         if (currentUser == null || !isOwnerOrAdmin(workspace, currentUser.getId())) {
-            throw new ForbiddenException("Ushbu amalni faqat workspace egasi yoki admini bajara oladi");
+            throw new ForbiddenException("FORBIDDEN_ROLE", "Ushbu amalni faqat workspace egasi yoki admini bajara oladi");
         }
         return workspace;
     }

@@ -1,4 +1,8 @@
 spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
   config:
     import: optional:file:.env[.properties]
   servlet:
@@ -79,6 +83,12 @@ github:
   # GitHub -> Settings -> Webhooks -> Secret dagi qiymat bilan bir xil bo'lishi kerak
   webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  sender:
+    email: ${BREVO_SENDER_EMAIL:}
+    name: ${BREVO_SENDER_NAME:Task Center}
+
 telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
@@ -88,6 +98,7 @@ telegram:
   miniapp:
     max-age-sec: ${TELEGRAM_MINIAPP_MAX_AGE_SEC:3600}
     base-url: ${TELEGRAM_MINIAPP_BASE_URL:https://task-centr-backend.onrender.com}
+    short-name: ${TELEGRAM_MINIAPP_SHORT_NAME:app}
   scheduler:
     reminder-cron: ${TELEGRAM_REMINDER_CRON:0 0 18 * * *}
     digest-cron: ${TELEGRAM_DIGEST_CRON:0 0 8 * * *}
@@ -146,5 +157,5 @@ app:
   seed:
     enabled: ${APP_SEED_ENABLED:false}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 

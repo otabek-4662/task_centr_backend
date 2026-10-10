@@ -142,6 +142,9 @@ class WorkspaceMemberServiceTest {
                     return inv;
                 });
 
+        when(emailService.sendInvitationEmailDirect(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new EmailService.EmailDeliveryResult(com.taskcenter.model.EmailDeliveryStatus.SENT, null));
+
         WorkspaceMemberInviteRequest request = WorkspaceMemberInviteRequest.builder()
                 .usernameOrEmail(validEmail)
                 .role(WorkspaceRole.MEMBER)
@@ -152,7 +155,7 @@ class WorkspaceMemberServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getId()).isEqualTo("inv-1");
         assertThat(response.getEmail()).isEqualTo(validEmail);
-        verify(emailService, times(1)).sendInvitationEmail(eq(validEmail), anyString(), anyString(), eq(WorkspaceRole.MEMBER.name()), eq("inv-1"));
+        verify(emailService, times(1)).sendInvitationEmailDirect(eq(validEmail), anyString(), anyString(), eq(WorkspaceRole.MEMBER.name()), anyString());
     }
 
     @Test

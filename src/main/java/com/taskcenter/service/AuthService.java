@@ -106,6 +106,41 @@ public class AuthService {
             invitationRepository.save(inv);
         }
 
+        if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
+            String cleanToken = request.getInviteToken().trim();
+            java.util.Optional<com.taskcenter.model.WorkspaceInvitation> invOpt;
+            try {
+                String hash = com.taskcenter.util.InvitationTokenUtil.hashToken(cleanToken);
+                invOpt = invitationRepository.findByTokenHash(hash);
+            } catch (Exception e) {
+                invOpt = java.util.Optional.empty();
+            }
+            if (invOpt.isEmpty()) {
+                invOpt = invitationRepository.findById(cleanToken);
+            }
+            if (invOpt.isPresent()) {
+                com.taskcenter.model.WorkspaceInvitation inv = invOpt.get();
+                if (inv.getStatus() == com.taskcenter.model.InvitationStatus.PENDING &&
+                        (inv.getExpiresAt() == null || !inv.getExpiresAt().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC)))) {
+                    if (!memberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), savedUser.getId())) {
+                        com.taskcenter.model.WorkspaceMember member = com.taskcenter.model.WorkspaceMember.builder()
+                                .workspaceId(inv.getWorkspaceId())
+                                .userId(savedUser.getId())
+                                .role(inv.getRole())
+                                .build();
+                        memberRepository.save(member);
+                    }
+                    inv.setUseCount((inv.getUseCount() != null ? inv.getUseCount() : 0) + 1);
+                    inv.setReceiverId(savedUser.getId());
+                    if (inv.getType() == com.taskcenter.model.InvitationType.EMAIL
+                            || (inv.getMaxUses() != null && inv.getUseCount() >= inv.getMaxUses())) {
+                        inv.setStatus(com.taskcenter.model.InvitationStatus.ACCEPTED);
+                    }
+                    invitationRepository.save(inv);
+                }
+            }
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
