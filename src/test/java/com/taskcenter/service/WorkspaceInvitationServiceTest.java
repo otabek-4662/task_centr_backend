@@ -95,24 +95,21 @@ class WorkspaceInvitationServiceTest {
             saved.setId("inv-123");
             return saved;
         });
-        when(emailService.sendInvitationEmailDirect(anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(new EmailService.EmailDeliveryResult(EmailDeliveryStatus.SENT, null));
-
         WorkspaceInvitationDto result = invitationService.inviteUser("ws-1", request, currentUser);
 
         assertNotNull(result);
         assertEquals("inv-123", result.getId());
         assertEquals("hamkasb@example.com", result.getReceiverEmail());
         assertEquals(InvitationType.EMAIL, result.getType());
-        assertEquals(EmailDeliveryStatus.SENT, result.getEmailDeliveryStatus());
+        assertEquals(EmailDeliveryStatus.PENDING, result.getEmailDeliveryStatus());
         assertNotNull(result.getToken());
         assertTrue(result.getToken().length() >= 32);
         assertTrue(result.getTelegramInviteLink().contains("start=inv_" + result.getToken()));
         assertTrue(result.getTelegramMiniappLink().contains("startapp=inv_" + result.getToken()));
         assertTrue(result.getInviteLink().contains("/invite/" + result.getToken()));
 
-        verify(emailService, times(1)).sendInvitationEmailDirect(
-                eq("hamkasb@example.com"), eq("Super Loyiha"), eq("admin"), eq("MEMBER"), eq(result.getToken())
+        verify(emailService, times(1)).sendInvitationEmail(
+                eq("inv-123"), eq("hamkasb@example.com"), eq("Super Loyiha"), eq("admin"), eq("MEMBER"), eq(result.getToken())
         );
     }
 

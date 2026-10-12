@@ -161,6 +161,36 @@ public class Task {
         }
     }
 
+    public void moveToColumn(String newColumnId, String newLexoRank) {
+        if (newColumnId != null && !newColumnId.isBlank()) {
+            this.columnId = newColumnId;
+        }
+        if (newLexoRank != null && !newLexoRank.isBlank()) {
+            this.lexoRank = newLexoRank;
+        }
+    }
+
+    public void updateDetails(String title, String description, Priority priority, IssueType issueType) {
+        if (title != null && !title.isBlank()) {
+            this.title = title;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (priority != null) {
+            this.priority = priority;
+        }
+        if (issueType != null) {
+            this.issueType = issueType;
+        }
+    }
+
+    public void logTime(Double hours) {
+        if (hours != null && hours > 0) {
+            this.loggedHours = (this.loggedHours != null ? this.loggedHours : 0.0) + hours;
+        }
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

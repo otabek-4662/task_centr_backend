@@ -63,7 +63,7 @@ import com.taskcenter.util.TelegramUtil;
 
 @Slf4j
 @Service
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "telegram.bot.token")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "telegram.bot.enabled", havingValue = "true")
 public class TelegramBotService extends TelegramLongPollingBot {
 
     private final String botUsername;
@@ -120,6 +120,13 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
     private final Map<Long, RateLimit> startRateLimits = new ConcurrentHashMap<>();
 
+    private static org.telegram.telegrambots.bots.DefaultBotOptions createDefaultBotOptions() {
+        org.telegram.telegrambots.bots.DefaultBotOptions options = new org.telegram.telegrambots.bots.DefaultBotOptions();
+        options.setBackOff(new com.taskcenter.util.TelegramBotBackOff());
+        options.setGetUpdatesTimeout(50);
+        return options;
+    }
+
     @org.springframework.beans.factory.annotation.Autowired
     public TelegramBotService(
             @Value("${telegram.bot.token:}") String botToken,
@@ -139,7 +146,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             WorkspaceInvitationRepository invitationRepository,
             WorkspaceMemberRepository memberRepository,
             @org.springframework.context.annotation.Lazy WorkspaceInvitationService workspaceInvitationService) {
-        super(botToken);
+        super(createDefaultBotOptions(), botToken);
         this.botUsername = botUsername;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
@@ -207,7 +214,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         return botUsername;
     }
 
-    @Scheduled(fixedRate = 1800000)
+    @Scheduled(fixedRate = 1800000, initialDelay = 60000)
     public void cleanupTaskCreationStates() {
         taskCreationStates.entrySet().removeIf(entry -> entry.getValue().isExpired());
     }

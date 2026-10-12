@@ -33,6 +33,8 @@ services:
         sync: false
       - key: CLIENT_IP_HEADER
         sync: false
+      - key: TELEGRAM_BOT_ENABLED
+        value: "true"
       - key: JWT_EXPIRATION
         value: 604800000
       # Database dan keladigan qiymatlar - quyidagi databases.taskcenter-db dan

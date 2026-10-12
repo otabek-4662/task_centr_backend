@@ -51,4 +51,49 @@ class TelegramBotConfigTest {
         assertNull(botsApi);
         verify(telegramBotService, times(1)).execute(any(SetWebhook.class));
     }
+
+    @Test
+    void destroy_stopsBotSessionAndReleasesLock() throws Exception {
+        javax.sql.DataSource dataSource = mock(javax.sql.DataSource.class);
+        TelegramBotConfig config = new TelegramBotConfig(dataSource, telegramBotService);
+
+        org.telegram.telegrambots.meta.generics.BotSession mockSession = mock(org.telegram.telegrambots.meta.generics.BotSession.class);
+        ReflectionTestUtils.setField(config, "botSession", mockSession);
+
+        java.sql.Connection mockConnection = mock(java.sql.Connection.class);
+        java.sql.PreparedStatement mockPs = mock(java.sql.PreparedStatement.class);
+        when(mockConnection.prepareStatement("SELECT pg_advisory_unlock(?)")).thenReturn(mockPs);
+        ReflectionTestUtils.setField(config, "leaderConnection", mockConnection);
+
+        config.destroy();
+
+        verify(mockSession, times(1)).stop();
+        verify(mockPs, times(1)).setLong(1, TelegramBotConfig.TELEGRAM_BOT_LEADER_LOCK_ID);
+        verify(mockPs, times(1)).executeQuery();
+        verify(mockConnection, times(1)).close();
+        assertNull(config.getBotSession());
+    }
+
+    @Test
+    void leaderGate_standbyClosesConnectionWhenLockNotAcquired() throws Exception {
+        javax.sql.DataSource dataSource = mock(javax.sql.DataSource.class);
+        java.sql.Connection mockConnection = mock(java.sql.Connection.class);
+        java.sql.PreparedStatement mockPs = mock(java.sql.PreparedStatement.class);
+        java.sql.ResultSet mockRs = mock(java.sql.ResultSet.class);
+
+        when(dataSource.getConnection()).thenReturn(mockConnection);
+        when(mockConnection.prepareStatement("SELECT pg_try_advisory_lock(?)")).thenReturn(mockPs);
+        when(mockPs.executeQuery()).thenReturn(mockRs);
+        when(mockRs.next()).thenReturn(true);
+        when(mockRs.getBoolean(1)).thenReturn(false); // Lock held by another instance
+
+        TelegramBotConfig config = new TelegramBotConfig(dataSource, telegramBotService);
+
+        // tryAcquireLeaderAndRegisterBot ni chaqiramiz
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(config, "tryAcquireLeaderAndRegisterBot");
+
+        // Lock olinmadi -> Connection darhol yopilishi kerak (connection pool band qilinmasligi uchun)
+        verify(mockConnection, times(1)).close();
+        assertFalse(config.isLeader());
+    }
 }

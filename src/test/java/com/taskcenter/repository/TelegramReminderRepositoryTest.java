@@ -505,4 +505,80 @@ class TelegramReminderRepositoryTest {
                 .extracting(TelegramReminderTaskDto::getTitle)
                 .containsExactlyInAnyOrder("Bugungi vazifa", "Muddati o'tgan vazifa");
     }
+
+    @Test
+    @DisplayName("Synthetic key (DIGEST_2026-10-11) task_id siz bazaga yozilishi va FK xatosi chiqmasligi kerak")
+    void syntheticKey_insertsWithoutTaskIdAndFkViolation() {
+        TelegramReminderLog log = reminderLogRepository.save(TelegramReminderLog.builder()
+                .logKey("DIGEST_2026-10-11")
+                .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
+                .build());
+        em.flush();
+        em.clear();
+
+        TelegramReminderLog found = reminderLogRepository.findByLogKey("DIGEST_2026-10-11").orElse(null);
+        assertThat(found).isNotNull();
+        assertThat(found.getLogKey()).isEqualTo("DIGEST_2026-10-11");
+        assertThat(found.getTaskId()).isNull();
+        assertThat(found.getUserId()).isNull();
+        assertThat(found.getType()).isEqualTo(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK);
+    }
+
+    @Test
+    @DisplayName("Synthetic key takrorlanganda unique constraint buzilishi kerak")
+    void syntheticKey_uniqueConstraintEnforced() {
+        TelegramReminderLog log1 = TelegramReminderLog.builder()
+                .logKey("REMINDER_2026-10-11")
+                .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
+                .build();
+        reminderLogRepository.save(log1);
+        em.flush();
+
+        TelegramReminderLog logDuplicate = TelegramReminderLog.builder()
+                .logKey("REMINDER_2026-10-11")
+                .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
+                .build();
+
+        assertThatThrownBy(() -> {
+            reminderLogRepository.save(logDuplicate);
+            em.flush();
+        }).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("deleteByLogKey synthetic key bo'yicha yozuvni o'chirishi kerak")
+    void deleteByLogKey_deletesSyntheticKey() {
+        TelegramReminderLog log = TelegramReminderLog.builder()
+                .logKey("DIGEST_2026-10-12")
+                .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
+                .build();
+        reminderLogRepository.save(log);
+        em.flush();
+
+        assertThat(reminderLogRepository.existsByLogKey("DIGEST_2026-10-12")).isTrue();
+
+        reminderLogRepository.deleteByLogKey("DIGEST_2026-10-12");
+        em.flush();
+        em.clear();
+
+        assertThat(reminderLogRepository.existsByLogKey("DIGEST_2026-10-12")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Haqiqiy tasklar uchun task_id va user_id bilan log yozish ishlashda davom etishi kerak")
+    void realTaskLog_stillWorksWithTaskIdAndUser() {
+        TelegramReminderLog taskLog = TelegramReminderLog.builder()
+                .taskId("task-real-1")
+                .userId(validUser.getId())
+                .type(TelegramReminderLog.ReminderType.DUE_TOMORROW)
+                .build();
+        reminderLogRepository.save(taskLog);
+        em.flush();
+
+        List<TelegramReminderLog> logs = reminderLogRepository.findByUserIdAndTypeAndTaskIdIn(
+                validUser.getId(), TelegramReminderLog.ReminderType.DUE_TOMORROW, List.of("task-real-1"));
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getTaskId()).isEqualTo("task-real-1");
+        assertThat(logs.get(0).getLogKey()).isNull();
+    }
 }

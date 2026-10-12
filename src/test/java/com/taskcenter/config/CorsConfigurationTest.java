@@ -15,7 +15,7 @@ class CorsConfigurationTest {
     @DisplayName("Default holda (env bo'sh, dev emas): Hech qanday origin ruxsat etilmaydi, shu jumladan render va vercel")
     void default_nonDev_noEnv_allowsNoOrigins() {
         MockEnvironment env = new MockEnvironment();
-        SecurityConfig config = new SecurityConfig(null, null, null, null, env, "");
+        SecurityConfig config = new SecurityConfig(null, null, null, null, null, env, "");
         CorsConfigurationSource source = config.corsConfigurationSource();
 
         MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/workspaces");
@@ -33,7 +33,7 @@ class CorsConfigurationTest {
     void devProfile_allowsLocalhost() {
         MockEnvironment env = new MockEnvironment();
         env.setActiveProfiles("dev");
-        SecurityConfig config = new SecurityConfig(null, null, null, null, env, "");
+        SecurityConfig config = new SecurityConfig(null, null, null, null, null, env, "");
         CorsConfigurationSource source = config.corsConfigurationSource();
 
         MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/workspaces");
@@ -51,7 +51,7 @@ class CorsConfigurationTest {
     void customOrigins_configuredViaEnv_onlyAllowsSpecifiedDomains() {
         MockEnvironment env = new MockEnvironment();
         String customOrigins = "https://taskcenter.app, https://frontend.company.com";
-        SecurityConfig config = new SecurityConfig(null, null, null, null, env, customOrigins);
+        SecurityConfig config = new SecurityConfig(null, null, null, null, null, env, customOrigins);
         CorsConfigurationSource source = config.corsConfigurationSource();
 
         MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/workspaces");

@@ -37,6 +37,7 @@ public class WorkspaceMemberService {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final TelegramNotificationService telegramNotificationService;
+    private final WorkspaceInvitationService invitationService;
 
     public WorkspaceMemberService(WorkspaceMemberRepository memberRepository,
                                   UserRepository userRepository,
@@ -44,7 +45,18 @@ public class WorkspaceMemberService {
                                   WorkspaceAuthorizationService authorizationService,
                                   WorkspaceInvitationRepository invitationRepository,
                                   EmailService emailService) {
-        this(memberRepository, userRepository, workspaceRepository, authorizationService, invitationRepository, emailService, null, null);
+        this(memberRepository, userRepository, workspaceRepository, authorizationService, invitationRepository, emailService, null, null, null);
+    }
+
+    public WorkspaceMemberService(WorkspaceMemberRepository memberRepository,
+                                  UserRepository userRepository,
+                                  WorkspaceRepository workspaceRepository,
+                                  WorkspaceAuthorizationService authorizationService,
+                                  WorkspaceInvitationRepository invitationRepository,
+                                  EmailService emailService,
+                                  NotificationService notificationService,
+                                  TelegramNotificationService telegramNotificationService) {
+        this(memberRepository, userRepository, workspaceRepository, authorizationService, invitationRepository, emailService, notificationService, telegramNotificationService, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -55,7 +67,8 @@ public class WorkspaceMemberService {
                                   WorkspaceInvitationRepository invitationRepository,
                                   EmailService emailService,
                                   NotificationService notificationService,
-                                  TelegramNotificationService telegramNotificationService) {
+                                  TelegramNotificationService telegramNotificationService,
+                                  @org.springframework.beans.factory.annotation.Autowired(required = false) WorkspaceInvitationService invitationService) {
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
@@ -64,16 +77,23 @@ public class WorkspaceMemberService {
         this.emailService = emailService;
         this.notificationService = notificationService;
         this.telegramNotificationService = telegramNotificationService;
+        this.invitationService = invitationService;
     }
 
     @Transactional(readOnly = true)
     public List<UserDto> getMembers(String workspaceId, User currentUser) {
-        authorizationService.checkAccess(workspaceId, currentUser);
+        Workspace workspace = authorizationService.checkAccess(workspaceId, currentUser);
 
         List<WorkspaceMember> members = memberRepository.findByWorkspaceId(workspaceId);
-        Set<String> memberIds = members.stream()
-                .map(WorkspaceMember::getUserId)
-                .collect(Collectors.toSet());
+        Set<String> memberIds = new LinkedHashSet<>();
+        if (workspace.getOwnerId() != null) {
+            memberIds.add(workspace.getOwnerId());
+        }
+        for (WorkspaceMember m : members) {
+            if (m.getUserId() != null) {
+                memberIds.add(m.getUserId());
+            }
+        }
 
         return userRepository.findByIdIn(memberIds)
                 .stream()
@@ -131,6 +151,21 @@ public class WorkspaceMemberService {
 
         if (targetUserOpt.isEmpty()) {
             if (query.contains("@")) {
+                if (invitationService != null) {
+                    com.taskcenter.dto.InviteRequestDto inviteReq = new com.taskcenter.dto.InviteRequestDto();
+                    inviteReq.setUsernameOrEmail(query);
+                    inviteReq.setRole(roleToAssign);
+                    com.taskcenter.dto.WorkspaceInvitationDto inviteDto = invitationService.inviteUser(workspaceId, inviteReq, currentUser);
+                    return WorkspaceMemberResponseDto.builder()
+                            .id(inviteDto.getId())
+                            .name("Taklif etilgan")
+                            .fullName("Taklif etilgan (" + query + ")")
+                            .email(query)
+                            .role(inviteDto.getRole())
+                            .roleName(inviteDto.getRole() != null ? inviteDto.getRole().getDisplayName() : null)
+                            .build();
+                }
+
                 if (!EmailService.isValidRecipient(query)) {
                     throw new BadRequestException("Noto'g'ri email manzili: " + query);
                 }
@@ -165,7 +200,7 @@ public class WorkspaceMemberService {
                         .tokenHash(tokenHash)
                         .role(roleToAssign)
                         .status(InvitationStatus.PENDING)
-                        .expiresAt(LocalDateTime.now().plusDays(7))
+                        .expiresAt(LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(7))
                         .build();
 
                 EmailService.EmailDeliveryResult deliveryResult = emailService.sendInvitationEmailDirect(
@@ -210,6 +245,8 @@ public class WorkspaceMemberService {
         memberRepository.save(member);
         authorizationService.evictRole(workspaceId, targetUser.getId());
 
+        reconcilePendingInvitations(workspaceId, targetUser);
+
         if (notificationService != null) {
             notificationService.notifyUser(targetUser.getId(), "Yangi loyiha", currentUser.getName() + " sizni " + workspace.getTitle() + " g'alvasiga qo'shdi.");
         }
@@ -218,6 +255,33 @@ public class WorkspaceMemberService {
         }
 
         return WorkspaceMemberResponseDto.fromEntity(targetUser, member.getRole());
+    }
+
+    private void reconcilePendingInvitations(String workspaceId, User targetUser) {
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
+        List<WorkspaceInvitation> pendingInvites = new ArrayList<>();
+
+        invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, targetUser.getId(), InvitationStatus.PENDING)
+                .ifPresent(pendingInvites::add);
+
+        if (targetUser.getEmail() != null && !targetUser.getEmail().isBlank()) {
+            invitationRepository.findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(workspaceId, targetUser.getEmail(), InvitationStatus.PENDING)
+                    .ifPresent(inv -> {
+                        if (pendingInvites.stream().noneMatch(existing -> existing.getId().equals(inv.getId()))) {
+                            pendingInvites.add(inv);
+                        }
+                    });
+        }
+
+        for (WorkspaceInvitation inv : pendingInvites) {
+            if (inv.getExpiresAt() != null && inv.getExpiresAt().isBefore(now)) {
+                inv.setStatus(InvitationStatus.EXPIRED);
+            } else {
+                inv.setStatus(InvitationStatus.ACCEPTED);
+                inv.setReceiverId(targetUser.getId());
+            }
+            invitationRepository.save(inv);
+        }
     }
 
     @Transactional
@@ -284,7 +348,7 @@ public class WorkspaceMemberService {
         }
 
         if (!isSelf) {
-            boolean isCurrentUserOwner = authorizationService.isOwner(workspaceId, currentUser.getId());
+            boolean isCurrentUserOwner = workspace.getOwnerId().equals(currentUser.getId());
             
             Optional<WorkspaceInvitation> invOpt = invitationRepository.findById(targetUserId);
             if (invOpt.isPresent()) {

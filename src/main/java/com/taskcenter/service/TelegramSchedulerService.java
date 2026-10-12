@@ -77,6 +77,20 @@ public class TelegramSchedulerService {
         this.deadlineEnabled = deadlineEnabled;
     }
 
+    public static final ZoneId ASIA_TASHKENT = TelegramUtil.TASHKENT_ZONE;
+
+    private LocalDate getTashkentDate() {
+        return LocalDate.now(clock.withZone(ASIA_TASHKENT));
+    }
+
+    private LocalTime getTashkentTime() {
+        return LocalTime.now(clock.withZone(ASIA_TASHKENT));
+    }
+
+    private LocalDateTime getTashkentDateTime() {
+        return LocalDateTime.now(clock.withZone(ASIA_TASHKENT));
+    }
+
     // ────────────────── Scheduled entry points ──────────────────
 
     /**
@@ -85,8 +99,8 @@ public class TelegramSchedulerService {
     @Scheduled(cron = "${telegram.scheduler.reminder-cron:0 0 18 * * *}", zone = "Asia/Tashkent")
     @SchedulerLock(name = "scheduleDueTomorrowReminders", lockAtMostFor = "15m", lockAtLeastFor = "5m")
     public void scheduleDueTomorrowReminders() {
-        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
-        tryRunGlobalJob("REMINDER_" + localNow.toLocalDate(), () -> sendDueTomorrowReminders(LocalDateTime.now(clock)));
+        LocalDate tashkentDate = getTashkentDate();
+        tryRunGlobalJob("REMINDER_" + tashkentDate, () -> sendDueTomorrowReminders(getTashkentDateTime()));
     }
 
     /**
@@ -95,48 +109,62 @@ public class TelegramSchedulerService {
     @Scheduled(cron = "${telegram.scheduler.digest-cron:0 0 8 * * *}", zone = "Asia/Tashkent")
     @SchedulerLock(name = "scheduleDailyDigest", lockAtMostFor = "15m", lockAtLeastFor = "5m")
     public void scheduleDailyDigest() {
-        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
-        tryRunGlobalJob("DIGEST_" + localNow.toLocalDate(), () -> sendDailyDigest(LocalDateTime.now(clock)));
+        LocalDate tashkentDate = getTashkentDate();
+        tryRunGlobalJob("DIGEST_" + tashkentDate, () -> sendDailyDigest(getTashkentDateTime()));
     }
 
+    @org.springframework.scheduling.annotation.Async
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         catchUpMissedSchedules();
     }
 
-    @Scheduled(fixedRate = 1800000)
+    @Scheduled(fixedRate = 1800000, initialDelay = 60000)
     @SchedulerLock(name = "catchUpSchedules", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void catchUpSchedules() {
         catchUpMissedSchedules();
     }
 
     private void catchUpMissedSchedules() {
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime localNow = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
-        
-        if (localNow.toLocalTime().isAfter(LocalTime.of(8, 0))) {
-            tryRunGlobalJob("DIGEST_" + localNow.toLocalDate(), () -> sendDailyDigest(now));
+        LocalDate tashkentDate = getTashkentDate();
+        LocalTime tashkentTime = getTashkentTime();
+        LocalDateTime tashkentNow = getTashkentDateTime();
+
+        if (tashkentTime.isAfter(LocalTime.of(8, 0))) {
+            tryRunGlobalJob("DIGEST_" + tashkentDate, () -> sendDailyDigest(tashkentNow));
         }
-        if (localNow.toLocalTime().isAfter(LocalTime.of(18, 0))) {
-            tryRunGlobalJob("REMINDER_" + localNow.toLocalDate(), () -> sendDueTomorrowReminders(now));
+        if (tashkentTime.isAfter(LocalTime.of(18, 0))) {
+            tryRunGlobalJob("REMINDER_" + tashkentDate, () -> sendDueTomorrowReminders(tashkentNow));
         }
     }
 
-    private void tryRunGlobalJob(String jobId, Runnable job) {
-        boolean exists = reminderLogRepository.existsByTaskIdAndUserIdAndType(jobId, "SYSTEM", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK);
-        if (exists) return;
-        
+    void tryRunGlobalJob(String jobKey, Runnable job) {
+        int claimed;
         try {
-            reminderLogRepository.save(TelegramReminderLog.builder()
-                    .taskId(jobId)
-                    .userId("SYSTEM")
-                    .type(TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK)
-                    .build());
-            job.run();
+            claimed = reminderLogRepository.claimLogKey(jobKey, TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name());
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            log.debug("Job {} already running on another instance", jobId);
+            log.info("Global job [{}] already sent/claimed (unique violation), skipping", jobKey);
+            return;
         } catch (Exception e) {
-            log.error("Error running job {}", jobId, e);
+            log.error("Error claiming global job [{}], log_key=[{}]: {}", jobKey, jobKey, e.getMessage(), e);
+            return;
+        }
+
+        if (claimed == 0) {
+            log.info("Global job [{}] already claimed/sent, skipping", jobKey);
+            return;
+        }
+
+        try {
+            job.run();
+        } catch (Exception e) {
+            log.error("Error running global job [{}], log_key=[{}]: {}", jobKey, jobKey, e.getMessage(), e);
+            // At-least-once semantics: Agar xatolik yuz bersa, qayta urinish (retry) imkoni bo'lishi uchun claim o'chiriladi.
+            try {
+                reminderLogRepository.deleteByLogKey(jobKey);
+            } catch (Exception ex) {
+                log.error("Failed to release claim for global job [{}], log_key=[{}]: {}", jobKey, jobKey, ex.getMessage(), ex);
+            }
         }
     }
 
@@ -149,7 +177,6 @@ public class TelegramSchedulerService {
      *
      * @param now joriy vaqt (test uchun parametr)
      */
-    @Transactional
     void sendDueTomorrowReminders(LocalDateTime now) {
         if (!deadlineEnabled) {
             log.debug("Telegram deadline eslatmalari o'chirilgan (telegram.reminders.deadline-enabled=false)");
@@ -177,10 +204,12 @@ public class TelegramSchedulerService {
                 .collect(Collectors.groupingBy(TelegramReminderTaskDto::getUserId));
 
         for (Map.Entry<String, List<TelegramReminderTaskDto>> entry : byUser.entrySet()) {
+            String userId = entry.getKey();
+            Long chatId = entry.getValue().isEmpty() ? null : entry.getValue().get(0).getTelegramChatId();
             try {
-                processReminderForUser(entry.getKey(), entry.getValue(), userMap, now, tomorrow);
+                processReminderForUser(userId, entry.getValue(), userMap, now, tomorrow);
             } catch (Exception e) {
-                log.error("Eslatma yuborishda xato, userId={}: {}", entry.getKey(), e.getMessage());
+                log.error("Eslatma yuborishda xato: job=DUE_TOMORROW, userId={}, chatId={}: {}", userId, chatId, e.getMessage(), e);
             }
         }
     }
@@ -223,10 +252,12 @@ public class TelegramSchedulerService {
                 .collect(Collectors.groupingBy(TelegramReminderTaskDto::getUserId));
 
         for (Map.Entry<String, List<TelegramReminderTaskDto>> entry : byUser.entrySet()) {
+            String userId = entry.getKey();
+            Long chatId = entry.getValue().isEmpty() ? null : entry.getValue().get(0).getTelegramChatId();
             try {
-                processDigestForUser(entry.getKey(), entry.getValue(), userMap, wsNameMap, now, today);
+                processDigestForUser(userId, entry.getValue(), userMap, wsNameMap, now, today);
             } catch (Exception e) {
-                log.error("Digest yuborishda xato, userId={}: {}", entry.getKey(), e.getMessage());
+                log.error("Digest yuborishda xato: job=DAILY_DIGEST, userId={}, chatId={}: {}", userId, chatId, e.getMessage(), e);
             }
         }
     }
@@ -243,7 +274,7 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        LocalTime userLocalTime = LocalTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        LocalTime userLocalTime = getTashkentTime();
         if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, eslatma yuborilmaydi: userId={}", userId);
@@ -272,8 +303,10 @@ public class TelegramSchedulerService {
         if (!logsToSave.isEmpty()) {
             try {
                 reminderLogRepository.saveAll(logsToSave);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                log.info("Eslatma logi allaqachon mavjud (unique violation): userId={}", userId);
             } catch (Exception e) {
-                log.warn("Eslatma logi saqlashda xato: userId={}: {}", userId, e.getMessage());
+                log.error("Eslatma logi saqlashda xato: job=DUE_TOMORROW, userId={}, chatId={}: {}", userId, chatId, e.getMessage(), e);
             }
         }
 
@@ -334,7 +367,7 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        LocalTime userLocalTime = LocalTime.now(clock.withZone(ZoneId.of("Asia/Tashkent")));
+        LocalTime userLocalTime = getTashkentTime();
         if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, digest yuborilmaydi: userId={}", userId);

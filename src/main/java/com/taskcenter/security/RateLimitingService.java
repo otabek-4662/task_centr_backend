@@ -108,7 +108,7 @@ public class RateLimitingService {
         return waitTime[0];
     }
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 60000, initialDelay = 60000)
     public void cleanup() {
         long now = System.currentTimeMillis();
         ipLimits.entrySet().removeIf(e -> now >= e.getValue().windowResetTimeMillis);

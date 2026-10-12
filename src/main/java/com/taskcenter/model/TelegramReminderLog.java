@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
     },
     indexes = {
         @Index(name = "idx_reminder_log_task", columnList = "task_id"),
-        @Index(name = "idx_reminder_log_user", columnList = "user_id")
+        @Index(name = "idx_reminder_log_user", columnList = "user_id"),
+        @Index(name = "idx_reminder_log_key", columnList = "log_key")
     }
 )
 @Getter
@@ -27,10 +28,13 @@ public class TelegramReminderLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "task_id", nullable = false)
+    @Column(name = "log_key", length = 100, unique = true)
+    private String logKey;
+
+    @Column(name = "task_id")
     private String taskId;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private String userId;
 
     @Enumerated(EnumType.STRING)

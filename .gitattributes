@@ -1,0 +1,24 @@
+# Auto detect text files and perform LF normalization on checkin
+* text=auto
+
+# Linux / Shell / Java source files
+*.java text eol=lf
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Windows batch scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Common binary formats
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.jar binary
+*.war binary
+*.zip binary
+*.tar binary
+*.gz binary

@@ -4,6 +4,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -11,6 +12,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TelegramUtil {
+
+    public static final ZoneId TASHKENT_ZONE = ZoneId.of("Asia/Tashkent");
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("(?<![a-zA-Z0-9_.])@([a-zA-Z0-9_.-]+)");
 

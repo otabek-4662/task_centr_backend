@@ -1,9 +1,15 @@
 package com.taskcenter.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(
         description = "Vazifa tartibi va ustunini o'zgartirish (LexoRank) so'rovi",
         example = "{\"columnId\": \"col-12345\", \"prevRank\": \"0|hzzzzz:\", \"nextRank\": \"0|i00000:\"}"

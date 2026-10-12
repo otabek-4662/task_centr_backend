@@ -102,7 +102,7 @@ public class TaskDto {
                 .storyPoints(t.getStoryPoints())
                 .estimatedHours(t.getEstimatedHours())
                 .loggedHours(t.getLoggedHours())
-                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(LocalDate.now()))
+                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(com.taskcenter.util.AppTime.today()))
                 .totalChecklistItems(t.getChecklistItems() != null ? t.getChecklistItems().size() : 0)
                 .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(com.taskcenter.model.TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())

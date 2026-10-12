@@ -147,18 +147,32 @@ public class SwaggerConfig {
             ApiResponse rateLimited = new ApiResponse().description("So'rovlar soni limiti oshdi (429 Too Many Requests)").content(errorContent);
             ApiResponse serverError = new ApiResponse().description("Server ichki xatoligi (500 Internal Server Error)").content(errorContent);
 
+            java.util.Map<String, ApiResponse> defaultErrorResponses = java.util.Map.of(
+                    "400", badRequest,
+                    "401", unauthorized,
+                    "403", forbidden,
+                    "404", notFound,
+                    "409", conflict,
+                    "429", rateLimited,
+                    "500", serverError
+            );
+
             if (openApi.getPaths() != null) {
                 openApi.getPaths().values().forEach(pathItem -> {
                     pathItem.readOperations().forEach(operation -> {
                         ApiResponses responses = operation.getResponses();
                         if (responses != null) {
-                            if (!responses.containsKey("400")) responses.addApiResponse("400", badRequest);
-                            if (!responses.containsKey("401")) responses.addApiResponse("401", unauthorized);
-                            if (!responses.containsKey("403")) responses.addApiResponse("403", forbidden);
-                            if (!responses.containsKey("404")) responses.addApiResponse("404", notFound);
-                            if (!responses.containsKey("409")) responses.addApiResponse("409", conflict);
-                            if (!responses.containsKey("429")) responses.addApiResponse("429", rateLimited);
-                            if (!responses.containsKey("500")) responses.addApiResponse("500", serverError);
+                            defaultErrorResponses.forEach((code, defaultResp) -> {
+                                ApiResponse existing = responses.get(code);
+                                if (existing == null) {
+                                    responses.addApiResponse(code, defaultResp);
+                                } else {
+                                    Content content = existing.getContent();
+                                    if (content == null || content.isEmpty() || content.containsKey("*/*") || !content.containsKey(org.springframework.http.MediaType.APPLICATION_JSON_VALUE)) {
+                                        existing.setContent(errorContent);
+                                    }
+                                }
+                            });
                         }
 
                         if (operation.getParameters() != null) {

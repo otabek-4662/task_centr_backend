@@ -1,1 +1,3 @@
 request-property-type-changed info
+response-property-became-nullable warn
+response-property-enum-value-added warn

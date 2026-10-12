@@ -42,6 +42,8 @@ public class WorkspaceInvitationService {
     private final PendingTelegramChatInviteRepository pendingChatInviteRepository;
     private final RateLimitingService rateLimitingService;
 
+    private static final java.util.regex.Pattern TRAILING_SLASHES = java.util.regex.Pattern.compile("/+$");
+
     @Value("${telegram.bot.username:}")
     private String botUsername;
 
@@ -50,6 +52,17 @@ public class WorkspaceInvitationService {
 
     @Value("${app.frontend.url:https://task-center-frontend.onrender.com}")
     private String frontendUrl;
+
+    private static String stripLeadingAt(String username) {
+        if (username == null) return "";
+        String trimmed = username.trim();
+        return trimmed.startsWith("@") ? trimmed.substring(1) : trimmed;
+    }
+
+    private static String stripTrailingSlashes(String url) {
+        if (url == null) return "";
+        return TRAILING_SLASHES.matcher(url).replaceAll("");
+    }
 
     public WorkspaceInvitationService(WorkspaceInvitationRepository invitationRepository,
                                       WorkspaceMemberRepository memberRepository,
@@ -106,7 +119,7 @@ public class WorkspaceInvitationService {
         }
     }
 
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Tashkent")
     @SchedulerLock(name = "WorkspaceInvitationService_cleanupExpiredPendingChatInvites", lockAtLeastFor = "5m", lockAtMostFor = "30m")
     @Transactional
     public void cleanupExpiredPendingChatInvites() {
@@ -156,7 +169,7 @@ public class WorkspaceInvitationService {
         storePendingChatInvite(telegramUserId, cleanToken);
 
         String cleanBot = (botUsername != null && !botUsername.isBlank())
-                ? botUsername.trim().replaceFirst("^@", "")
+                ? stripLeadingAt(botUsername)
                 : "task_center_bot";
         return "https://t.me/" + cleanBot + "?start=inv_" + cleanToken;
     }
@@ -173,12 +186,12 @@ public class WorkspaceInvitationService {
         if (rawToken != null && !rawToken.isBlank()) {
             dto.setToken(rawToken);
             String baseUrl = (frontendUrl != null && !frontendUrl.isBlank())
-                    ? frontendUrl.replaceAll("/+$", "")
+                    ? stripTrailingSlashes(frontendUrl)
                     : "https://task-center-frontend.onrender.com";
             dto.setInviteLink(baseUrl + "/invite/" + rawToken);
 
             if (botUsername != null && !botUsername.isBlank()) {
-                String cleanBot = botUsername.trim().replaceFirst("^@", "");
+                String cleanBot = stripLeadingAt(botUsername);
                 dto.setTelegramInviteLink("https://t.me/" + cleanBot + "?start=inv_" + rawToken);
                 String cleanApp = (miniappShortName != null && !miniappShortName.isBlank()) ? miniappShortName.trim() : "app";
                 dto.setTelegramMiniappLink("https://t.me/" + cleanBot + "/" + cleanApp + "?startapp=inv_" + rawToken);
@@ -187,6 +200,7 @@ public class WorkspaceInvitationService {
         return dto;
     }
 
+    @Transactional(readOnly = true)
     public WorkspaceInvitation findInvitationByTokenOrId(String tokenOrId) {
         if (tokenOrId == null || tokenOrId.isBlank()) {
             throw new ResourceNotFoundException("INVITE_NOT_FOUND", "Taklif topilmadi");
@@ -276,15 +290,24 @@ public class WorkspaceInvitationService {
                 .build();
 
         if (receiverEmail != null && !receiverEmail.endsWith("@taskcenter.local")) {
-            EmailService.EmailDeliveryResult deliveryResult = emailService.sendInvitationEmailDirect(
-                    receiverEmail, workspace.getTitle(), currentUser.getName(), roleToAssign.name(), rawToken);
-            invitation.setEmailDeliveryStatus(deliveryResult.status());
-            invitation.setEmailDeliveryError(deliveryResult.errorMessage());
+            invitation.setEmailDeliveryStatus(EmailDeliveryStatus.PENDING);
+            invitation.setEmailDeliveryError(null);
         } else {
             invitation.setEmailDeliveryStatus(EmailDeliveryStatus.NOT_APPLICABLE);
         }
 
         WorkspaceInvitation saved = invitationRepository.save(invitation);
+
+        if (receiverEmail != null && !receiverEmail.endsWith("@taskcenter.local")) {
+            emailService.sendInvitationEmail(
+                    saved.getId(),
+                    receiverEmail,
+                    workspace.getTitle(),
+                    currentUser.getName(),
+                    roleToAssign.name(),
+                    rawToken
+            );
+        }
 
         if (receiverId != null) {
             notificationService.notifyUser(receiverId, "Yangi taklif", currentUser.getName() + " sizni " + workspace.getTitle() + " g'alvasiga taklif qildi.");
@@ -356,7 +379,9 @@ public class WorkspaceInvitationService {
      */
     @Transactional
     public WorkspaceInvitationDto regenerateLinkInvite(String workspaceId, CreateLinkInviteRequest request, User currentUser) {
-        authorizationService.checkAdmin(workspaceId, currentUser);
+        Workspace workspace = authorizationService.checkAdmin(workspaceId, currentUser);
+
+        invitationRepository.cancelPendingLinkInvitations(workspaceId);
 
         List<WorkspaceInvitation> existing = invitationRepository.findByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
         for (WorkspaceInvitation inv : existing) {
@@ -365,8 +390,6 @@ public class WorkspaceInvitationService {
                 invitationRepository.save(inv);
             }
         }
-
-        Workspace workspace = authorizationService.checkAdmin(workspaceId, currentUser);
         WorkspaceRole roleToAssign = request != null && request.getRole() != null ? request.getRole() : WorkspaceRole.MEMBER;
         if (roleToAssign == WorkspaceRole.OWNER) {
             throw new BadRequestException("CANNOT_INVITE_OWNER", "A'zoga OWNER rolini berib bo'lmaydi");
@@ -422,12 +445,20 @@ public class WorkspaceInvitationService {
         invitation.setTokenHash(tokenHash);
         invitation.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7));
 
-        EmailService.EmailDeliveryResult deliveryResult = emailService.sendInvitationEmailDirect(
-                invitation.getReceiverEmail(), workspace.getTitle(), currentUser.getName(), invitation.getRole().name(), rawToken);
-        invitation.setEmailDeliveryStatus(deliveryResult.status());
-        invitation.setEmailDeliveryError(deliveryResult.errorMessage());
+        invitation.setEmailDeliveryStatus(EmailDeliveryStatus.PENDING);
+        invitation.setEmailDeliveryError(null);
 
         WorkspaceInvitation saved = invitationRepository.save(invitation);
+
+        emailService.sendInvitationEmail(
+                saved.getId(),
+                invitation.getReceiverEmail(),
+                workspace.getTitle(),
+                currentUser.getName(),
+                invitation.getRole().name(),
+                rawToken
+        );
+
         return toDto(saved, workspace.getTitle(), currentUser.getName(), rawToken);
     }
 
@@ -450,15 +481,21 @@ public class WorkspaceInvitationService {
             throw new ResourceNotFoundException("INVITE_EXPIRED", "Taklif topilmadi yoki muddati o'tgan");
         }
 
-        String workspaceTitle = workspaceRepository.findById(invitation.getWorkspaceId())
-                .map(Workspace::getTitle)
-                .orElse("Noma'lum");
+        String workspaceTitle = null;
+        try {
+            workspaceTitle = authorizationService.requireWorkspace(invitation.getWorkspaceId()).getTitle();
+        } catch (Exception e) {
+            workspaceTitle = workspaceRepository.findById(invitation.getWorkspaceId())
+                    .map(Workspace::getTitle)
+                    .orElse("Noma'lum");
+        }
 
         String senderName = userRepository.findById(invitation.getSenderId())
                 .map(u -> u.getFullName() != null ? u.getFullName() : u.getName())
                 .orElse("Jamoa administratori");
 
-        boolean isExpired = (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))
+        boolean isExpired = (invitation.getExpiresAt() != null &&
+                (invitation.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)) || invitation.getExpiresAt().isBefore(LocalDateTime.now())))
                 || invitation.getStatus() != InvitationStatus.PENDING
                 || (invitation.getType() == InvitationType.LINK && invitation.getMaxUses() != null && invitation.getUseCount() >= invitation.getMaxUses());
 
@@ -574,7 +611,8 @@ public class WorkspaceInvitationService {
         if (invitation.getType() == InvitationType.LINK && invitation.getStatus() == InvitationStatus.ACCEPTED) {
             throw new BadRequestException("INVITE_LIMIT_REACHED", "Ushbu taklif havolasining foydalanish limiti tugagan");
         }
-        if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
+        if (invitation.getExpiresAt() != null &&
+                (invitation.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)) || invitation.getExpiresAt().isBefore(LocalDateTime.now()))) {
             invitation.setStatus(InvitationStatus.EXPIRED);
             invitationRepository.save(invitation);
             throw new BadRequestException("INVITE_EXPIRED", "Taklif yaroqsiz yoki muddati o'tgan");
@@ -626,8 +664,14 @@ public class WorkspaceInvitationService {
         memberRepository.save(member);
         authorizationService.evictRole(invitation.getWorkspaceId(), currentUser.getId());
 
-        Workspace ws = workspaceRepository.findById(invitation.getWorkspaceId()).orElse(null);
-        String wsTitle = ws != null ? ws.getTitle() : "loyihaga";
+        String resolvedTitle = "loyihaga";
+        try {
+            resolvedTitle = authorizationService.requireWorkspace(invitation.getWorkspaceId()).getTitle();
+        } catch (Exception ignored) {
+            Workspace ws = workspaceRepository.findById(invitation.getWorkspaceId()).orElse(null);
+            if (ws != null) resolvedTitle = ws.getTitle();
+        }
+        final String wsTitle = resolvedTitle;
 
         // Taklif qiluvchiga bildirishnoma yuborish
         if (!invitation.getSenderId().equals(currentUser.getId())) {
@@ -684,8 +728,14 @@ public class WorkspaceInvitationService {
         invitation.setStatus(InvitationStatus.REJECTED);
         invitationRepository.save(invitation);
 
-        Workspace ws = workspaceRepository.findById(invitation.getWorkspaceId()).orElse(null);
-        String wsTitle = ws != null ? ws.getTitle() : "loyihaga";
+        String resolvedTitle = "loyihaga";
+        try {
+            resolvedTitle = authorizationService.requireWorkspace(invitation.getWorkspaceId()).getTitle();
+        } catch (Exception ignored) {
+            Workspace ws = workspaceRepository.findById(invitation.getWorkspaceId()).orElse(null);
+            if (ws != null) resolvedTitle = ws.getTitle();
+        }
+        final String wsTitle = resolvedTitle;
 
         if (!invitation.getSenderId().equals(currentUser.getId())) {
             notificationService.notifyUser(
@@ -721,23 +771,77 @@ public class WorkspaceInvitationService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceInvitationDto> getMyPendingInvitations(User currentUser) {
-        return invitationRepository.findByReceiverIdAndStatusOrderByCreatedAtDesc(currentUser.getId(), InvitationStatus.PENDING)
-                .stream().map(inv -> {
-                    String wsTitle = workspaceRepository.findById(inv.getWorkspaceId()).map(Workspace::getTitle).orElse("Noma'lum");
-                    String senderName = userRepository.findById(inv.getSenderId()).map(u -> u.getFullName() != null ? u.getFullName() : u.getName()).orElse("Administrator");
-                    return toDto(inv, wsTitle, senderName);
-                }).collect(Collectors.toList());
+        List<WorkspaceInvitation> invitations = invitationRepository
+                .findByReceiverIdAndStatusOrderByCreatedAtDesc(currentUser.getId(), InvitationStatus.PENDING);
+        if (invitations.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        if (invitations.size() == 1) {
+            WorkspaceInvitation inv = invitations.get(0);
+            String wsTitle = workspaceRepository.findById(inv.getWorkspaceId()).map(Workspace::getTitle).orElse("Noma'lum");
+            String senderName = userRepository.findById(inv.getSenderId()).map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getName()).orElse("Administrator");
+            return Collections.singletonList(toDto(inv, wsTitle, senderName));
+        }
+
+        Set<String> workspaceIds = invitations.stream()
+                .map(WorkspaceInvitation::getWorkspaceId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<String> senderIds = invitations.stream()
+                .map(WorkspaceInvitation::getSenderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<String, String> workspaceTitles = workspaceRepository.findAllById(workspaceIds).stream()
+                .collect(Collectors.toMap(Workspace::getId, Workspace::getTitle, (a, b) -> a));
+
+        Map<String, String> senderNames = userRepository.findByIdIn(senderIds).stream()
+                .collect(Collectors.toMap(
+                        User::getId,
+                        u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getName(),
+                        (a, b) -> a
+                ));
+
+        return invitations.stream().map(inv -> {
+            String wsTitle = workspaceTitles.getOrDefault(inv.getWorkspaceId(), "Noma'lum");
+            String senderName = senderNames.getOrDefault(inv.getSenderId(), "Administrator");
+            return toDto(inv, wsTitle, senderName);
+        }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<WorkspaceInvitationDto> getWorkspaceInvitations(String workspaceId, User currentUser) {
         Workspace ws = authorizationService.checkAdmin(workspaceId, currentUser);
         String wsTitle = ws.getTitle();
-        return invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId)
-                .stream().map(inv -> {
-                    String senderName = userRepository.findById(inv.getSenderId()).map(u -> u.getFullName() != null ? u.getFullName() : u.getName()).orElse("Administrator");
-                    return toDto(inv, wsTitle, senderName);
-                }).collect(Collectors.toList());
+        List<WorkspaceInvitation> invitations = invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+        if (invitations.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        if (invitations.size() == 1) {
+            WorkspaceInvitation inv = invitations.get(0);
+            String senderName = userRepository.findById(inv.getSenderId()).map(u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getName()).orElse("Administrator");
+            return Collections.singletonList(toDto(inv, wsTitle, senderName));
+        }
+
+        Set<String> senderIds = invitations.stream()
+                .map(WorkspaceInvitation::getSenderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<String, String> senderNames = userRepository.findByIdIn(senderIds).stream()
+                .collect(Collectors.toMap(
+                        User::getId,
+                        u -> u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getName(),
+                        (a, b) -> a
+                ));
+
+        return invitations.stream().map(inv -> {
+            String senderName = senderNames.getOrDefault(inv.getSenderId(), "Administrator");
+            return toDto(inv, wsTitle, senderName);
+        }).collect(Collectors.toList());
     }
 
     /**

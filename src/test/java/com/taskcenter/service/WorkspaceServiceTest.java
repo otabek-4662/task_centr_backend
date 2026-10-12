@@ -204,4 +204,68 @@ class WorkspaceServiceTest {
         assertThatThrownBy(() -> workspaceService.deleteWorkspace("ws1", stranger))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    // ===== updateWorkspace =====
+
+    @Test
+    void updateWorkspace_ownerCanUpdate() {
+        Workspace ws = testWorkspace();
+        when(authorizationService.checkAdmin(eq("ws1"), eq(testUser()))).thenReturn(ws);
+        when(workspaceRepository.save(any(Workspace.class))).thenAnswer(i -> i.getArgument(0));
+
+        WorkspaceCreateRequest req = new WorkspaceCreateRequest();
+        req.setTitle("Updated Title");
+        req.setBgColor("#123456");
+        req.setDescription("Updated Description");
+
+        WorkspaceDto result = workspaceService.updateWorkspace("ws1", req, testUser());
+
+        assertThat(result.getTitle()).isEqualTo("Updated Title");
+        assertThat(result.getBgColor()).isEqualTo("#123456");
+        assertThat(result.getDescription()).isEqualTo("Updated Description");
+        verify(authorizationService).evictWorkspace("ws1");
+    }
+
+    @Test
+    void updateWorkspace_adminCanUpdate() {
+        Workspace ws = testWorkspace();
+        User admin = User.builder().id("admin1").name("admin").role(User.Role.USER).build();
+        when(authorizationService.checkAdmin(eq("ws1"), eq(admin))).thenReturn(ws);
+        when(workspaceRepository.save(any(Workspace.class))).thenAnswer(i -> i.getArgument(0));
+
+        WorkspaceCreateRequest req = new WorkspaceCreateRequest();
+        req.setTitle("Admin Updated Title");
+
+        WorkspaceDto result = workspaceService.updateWorkspace("ws1", req, admin);
+
+        assertThat(result.getTitle()).isEqualTo("Admin Updated Title");
+        verify(authorizationService).evictWorkspace("ws1");
+    }
+
+    @Test
+    void updateWorkspace_ordinaryMemberCannotUpdate_throwsForbidden() {
+        User member = User.builder().id("member1").name("member").role(User.Role.USER).build();
+        when(authorizationService.checkAdmin(eq("ws1"), eq(member)))
+                .thenThrow(new ForbiddenException("FORBIDDEN_ROLE", "Ushbu amalni faqat workspace egasi yoki admini bajara oladi"));
+
+        WorkspaceCreateRequest req = new WorkspaceCreateRequest();
+        req.setTitle("Hacked Title");
+
+        assertThatThrownBy(() -> workspaceService.updateWorkspace("ws1", req, member))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("Ushbu amalni faqat workspace egasi yoki admini bajara oladi");
+    }
+
+    @Test
+    void updateWorkspace_unrelatedUserCannotUpdate_throwsForbidden() {
+        User stranger = User.builder().id("stranger").name("stranger").role(User.Role.USER).build();
+        when(authorizationService.checkAdmin(eq("ws1"), eq(stranger)))
+                .thenThrow(new ForbiddenException("FORBIDDEN_ROLE", "Ushbu amalni faqat workspace egasi yoki admini bajara oladi"));
+
+        WorkspaceCreateRequest req = new WorkspaceCreateRequest();
+        req.setTitle("Stranger Title");
+
+        assertThatThrownBy(() -> workspaceService.updateWorkspace("ws1", req, stranger))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }

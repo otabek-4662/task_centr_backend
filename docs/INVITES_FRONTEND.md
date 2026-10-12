@@ -688,7 +688,7 @@ Backend CORS sozlamalari qat'iy va xavfsiz qilib sozlangan:
 
 | O'zgaruvchi nomi | Tavsif / Nima uchun kerak | Majburiymi? | Misol qiymat (sirlarsiz) |
 | :--- | :--- | :---: | :--- |
-| `BREVO_API_KEY` | Brevo HTTP API orqali email taklifnomalari va xabarlarni jo'natish uchun | Yo'q (ixtiyoriy) | `xkeysib-demo-key-placeholder` |
+| `BREVO_API_KEY` | Brevo HTTP API orqali email taklifnomalari va xabarlarni jo'natish uchun | Yo'q (ixtiyoriy) | `<BREVO_API_KEY>` |
 | `BREVO_SENDER_EMAIL` | Taklif xatlari jo'natiladigan tasdiqlangan yuboruvchi email manzili | Yo'q (default: bo'sh) | `noreply@taskcenter.uz` |
 | `BREVO_SENDER_NAME` | Taklif xatlarida ko'rinadigan yuboruvchi tashkilot/loyiha nomi | Yo'q (default: `Task Center`) | `Task Center` |
 | `CORS_ALLOWED_ORIGINS` | Ruxsat etilgan frontend domenlari ro'yxati (vergul bilan ajratilgan) | **HA (Production da)** | `https://app.taskcenter.uz,https://tma.taskcenter.uz` |

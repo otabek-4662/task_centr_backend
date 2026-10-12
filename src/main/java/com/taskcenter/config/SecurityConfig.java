@@ -4,6 +4,7 @@ import com.taskcenter.security.JwtAuthenticationFilter;
 import com.taskcenter.security.RateLimitFilter;
 import com.taskcenter.security.CustomAuthenticationEntryPoint;
 import com.taskcenter.security.CustomAccessDeniedHandler;
+import com.taskcenter.security.TelegramWebAppAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,6 +31,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TelegramWebAppAuthFilter telegramWebAppAuthFilter;
     private final RateLimitFilter rateLimitFilter;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
@@ -38,12 +40,14 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            TelegramWebAppAuthFilter telegramWebAppAuthFilter,
             RateLimitFilter rateLimitFilter,
             CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
             CustomAccessDeniedHandler customAccessDeniedHandler,
             org.springframework.core.env.Environment environment,
             @Value("${CORS_ALLOWED_ORIGINS:${app.cors.allowed-origins:}}") String customAllowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.telegramWebAppAuthFilter = telegramWebAppAuthFilter;
         this.rateLimitFilter = rateLimitFilter;
         this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
@@ -171,6 +175,7 @@ public class SecurityConfig {
             );
 
         http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(telegramWebAppAuthFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

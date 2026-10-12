@@ -11,11 +11,13 @@ import com.taskcenter.repository.WorkspaceRepository;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class WorkspaceAuthorizationService {
 
     private final WorkspaceRepository workspaceRepository;

@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import com.taskcenter.dto.WebSocketEvent;
+import com.taskcenter.util.AppTime;
 
 @Service
 public class SprintService {
@@ -177,9 +178,9 @@ public class SprintService {
         }
 
         sprint.setStatus(SprintStatus.ACTIVE);
-        sprint.setStartedAt(LocalDateTime.now());
+        sprint.setStartedAt(AppTime.nowUtc());
         if (sprint.getStartDate() == null) {
-            sprint.setStartDate(LocalDate.now());
+            sprint.setStartDate(AppTime.today());
         }
 
         Sprint saved = sprintRepository.save(sprint);
@@ -225,9 +226,9 @@ public class SprintService {
         }
 
         sprint.setStatus(SprintStatus.COMPLETED);
-        sprint.setCompletedAt(LocalDateTime.now());
+        sprint.setCompletedAt(AppTime.nowUtc());
         if (sprint.getEndDate() == null) {
-            sprint.setEndDate(LocalDate.now());
+            sprint.setEndDate(AppTime.today());
         }
 
         // Identify done columns to keep finished tasks in this sprint history

@@ -110,7 +110,7 @@ public class WorkspaceService {
 
     @Transactional
     public WorkspaceDto updateWorkspace(String id, WorkspaceCreateRequest request, User currentUser) {
-        Workspace workspace = authorizationService.checkOwner(id, currentUser);
+        Workspace workspace = authorizationService.checkAdmin(id, currentUser);
 
         if (request.getTitle() != null) {
             workspace.setTitle(request.getTitle());

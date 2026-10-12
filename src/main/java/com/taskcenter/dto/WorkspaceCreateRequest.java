@@ -4,9 +4,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(
         description = "Yangi ishchi maydon (Workspace) yaratish so'rovi",
         example = "{\"title\": \"Frontend Jamoasi\", \"bgColor\": \"#1a1b41\", \"description\": \"Asosiy frontend loyihalari uchun doska\", \"initDefaultColumns\": true}"

@@ -34,7 +34,26 @@ public interface WorkspaceInvitationRepository extends JpaRepository<WorkspaceIn
     @Query("SELECT i FROM WorkspaceInvitation i WHERE i.workspaceId = :workspaceId AND i.status = :status ORDER BY i.createdAt DESC")
     List<WorkspaceInvitation> findByWorkspaceIdAndStatus(@Param("workspaceId") String workspaceId, @Param("status") InvitationStatus status);
 
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE WorkspaceInvitation i " +
+           "SET i.status = com.taskcenter.model.InvitationStatus.CANCELLED " +
+           "WHERE i.workspaceId = :workspaceId " +
+           "  AND i.type = com.taskcenter.model.InvitationType.LINK " +
+           "  AND i.status = com.taskcenter.model.InvitationStatus.PENDING")
+    int cancelPendingLinkInvitations(@Param("workspaceId") String workspaceId);
+
     void deleteByExpiresAtBefore(java.time.LocalDateTime date);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE WorkspaceInvitation i SET i.status = com.taskcenter.model.InvitationStatus.EXPIRED " +
+           "WHERE i.status = com.taskcenter.model.InvitationStatus.PENDING AND i.expiresAt < :now")
+    int expireOldPendingInvitations(@Param("now") java.time.LocalDateTime now);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("DELETE FROM WorkspaceInvitation i " +
+           "WHERE i.status IN (com.taskcenter.model.InvitationStatus.EXPIRED, com.taskcenter.model.InvitationStatus.CANCELLED, com.taskcenter.model.InvitationStatus.REJECTED) " +
+           "  AND i.expiresAt < :cutoff")
+    int deleteOldInactiveInvitations(@Param("cutoff") java.time.LocalDateTime cutoff);
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
     @Query("UPDATE WorkspaceInvitation i " +
@@ -54,4 +73,15 @@ public interface WorkspaceInvitationRepository extends JpaRepository<WorkspaceIn
            "  AND i.status = com.taskcenter.model.InvitationStatus.PENDING " +
            "  AND (i.expiresAt IS NULL OR i.expiresAt > :now)")
     int acceptEmailInvitationAtomic(@Param("id") String id, @Param("receiverId") String receiverId, @Param("now") java.time.LocalDateTime now);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE WorkspaceInvitation i " +
+           "SET i.emailDeliveryStatus = :status, " +
+           "    i.emailDeliveryError = :error " +
+           "WHERE i.id = :id")
+    int updateEmailDeliveryStatus(
+            @Param("id") String id,
+            @Param("status") com.taskcenter.model.EmailDeliveryStatus status,
+            @Param("error") String error
+    );
 }

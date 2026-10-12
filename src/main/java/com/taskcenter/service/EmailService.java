@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.taskcenter.model.EmailJob;
 import com.taskcenter.model.EmailJobStatus;
 import com.taskcenter.repository.EmailJobRepository;
+import com.taskcenter.repository.WorkspaceInvitationRepository;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,7 @@ public class EmailService {
 
     private final TemplateEngine templateEngine;
     private final EmailJobRepository emailJobRepository;
+    private final WorkspaceInvitationRepository invitationRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
@@ -64,15 +66,37 @@ public class EmailService {
     @Value("${app.frontend.url:https://task-center-frontend.onrender.com}")
     private String frontendUrl;
 
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
     public EmailService(TemplateEngine templateEngine,
                         EmailJobRepository emailJobRepository,
                         ObjectMapper objectMapper) {
+        this(templateEngine, emailJobRepository, objectMapper, null, null);
+    }
+
+    public EmailService(TemplateEngine templateEngine,
+                        EmailJobRepository emailJobRepository,
+                        ObjectMapper objectMapper,
+                        org.springframework.transaction.PlatformTransactionManager transactionManager) {
+        this(templateEngine, emailJobRepository, objectMapper, transactionManager, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public EmailService(TemplateEngine templateEngine,
+                        EmailJobRepository emailJobRepository,
+                        ObjectMapper objectMapper,
+                        @org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.transaction.PlatformTransactionManager transactionManager,
+                        @org.springframework.beans.factory.annotation.Autowired(required = false) WorkspaceInvitationRepository invitationRepository) {
         this.templateEngine = templateEngine;
         this.emailJobRepository = emailJobRepository;
+        this.invitationRepository = invitationRepository;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionManager != null
+                ? new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                : null;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
-        factory.setReadTimeout(5000);
+        factory.setReadTimeout(10000);
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -239,7 +263,7 @@ public class EmailService {
         return "Brevo xatolik: HTTP " + statusCode + (detail.isBlank() ? "" : " — " + detail);
     }
 
-    public void sendInvitationEmail(String toEmail, String workspaceTitle, String senderName, String workspaceRole, String invitationToken) {
+    public void sendInvitationEmail(String invitationId, String toEmail, String workspaceTitle, String senderName, String workspaceRole, String invitationToken) {
         String baseUrl = (frontendUrl != null && !frontendUrl.isBlank())
                 ? frontendUrl.replaceAll("/+$", "")
                 : "https://task-center-frontend.onrender.com";
@@ -249,6 +273,9 @@ public class EmailService {
         if (toEmail != null && toEmail.contains("@")) {
             recipientUsername = toEmail.substring(0, toEmail.indexOf("@"));
         }
+        if (invitationId != null) {
+            data.put("invitationId", invitationId);
+        }
         data.put("recipientUsername", recipientUsername);
         data.put("inviterName", senderName);
         data.put("workspaceTitle", workspaceTitle);
@@ -256,6 +283,10 @@ public class EmailService {
         data.put("invitationLink", baseUrl + "/invite/" + invitationToken);
 
         enqueueJob(toEmail, "Task Center - Yangi jamoaga taklif", "email/invitation", data);
+    }
+
+    public void sendInvitationEmail(String toEmail, String workspaceTitle, String senderName, String workspaceRole, String invitationToken) {
+        sendInvitationEmail(null, toEmail, workspaceTitle, senderName, workspaceRole, invitationToken);
     }
 
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
@@ -305,9 +336,24 @@ public class EmailService {
         return saved;
     }
 
-    @Scheduled(fixedDelayString = "${app.email.queue.poll-interval-ms:5000}")
+    @Scheduled(fixedDelayString = "${app.email.queue.poll-interval-ms:5000}", initialDelay = 15000)
     @SchedulerLock(name = "EmailService_processPendingJobs", lockAtLeastFor = "2s", lockAtMostFor = "1m")
     public void processPendingJobs() {
+        try {
+            int recovered = emailJobRepository.recoverStuckProcessingJobs(
+                    EmailJobStatus.PROCESSING,
+                    EmailJobStatus.PENDING,
+                    EmailJobStatus.FAILED,
+                    LocalDateTime.now().minusMinutes(10),
+                    LocalDateTime.now()
+            );
+            if (recovered > 0) {
+                log.warn("{} ta PROCESSING da qolib ketgan (stuck) email job qayta tiklandi (PENDING yoki FAILED)", recovered);
+            }
+        } catch (Exception e) {
+            log.error("Stuck email joblarni qayta tiklashda xatolik: {}", e.getMessage());
+        }
+
         List<EmailJob> readyJobs = emailJobRepository.findReadyJobs(
                 EmailJobStatus.PENDING,
                 LocalDateTime.now(),
@@ -324,17 +370,19 @@ public class EmailService {
         }
     }
 
-    @Transactional
     public void processSingleJob(EmailJob job) {
         if (job == null) {
             return;
         }
 
+        String invitationId = extractInvitationId(job);
+
         if (!isValidRecipient(job.getToEmail())) {
             log.warn("Email job bekor qilindi: yaroqsiz qabul qiluvchi email manzili (Job ID: {})", job.getId());
             job.setStatus(EmailJobStatus.FAILED);
             job.setLastError("Yaroqsiz qabul qiluvchi email manzili");
-            emailJobRepository.save(job);
+            saveJobInTransaction(job);
+            updateInvitationDeliveryStatus(invitationId, com.taskcenter.model.EmailDeliveryStatus.FAILED, "Yaroqsiz qabul qiluvchi email manzili");
             return;
         }
 
@@ -343,15 +391,20 @@ public class EmailService {
             job.setStatus(EmailJobStatus.SENT);
             job.setSentAt(LocalDateTime.now());
             job.setLastError("SKIPPED: Brevo API key not configured");
-            emailJobRepository.save(job);
+            saveJobInTransaction(job);
+            updateInvitationDeliveryStatus(invitationId, com.taskcenter.model.EmailDeliveryStatus.SKIPPED, "SKIPPED: Brevo API key not configured");
             return;
         }
 
-        try {
-            job.setStatus(EmailJobStatus.PROCESSING);
-            job.setAttempts(job.getAttempts() + 1);
-            emailJobRepository.save(job);
+        // 1. Qisqa tranzaksiyada jobni atomik ravishda PROCESSING ga o'tkazish
+        boolean claimed = claimJobForProcessing(job);
+        if (!claimed) {
+            log.debug("Email job {} boshqa worker tomonidan band qilingan, o'tkazib yuborildi", job.getId());
+            return;
+        }
 
+        // 2. Tashqi Brevo HTTP API chaqiruvini tranzaksiyadan tashqarida bajarish
+        try {
             if (fromEmail == null || fromEmail.isBlank()) {
                 throw new IllegalStateException("Email jo'natuvchi manzili sozlanmagan (spring.mail.username / MAIL_USERNAME mavjud emas)");
             }
@@ -387,31 +440,98 @@ public class EmailService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             restTemplate.postForEntity("https://api.brevo.com/v3/smtp/email", entity, String.class);
 
+            // 3. Muvaffaqiyatli yakunni qisqa tranzaksiyada saqlash
             job.setStatus(EmailJobStatus.SENT);
             job.setSentAt(LocalDateTime.now());
             job.setLastError(null);
-            emailJobRepository.save(job);
+            saveJobInTransaction(job);
+            updateInvitationDeliveryStatus(invitationId, com.taskcenter.model.EmailDeliveryStatus.SENT, null);
             log.info("Email muvaffaqiyatli jo'natildi -> Job ID: {}, To: {}", job.getId(), InvitationTokenUtil.maskEmail(job.getToEmail()));
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
             String responseBody = e.getResponseBodyAsString();
             log.error("Brevo API HTTP xatolik qaytardi (Job ID: {}): HTTP {} - {}", job.getId(), e.getStatusCode(), responseBody);
-            job.setLastError("HTTP " + e.getStatusCode() + ": " + responseBody);
-            handleJobFailure(job);
+            String err = "HTTP " + e.getStatusCode() + ": " + responseBody;
+            job.setLastError(err);
+            handleJobFailureAndSave(job, invitationId, err);
         } catch (Exception e) {
             log.error("Email yuborishda xatolik yuz berdi (Job ID: {}): {}", job.getId(), e.getMessage());
             job.setLastError(e.getMessage());
-            handleJobFailure(job);
+            handleJobFailureAndSave(job, invitationId, e.getMessage());
         }
     }
 
-    private void handleJobFailure(EmailJob job) {
+    private boolean claimJobForProcessing(EmailJob job) {
+        if (job.getId() == null) {
+            job.setStatus(EmailJobStatus.PROCESSING);
+            job.setAttempts(job.getAttempts() + 1);
+            saveJobInTransaction(job);
+            return true;
+        }
+
+        if (transactionTemplate != null) {
+            Boolean result = transactionTemplate.execute(status -> {
+                int updated = emailJobRepository.claimJobAtomic(
+                        job.getId(), EmailJobStatus.PENDING, EmailJobStatus.PROCESSING, LocalDateTime.now());
+                if (updated > 0) {
+                    job.setStatus(EmailJobStatus.PROCESSING);
+                    job.setAttempts(job.getAttempts() + 1);
+                    return true;
+                }
+                return false;
+            });
+            return Boolean.TRUE.equals(result);
+        } else {
+            job.setStatus(EmailJobStatus.PROCESSING);
+            job.setAttempts(job.getAttempts() + 1);
+            emailJobRepository.save(job);
+            return true;
+        }
+    }
+
+    private void handleJobFailureAndSave(EmailJob job, String invitationId, String errorMessage) {
         if (job.getAttempts() >= job.getMaxAttempts()) {
             job.setStatus(EmailJobStatus.FAILED);
+            updateInvitationDeliveryStatus(invitationId, com.taskcenter.model.EmailDeliveryStatus.FAILED, errorMessage);
         } else {
             long backoffSeconds = (long) Math.min(30 * Math.pow(2, job.getAttempts() - 1), 3600);
             job.setNextAttemptAt(LocalDateTime.now().plusSeconds(backoffSeconds));
             job.setStatus(EmailJobStatus.PENDING);
         }
-        emailJobRepository.save(job);
+        saveJobInTransaction(job);
+    }
+
+    private String extractInvitationId(EmailJob job) {
+        if (job == null || job.getTemplateData() == null || !job.getTemplateData().contains("invitationId")) {
+            return null;
+        }
+        try {
+            Map<String, Object> data = objectMapper.readValue(job.getTemplateData(), new TypeReference<>() {});
+            return (data != null && data.get("invitationId") != null) ? String.valueOf(data.get("invitationId")) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void updateInvitationDeliveryStatus(String invitationId, com.taskcenter.model.EmailDeliveryStatus status, String error) {
+        if (invitationId != null && invitationRepository != null) {
+            try {
+                if (transactionTemplate != null) {
+                    transactionTemplate.executeWithoutResult(s ->
+                            invitationRepository.updateEmailDeliveryStatus(invitationId, status, error));
+                } else {
+                    invitationRepository.updateEmailDeliveryStatus(invitationId, status, error);
+                }
+            } catch (Exception e) {
+                log.error("Taklifnoma email_delivery_status yangilashda xatolik (Invite ID: {}): {}", invitationId, e.getMessage());
+            }
+        }
+    }
+
+    private void saveJobInTransaction(EmailJob job) {
+        if (transactionTemplate != null) {
+            transactionTemplate.executeWithoutResult(status -> emailJobRepository.save(job));
+        } else {
+            emailJobRepository.save(job);
+        }
     }
 }

@@ -448,6 +448,95 @@ class TelegramSchedulerServiceTest {
         assertThat(TelegramSchedulerService.isInQuietHours(LocalTime.of(12, 0), null, LocalTime.of(22, 0))).isFalse();
     }
 
+    // ═══════════════════ Global Job Lock va Idempotency testlari ═══════════════════
+
+    @Test
+    void tryRunGlobalJob_whenNotClaimed_claimsAndExecutesJob() {
+        when(reminderLogRepository.claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenReturn(1);
+
+        Runnable mockJob = mock(Runnable.class);
+        service.tryRunGlobalJob("DIGEST_2026-10-11", mockJob);
+
+        verify(mockJob, times(1)).run();
+        verify(reminderLogRepository, never()).deleteByLogKey(anyString());
+    }
+
+    @Test
+    void tryRunGlobalJob_whenAlreadyClaimed_skipsJob() {
+        when(reminderLogRepository.claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenReturn(0);
+
+        Runnable mockJob = mock(Runnable.class);
+        service.tryRunGlobalJob("DIGEST_2026-10-11", mockJob);
+
+        verify(mockJob, never()).run();
+    }
+
+    @Test
+    void tryRunGlobalJob_whenClaimThrowsDataIntegrityViolation_skipsJob() {
+        when(reminderLogRepository.claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key"));
+
+        Runnable mockJob = mock(Runnable.class);
+        service.tryRunGlobalJob("DIGEST_2026-10-11", mockJob);
+
+        verify(mockJob, never()).run();
+    }
+
+    @Test
+    void tryRunGlobalJob_whenJobThrowsException_releasesClaimForRetry() {
+        when(reminderLogRepository.claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenReturn(1);
+
+        Runnable failingJob = () -> {
+            throw new RuntimeException("Telegram API unavailable");
+        };
+
+        service.tryRunGlobalJob("DIGEST_2026-10-11", failingJob);
+
+        // At-least-once: claim qayta urinish (retry) imkoni bo'lishi uchun o'chirilishi kerak
+        verify(reminderLogRepository, times(1)).deleteByLogKey("DIGEST_2026-10-11");
+    }
+
+    @Test
+    void scheduleDailyDigest_usesTashkentDateInJobKey() {
+        // UTC da 2026-10-10 20:30:00 bo'lganda, Toshkentda (UTC+5) 2026-10-11 01:30:00 bo'ladi
+        java.time.Instant instant = java.time.Instant.parse("2026-10-10T20:30:00Z");
+        Clock utcClock = Clock.fixed(instant, java.time.ZoneOffset.UTC);
+
+        TelegramSchedulerService tashkentService = new TelegramSchedulerService(
+                taskRepository, reminderLogRepository,
+                userRepository, workspaceRepository,
+                eventPublisher, utcClock, "https://test.url", true);
+
+        when(reminderLogRepository.claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenReturn(0);
+
+        tashkentService.scheduleDailyDigest();
+
+        // Server UTC bo'lsa ham, JobKey foydalanuvchining Toshkent sanasiga (2026-10-11) mos kelishi kerak
+        verify(reminderLogRepository).claimLogKey("DIGEST_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name());
+    }
+
+    @Test
+    void scheduleDueTomorrowReminders_usesTashkentDateInJobKey() {
+        java.time.Instant instant = java.time.Instant.parse("2026-10-10T20:30:00Z");
+        Clock utcClock = Clock.fixed(instant, java.time.ZoneOffset.UTC);
+
+        TelegramSchedulerService tashkentService = new TelegramSchedulerService(
+                taskRepository, reminderLogRepository,
+                userRepository, workspaceRepository,
+                eventPublisher, utcClock, "https://test.url", true);
+
+        when(reminderLogRepository.claimLogKey("REMINDER_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name()))
+                .thenReturn(0);
+
+        tashkentService.scheduleDueTomorrowReminders();
+
+        verify(reminderLogRepository).claimLogKey("REMINDER_2026-10-11", TelegramReminderLog.ReminderType.GLOBAL_JOB_LOCK.name());
+    }
+
     // ═══════════════════ Yordamchi metodlar ═══════════════════
 
     private TelegramReminderTaskDto taskDto(String taskId, String title, String wsId,

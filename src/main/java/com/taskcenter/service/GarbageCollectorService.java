@@ -22,10 +22,11 @@ public class GarbageCollectorService {
     }
 
     /**
-     * Har kuni tunda soat 03:00 da ishga tushadi
+     * Har kuni tunda soat 03:00 (Asia/Tashkent) da ishga tushadi
      * 30 kundan ko'p vaqt oldin o'chirilgan (deleted_at) ma'lumotlarni bazadan butunlay o'chirib tashlaydi.
      */
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "0 0 3 * * ?", zone = "Asia/Tashkent")
+    @net.javacrumbs.shedlock.spring.annotation.SchedulerLock(name = "GarbageCollectorService_cleanUpOldDeletedRecords", lockAtLeastFor = "5m", lockAtMostFor = "30m")
     @org.springframework.transaction.annotation.Transactional
     public void cleanUpOldDeletedRecords() {
         log.info("Garbage Collector: 30 kundan eski o'chirilgan ma'lumotlarni tozalash boshlandi...");

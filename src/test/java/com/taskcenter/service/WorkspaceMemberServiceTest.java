@@ -215,4 +215,78 @@ class WorkspaceMemberServiceTest {
 
         verify(memberRepository, times(1)).delete(existing);
     }
+
+    @Test
+    @DisplayName("getMembers workspace egasini avtomatik ravishda a'zolar ro'yxatiga qo'shadi va duplikat qilmaydi")
+    void getMembers_includesWorkspaceOwnerEvenIfNotInMembersTable() {
+        WorkspaceMember existing = WorkspaceMember.builder()
+                .workspaceId(workspaceId)
+                .userId(memberId)
+                .role(WorkspaceRole.MEMBER)
+                .build();
+        when(memberRepository.findByWorkspaceId(workspaceId)).thenReturn(java.util.List.of(existing));
+        when(userRepository.findByIdIn(any())).thenReturn(java.util.List.of(owner, newMember));
+
+        java.util.List<com.taskcenter.dto.UserDto> members = memberService.getMembers(workspaceId, owner);
+
+        assertThat(members).hasSize(2);
+        assertThat(members.stream().map(com.taskcenter.dto.UserDto::getId)).containsExactlyInAnyOrder(ownerId, memberId);
+    }
+
+    @Test
+    @DisplayName("addMember kutilayotgan faol taklifnomani ACCEPTED qiladi")
+    void addMember_reconcilesActivePendingInvitation() {
+        when(userRepository.findByNameOrEmail("ali")).thenReturn(Optional.of(newMember));
+        when(memberRepository.existsByWorkspaceIdAndUserId(workspaceId, memberId)).thenReturn(false);
+
+        com.taskcenter.model.WorkspaceInvitation activeInv = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv-active")
+                .workspaceId(workspaceId)
+                .receiverEmail("ali@test.com")
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .expiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(5))
+                .build();
+        when(invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, memberId, com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(Optional.empty());
+        when(invitationRepository.findByWorkspaceIdAndReceiverEmailIgnoreCaseAndStatus(workspaceId, "ali@test.com", com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(Optional.of(activeInv));
+
+        WorkspaceMemberInviteRequest request = WorkspaceMemberInviteRequest.builder()
+                .usernameOrEmail("ali")
+                .role(WorkspaceRole.MEMBER)
+                .build();
+
+        memberService.addMember(workspaceId, request, owner);
+
+        assertThat(activeInv.getStatus()).isEqualTo(com.taskcenter.model.InvitationStatus.ACCEPTED);
+        assertThat(activeInv.getReceiverId()).isEqualTo(memberId);
+        verify(invitationRepository).save(activeInv);
+    }
+
+    @Test
+    @DisplayName("addMember muddati o'tgan taklifnomani ACCEPTED emas, EXPIRED qiladi")
+    void addMember_marksExpiredInvitationAsExpired() {
+        when(userRepository.findByNameOrEmail("ali")).thenReturn(Optional.of(newMember));
+        when(memberRepository.existsByWorkspaceIdAndUserId(workspaceId, memberId)).thenReturn(false);
+
+        com.taskcenter.model.WorkspaceInvitation expiredInv = com.taskcenter.model.WorkspaceInvitation.builder()
+                .id("inv-expired")
+                .workspaceId(workspaceId)
+                .receiverId(memberId)
+                .status(com.taskcenter.model.InvitationStatus.PENDING)
+                .expiresAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(1))
+                .build();
+        when(invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, memberId, com.taskcenter.model.InvitationStatus.PENDING))
+                .thenReturn(Optional.of(expiredInv));
+
+        WorkspaceMemberInviteRequest request = WorkspaceMemberInviteRequest.builder()
+                .usernameOrEmail("ali")
+                .role(WorkspaceRole.MEMBER)
+                .build();
+
+        memberService.addMember(workspaceId, request, owner);
+
+        assertThat(expiredInv.getStatus()).isEqualTo(com.taskcenter.model.InvitationStatus.EXPIRED);
+        verify(invitationRepository).save(expiredInv);
+    }
 }

@@ -1,0 +1,230 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20261012-01-create-workspaces-table
+      author: taskcenter
+      comment: "PostgreSQL uchun workspaces (boards) jadvalini yaratish"
+      changes:
+        - createTable:
+            tableName: workspaces
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bg_color
+                  type: VARCHAR(255)
+              - column:
+                  name: key_prefix
+                  type: VARCHAR(32)
+                  constraints:
+                    unique: true
+              - column:
+                  name: description
+                  type: CLOB
+              - column:
+                  name: owner_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_workspaces_owner
+                    references: users(id)
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+  - changeSet:
+      id: 20261012-02-create-board-columns-table
+      author: taskcenter
+      comment: "PostgreSQL uchun board_columns jadvalini yaratish"
+      changes:
+        - createTable:
+            tableName: board_columns
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: workspace_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_columns_workspace
+                    references: workspaces(id)
+                    deleteCascade: true
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: column_order
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_default
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_done
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+  - changeSet:
+      id: 20261012-03-create-tasks-table
+      author: taskcenter
+      comment: "PostgreSQL uchun tasks jadvalini yaratish (LexoRank bilan)"
+      changes:
+        - createTable:
+            tableName: tasks
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: public_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: workspace_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tasks_workspace
+                    references: workspaces(id)
+                    deleteCascade: true
+              - column:
+                  name: column_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tasks_column
+                    references: board_columns(id)
+                    deleteCascade: true
+              - column:
+                  name: sprint_id
+                  type: VARCHAR(255)
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: CLOB
+              - column:
+                  name: task_order
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: priority
+                  type: VARCHAR(32)
+                  defaultValue: "MEDIUM"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: issue_type
+                  type: VARCHAR(32)
+                  defaultValue: "TASK"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: due_date
+                  type: DATE
+              - column:
+                  name: story_points
+                  type: INT
+              - column:
+                  name: is_archived
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP WITH TIME ZONE
+
+  - changeSet:
+      id: 20261012-04-create-indexes
+      author: taskcenter
+      comment: "Tasks va Columns uchun qidiruv va LexoRank tartiblash indekslarini yaratish"
+      changes:
+        - createIndex:
+            indexName: idx_tasks_column_lexorank
+            tableName: tasks
+            columns:
+              - column:
+                  name: column_id
+              - column:
+                  name: task_order
+        - createIndex:
+            indexName: idx_tasks_workspace_id
+            tableName: tasks
+            columns:
+              - column:
+                  name: workspace_id
+        - createIndex:
+            indexName: idx_board_columns_workspace_id
+            tableName: board_columns
+            columns:
+              - column:
+                  name: workspace_id
