@@ -171,8 +171,8 @@ class PostgresTestcontainersIntegrationTest {
         String wsId = UUID.randomUUID().toString();
         String invId = UUID.randomUUID().toString();
 
-        jdbcTemplate.update("INSERT INTO users (id, name, full_name, password, role) VALUES (?, ?, ?, ?, ?)",
-                userId, "u_" + invId.substring(0, 8), "User " + invId.substring(0, 4), "hash", "USER");
+        jdbcTemplate.update("INSERT INTO users (id, name, full_name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)",
+                userId, "u_" + invId.substring(0, 8), "User " + invId.substring(0, 4), "user_" + invId.substring(0, 8) + "@test.com", "hash", "USER");
         jdbcTemplate.update("INSERT INTO workspaces (id, title, owner_id) VALUES (?, ?, ?)",
                 wsId, "Integration Workspace", userId);
 
