@@ -18,8 +18,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
-import java.util.Optional;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -134,6 +139,135 @@ class TelegramAuthControllerTest {
                 .satisfies(e -> {
                     ResponseStatusException rse = (ResponseStatusException) e;
                     assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                });
+    }
+
+    private static final String TEST_BOT_TOKEN = "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ";
+
+    private String generateInitData(Map<String, String> params, String botToken) {
+        Map<String, String> sortedParams = new TreeMap<>(params);
+        String dataCheck = sortedParams.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining("\n"));
+
+        byte[] secret = hmac("WebAppData".getBytes(StandardCharsets.UTF_8), botToken.getBytes(StandardCharsets.UTF_8));
+        String hash = HexFormat.of().formatHex(hmac(secret, dataCheck.getBytes(StandardCharsets.UTF_8)));
+
+        return sortedParams.entrySet().stream()
+                .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+                .collect(Collectors.joining("&")) + "&hash=" + hash;
+    }
+
+    private static byte[] hmac(byte[] key, byte[] data) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key, "HmacSHA256"));
+            return mac.doFinal(data);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    @DisplayName("Qabul mezoni: haqiqiy initData bilan token olinadi")
+    void telegramLogin_realValidator_validInitData_returnsToken() throws Exception {
+        TelegramInitDataValidator realValidator = new TelegramInitDataValidator(TEST_BOT_TOKEN, 86400L);
+        TelegramAuthController realController = new TelegramAuthController(
+                realValidator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService
+        );
+
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("auth_date", String.valueOf(Instant.now().getEpochSecond() - 30));
+        params.put("query_id", "AAHdF6IQAAAAAN0XohDhrOrc");
+        params.put("user", "{\"id\":12345,\"first_name\":\"Bekmurod\",\"username\":\"bekmurod\"}");
+        String validInitData = generateInitData(params, TEST_BOT_TOKEN);
+
+        User user = User.builder().id("u-1").name("bek").fullName("Bekmurod").telegramChatId(12345L).build();
+        when(userRepository.findByTelegramChatId(12345L)).thenReturn(Optional.of(user));
+        when(tokenProvider.generateTokenFromUser(user)).thenReturn("jwt-token-real");
+        when(authService.createRefreshToken("u-1")).thenReturn("refresh-token-real");
+
+        ResponseEntity<ApiResponse<AuthResponse>> response = realController.telegramLogin(
+                new TelegramAuthController.TelegramAuthRequest(validInitData)
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData().getToken()).isEqualTo("jwt-token-real");
+        assertThat(response.getBody().getData().getRefreshToken()).isEqualTo("refresh-token-real");
+        assertThat(response.getBody().getData().getUser().getTelegramLinked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Qabul mezoni: o'zgartirilgan initData 401 beradi")
+    void telegramLogin_realValidator_tamperedInitData_throws401() {
+        TelegramInitDataValidator realValidator = new TelegramInitDataValidator(TEST_BOT_TOKEN, 86400L);
+        TelegramAuthController realController = new TelegramAuthController(
+                realValidator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService
+        );
+
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("auth_date", String.valueOf(Instant.now().getEpochSecond() - 30));
+        params.put("query_id", "AAHdF6IQAAAAAN0XohDhrOrc");
+        params.put("user", "{\"id\":12345,\"first_name\":\"Bekmurod\"}");
+        String validInitData = generateInitData(params, TEST_BOT_TOKEN);
+        String tamperedInitData = validInitData.substring(0, validInitData.length() - 4) + "0000";
+
+        assertThatThrownBy(() -> realController.telegramLogin(new TelegramAuthController.TelegramAuthRequest(tamperedInitData)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> {
+                    ResponseStatusException rse = (ResponseStatusException) e;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                    assertThat(rse.getReason()).isEqualTo("Invalid or expired initData");
+                });
+    }
+
+    @Test
+    @DisplayName("Qabul mezoni: eskirgan auth_date 401 beradi")
+    void telegramLogin_realValidator_expiredAuthDate_throws401() {
+        TelegramInitDataValidator realValidator = new TelegramInitDataValidator(TEST_BOT_TOKEN, 86400L);
+        TelegramAuthController realController = new TelegramAuthController(
+                realValidator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService
+        );
+
+        Map<String, String> params = new LinkedHashMap<>();
+        // 25 soat oldin (maxAgeSec 24 soat / 86400s)
+        params.put("auth_date", String.valueOf(Instant.now().getEpochSecond() - (25 * 3600)));
+        params.put("query_id", "AAHdF6IQAAAAAN0XohDhrOrc");
+        params.put("user", "{\"id\":12345,\"first_name\":\"Bekmurod\"}");
+        String expiredInitData = generateInitData(params, TEST_BOT_TOKEN);
+
+        assertThatThrownBy(() -> realController.telegramLogin(new TelegramAuthController.TelegramAuthRequest(expiredInitData)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> {
+                    ResponseStatusException rse = (ResponseStatusException) e;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                    assertThat(rse.getReason()).isEqualTo("Invalid or expired initData");
+                });
+    }
+
+    @Test
+    @DisplayName("Qabul mezoni: foydalanuvchi bazada yo'q bo'lsa 401 'Avval botda akkauntingizni ulang' beradi")
+    void telegramLogin_realValidator_userNotLinked_throws401() {
+        TelegramInitDataValidator realValidator = new TelegramInitDataValidator(TEST_BOT_TOKEN, 86400L);
+        TelegramAuthController realController = new TelegramAuthController(
+                realValidator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService
+        );
+
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("auth_date", String.valueOf(Instant.now().getEpochSecond() - 30));
+        params.put("query_id", "AAHdF6IQAAAAAN0XohDhrOrc");
+        params.put("user", "{\"id\":88888,\"first_name\":\"UnlinkedUser\"}");
+        String validInitData = generateInitData(params, TEST_BOT_TOKEN);
+
+        when(userRepository.findByTelegramChatId(88888L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> realController.telegramLogin(new TelegramAuthController.TelegramAuthRequest(validInitData)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> {
+                    ResponseStatusException rse = (ResponseStatusException) e;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                    assertThat(rse.getReason()).isEqualTo("Avval botda akkauntingizni ulang");
                 });
     }
 }

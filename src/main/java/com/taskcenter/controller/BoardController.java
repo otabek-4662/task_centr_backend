@@ -27,8 +27,36 @@ public class BoardController {
     @Operation(
             operationId = "getKanbanBoard",
             summary = "Workspace doskasini barcha ustunlar va ularning vazifalari bilan olish",
-            description = "Kanban doskasini barcha faol ustunlari va ularga tegishli kartochkalari (vazifalari) bilan birgalikda yig'ma holda qaytaradi. Ixtiyoriy sprintId orqali filtrlash mumkin."
+            description = "Kanban doskasini barcha ustunlari (position/order bo'yicha tartiblangan) va ularga tegishli vazifalar (rank bo'yicha tartiblangan) bilan birga to'liq qaytaradi. "
+                    + "Har bir vazifada id, key, code, title, description, priority, issueType, storyPoints, rank, columnId, assignee {id, fullName, avatarUrl}, reporter {id, fullName}, createdAt, updatedAt maydonlari mavjud. "
+                    + "Ixtiyoriy sprintId orqali filtrlash mumkin. Faqat workspace a'zosi ko'ra oladi."
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Doska ma'lumotlari muvaffaqiyatli qaytarildi",
+                    content = @io.swagger.v3.oas.annotations.media.Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ApiResponse.class),
+                            examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                    name = "BoardSuccessResponse",
+                                    value = "{\"success\":true,\"message\":\"ok\",\"data\":[{\"id\":\"col-1\",\"name\":\"To Do\",\"title\":\"To Do\",\"position\":1,\"order\":1,\"rank\":\"1\",\"tasks\":[{\"id\":\"t-1\",\"key\":\"WFM-204\",\"code\":\"WFM-204\",\"publicId\":\"WFM-204\",\"title\":\"Dastlabki arxitektura\",\"description\":\"Loyiha arxitekturasini loyihalash\",\"priority\":\"HIGH\",\"issueType\":\"STORY\",\"storyPoints\":5,\"rank\":\"0|hzzzza:\",\"lexoRank\":\"0|hzzzza:\",\"columnId\":\"col-1\",\"workspaceId\":\"ws-1\",\"assignee\":{\"id\":\"u-1\",\"fullName\":\"Ali Valiyev\",\"avatarUrl\":null},\"assignees\":[{\"id\":\"u-1\",\"name\":\"ali\",\"fullName\":\"Ali Valiyev\"}],\"reporter\":{\"id\":\"u-2\",\"fullName\":\"Vali Aliyev\"},\"createdAt\":\"2026-10-12T10:00:00\",\"updatedAt\":\"2026-10-12T10:30:00\"}],\"cards\":[{\"id\":\"t-1\",\"key\":\"WFM-204\",\"title\":\"Dastlabki arxitektura\"}]}]}"
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Avtorizatsiyadan o'tilmagan (UNAUTHORIZED)"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Foydalanuvchi ushbu workspace a'zosi emas (FORBIDDEN)"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Workspace topilmadi (NOT_FOUND)"
+            )
+    })
     @GetMapping
     public ApiResponse<List<ColumnWithCardsDto>> getBoard(
             @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
@@ -39,6 +67,7 @@ public class BoardController {
         List<ColumnWithCardsDto> board = taskService.getBoard(workspaceId, sprintId, currentUser);
         return ApiResponse.success("ok", board);
     }
+
     @Operation(
             operationId = "getKanbanBoardInit",
             summary = "Workspace doskasini yangi formatda olish",

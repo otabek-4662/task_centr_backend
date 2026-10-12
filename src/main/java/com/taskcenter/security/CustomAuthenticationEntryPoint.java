@@ -1,7 +1,7 @@
 package com.taskcenter.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.ApiError;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +12,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Instant;
 
 @Component
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -26,6 +27,10 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
+        if (response.isCommitted()) {
+            return;
+        }
+
         boolean isExpired = Boolean.TRUE.equals(request.getAttribute("token_expired"))
                 || request.getAttribute("jwt_exception") instanceof ExpiredJwtException;
 
@@ -33,12 +38,16 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         String errorCode = isExpired ? "TOKEN_EXPIRED" : "UNAUTHORIZED";
         String message = isExpired ? "JWT token muddati tugagan" : "Autentifikatsiyadan o'tilmagan yoki token yaroqsiz";
 
-        ApiResponse<Void> body = ApiResponse.<Void>builder()
+        String path = request != null ? request.getRequestURI() : "";
+        ApiError body = ApiError.builder()
+                .timestamp(Instant.now())
+                .status(HttpServletResponse.SC_UNAUTHORIZED)
+                .error("UNAUTHORIZED")
+                .message(message)
+                .path(path)
                 .success(false)
                 .code(code)
                 .errorCode(errorCode)
-                .message(message)
-                .status(HttpServletResponse.SC_UNAUTHORIZED)
                 .build();
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

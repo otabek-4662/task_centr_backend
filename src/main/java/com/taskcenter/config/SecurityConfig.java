@@ -45,7 +45,7 @@ public class SecurityConfig {
             CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
             CustomAccessDeniedHandler customAccessDeniedHandler,
             org.springframework.core.env.Environment environment,
-            @Value("${CORS_ALLOWED_ORIGINS:${app.cors.allowed-origins:}}") String customAllowedOrigins) {
+            @Value("${app.cors.allowed-origins:${CORS_ALLOWED_ORIGINS:https://task-center-frontend.onrender.com}}") String customAllowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.telegramWebAppAuthFilter = telegramWebAppAuthFilter;
         this.rateLimitFilter = rateLimitFilter;
@@ -70,20 +70,26 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = new ArrayList<>();
 
-        // localhost faqat dev profilida
-        if (environment != null && Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
-            origins.add("http://localhost:*");
-            origins.add("http://127.0.0.1:*");
-        }
+        boolean isDev = environment != null && Arrays.asList(environment.getActiveProfiles()).contains("dev");
 
-        // faqat CORS_ALLOWED_ORIGINS env'dagi aniq originlar
+        // 1. Env / property dagi ruxsat etilgan originlar (vergul bilan ajratilgan)
         if (customAllowedOrigins != null && !customAllowedOrigins.isBlank()) {
             for (String origin : customAllowedOrigins.split(",")) {
                 String trimmed = origin.trim();
-                if (!trimmed.isEmpty() && !origins.contains(trimmed)) {
-                    origins.add(trimmed);
+                if (!trimmed.isEmpty()) {
+                    if (trimmed.endsWith("/")) {
+                        trimmed = trimmed.substring(0, trimmed.length() - 1);
+                    }
+                    if (!origins.contains(trimmed)) {
+                        origins.add(trimmed);
+                    }
                 }
             }
+        }
+
+        // Dev profilida agar origin ko'rsatilmagan bo'lsa, http://localhost:5173 default qilinadi
+        if (origins.isEmpty() && isDev) {
+            origins.add("http://localhost:5173");
         }
 
         if (!origins.isEmpty()) {
@@ -92,10 +98,21 @@ public class SecurityConfig {
             config.setAllowedOriginPatterns(Collections.emptyList());
         }
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        // 2. Metodlar: GET, POST, PUT, PATCH, DELETE, OPTIONS
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        // 2. Headerlar: Authorization, Content-Type, X-Telegram-Init-Data
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Telegram-Init-Data"));
         config.setExposedHeaders(List.of("Retry-After", "Authorization"));
-        config.setAllowCredentials(true);
+
+        // 3. allowCredentials faqat kerak bo'lsa yoq; "*" va credentials birga ishlatilmasin
+        boolean hasWildcard = origins.stream().anyMatch("*"::equals);
+        if (!origins.isEmpty() && !hasWildcard) {
+            config.setAllowCredentials(true);
+        } else {
+            config.setAllowCredentials(false);
+        }
+
         config.setMaxAge(3600L); // Preflight keshini 1 soatga saqlash (OPTIONS so'rovlarini kamaytiradi)
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -131,6 +148,9 @@ public class SecurityConfig {
     @Bean
     @org.springframework.core.annotation.Order(2)
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        List<String> activeProfiles = environment != null ? Arrays.asList(environment.getActiveProfiles()) : Collections.emptyList();
+        boolean isProd = activeProfiles.contains("prod");
+
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -143,36 +163,43 @@ public class SecurityConfig {
                 .authenticationEntryPoint(customAuthenticationEntryPoint)
                 .accessDeniedHandler(customAccessDeniedHandler)
             )
-            .authorizeHttpRequests(authz -> authz
+            .authorizeHttpRequests(authz -> {
                 // Public endpoints
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/**", "/api/auth/**", "/api/webhooks/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*").permitAll()
-                .requestMatchers(
-                    "/favicon.ico",
-                    "/swagger-ui.html",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/v3/api-docs",
-                    "/swagger-resources/**",
-                    "/webjars/**",
-                    "/ws/**"
-                ).permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
-                // Admin only endpoints (workspaceId parametri berilmaganda faqat admin ko'ra oladi)
-                .requestMatchers(request -> "GET".equalsIgnoreCase(request.getMethod())
-                        && ("/api/users".equals(request.getRequestURI()) || "/api/users".equals(request.getServletPath()))
-                        && (request.getParameter("workspaceId") == null || request.getParameter("workspaceId").isBlank())).hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/users").hasAnyRole("USER", "ADMIN")
-                // Joriy foydalanuvchi o'z Telegram ulanishini uzishi mumkin (admin qoidasidan OLDIN turishi shart)
-                .requestMatchers(HttpMethod.DELETE, "/api/users/me/telegram").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/users/me/telegram").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-                // Workspace owner can do anything on their workspaces
-                .requestMatchers("/api/workspaces/**").hasAnyRole("USER", "ADMIN")
-                // Board, tasks, labels - requires authentication
-                .anyRequest().authenticated()
-            );
+                authz
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/**", "/api/auth/**", "/api/webhooks/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*").permitAll()
+                    .requestMatchers("/favicon.ico", "/ws/**").permitAll();
+
+                // Swagger UI va OpenAPI hujjatlari faqat dev / non-prod profilida ochiq bo'ladi
+                if (!isProd) {
+                    authz.requestMatchers(
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/v3/api-docs",
+                        "/swagger-resources/**",
+                        "/webjars/**"
+                    ).permitAll();
+                }
+
+                authz
+                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers("/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
+                    // Admin only endpoints (workspaceId parametri berilmaganda faqat admin ko'ra oladi)
+                    .requestMatchers(request -> "GET".equalsIgnoreCase(request.getMethod())
+                            && ("/api/users".equals(request.getRequestURI()) || "/api/users".equals(request.getServletPath()))
+                            && (request.getParameter("workspaceId") == null || request.getParameter("workspaceId").isBlank())).hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.GET, "/api/users").hasAnyRole("USER", "ADMIN")
+                    // Joriy foydalanuvchi o'z Telegram ulanishini uzishi mumkin (admin qoidasidan OLDIN turishi shart)
+                    .requestMatchers(HttpMethod.DELETE, "/api/users/me/telegram").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/users/me/telegram").authenticated()
+                    .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
+                    // Workspace owner can do anything on their workspaces
+                    .requestMatchers("/api/workspaces/**").hasAnyRole("USER", "ADMIN")
+                    // Board, tasks, labels - requires authentication
+                    .anyRequest().authenticated();
+            });
 
         http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(telegramWebAppAuthFilter, UsernamePasswordAuthenticationFilter.class);

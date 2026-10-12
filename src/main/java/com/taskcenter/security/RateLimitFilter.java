@@ -68,7 +68,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
             if (path.equals("/api/auth/login")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("login", clientIp, loginIpMax, loginIpWindow);
-            } else if (path.equals("/api/v1/auth/telegram") || path.equals("/api/v1/auth/telegram/pending-invite")) {
+            } else if (path.equals("/api/v1/auth/telegram") || path.equals("/api/v1/auth/telegram/pending-invite")
+                    || path.equals("/api/auth/telegram") || path.equals("/api/auth/telegram/pending-invite")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("telegram-auth", clientIp, telegramIpMax, telegramIpWindow);
             } else if (path.equals("/api/auth/register") || path.equals("/api/auth/forgot-password") || path.equals("/api/auth/reset-password")) {
                 waitTime = rateLimitingService.tryConsumeIpLimit("register", clientIp, registerIpMax, registerIpWindow);
@@ -77,7 +78,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
 
             if (waitTime > 0) {
-                sendRateLimitResponse(response, waitTime);
+                sendRateLimitResponse(request, response, waitTime);
                 return;
             }
         }
@@ -86,7 +87,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             String clientIp = getClientIp(request);
             long waitTime = rateLimitingService.tryConsumeIpLimit("invite-preview", clientIp, 30, 1);
             if (waitTime > 0) {
-                sendRateLimitResponse(response, waitTime);
+                sendRateLimitResponse(request, response, waitTime);
                 return;
             }
         }
@@ -94,21 +95,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private void sendRateLimitResponse(HttpServletResponse response, long waitTime) throws IOException {
+    private void sendRateLimitResponse(HttpServletRequest request, HttpServletResponse response, long waitTime) throws IOException {
+        if (response.isCommitted()) {
+            return;
+        }
         response.setStatus(429);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Retry-After", String.valueOf(waitTime));
         
-        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
-                .success(false)
+        com.taskcenter.dto.ApiError apiError = com.taskcenter.dto.ApiError.builder()
+                .timestamp(java.time.Instant.now())
+                .status(429)
+                .error("TOO_MANY_REQUESTS")
+                .message("Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.")
+                .path(request != null ? request.getRequestURI() : "")
                 .code("TOO_MANY_REQUESTS")
                 .errorCode("RATE_LIMITED")
-                .message("Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring.")
-                .status(429)
                 .retryAfterSeconds(waitTime)
+                .success(false)
                 .build();
-        response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+        response.getWriter().write(objectMapper.writeValueAsString(apiError));
     }
 
     private static final java.util.regex.Pattern IPV4_PATTERN =

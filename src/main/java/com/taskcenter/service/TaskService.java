@@ -120,26 +120,39 @@ public class TaskService {
         String effectiveSprintId = sprintId;
         if (effectiveSprintId == null) {
             java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
-            if (activeOpt.isEmpty()) {
-                List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-                return cols.stream()
-                        .map(c -> ColumnWithCardsDto.fromEntity(c, java.util.Collections.emptyList()))
-                        .collect(Collectors.toList());
+            if (activeOpt.isPresent()) {
+                effectiveSprintId = activeOpt.get().getId();
             }
-            effectiveSprintId = activeOpt.get().getId();
         }
         
-        final String targetSprintId = effectiveSprintId;
-        
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<Task> allSprintTasks = taskRepository.findBySprintId(targetSprintId);
+        List<Task> allTasks;
+        if (effectiveSprintId != null) {
+            allTasks = taskRepository.findBySprintId(effectiveSprintId);
+        } else {
+            allTasks = taskRepository.findByWorkspaceIdWithDetails(workspaceId);
+        }
+
+        // Barcha reporterlarni bitta IN so'rov bilan yig'ib olamiz (N+1 muammosini oldini olish)
+        Set<String> creatorIds = allTasks.stream()
+                .map(Task::getCreatedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, User> reporterMap = new java.util.HashMap<>();
+        if (!creatorIds.isEmpty()) {
+            userRepository.findAllById(creatorIds).forEach(u -> {
+                if (u.getId() != null) {
+                    reporterMap.put(u.getId(), u);
+                }
+            });
+        }
 
         return cols.stream().map(c -> {
-            List<Task> columnTasks = allSprintTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()) && Boolean.FALSE.equals(t.getIsArchived()))
-                    .sorted(Comparator.comparing(Task::getLexoRank))
+            List<Task> columnTasks = allTasks.stream()
+                    .filter(t -> c.getId().equals(t.getColumnId()) && (t.getIsArchived() == null || Boolean.FALSE.equals(t.getIsArchived())))
+                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
                     .collect(Collectors.toList());
-            return ColumnWithCardsDto.fromEntity(c, columnTasks);
+            return ColumnWithCardsDto.fromEntity(c, columnTasks, reporterMap);
         }).collect(Collectors.toList());
     }
 

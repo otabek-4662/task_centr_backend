@@ -16,13 +16,25 @@ public class ColumnWithCardsDto {
     private String id;
 
     @Schema(description = "Ustun nomi", example = "To Do")
+    private String name;
+
+    @Schema(description = "Ustun sarlavhasi (orqaga moslik uchun title)", example = "To Do")
     private String title;
 
-    @Schema(description = "Ustun tartib indeksi", example = "0")
+    @Schema(description = "Ustun tartib indeksi (position)", example = "1")
+    private Integer position;
+
+    @Schema(description = "Ustun tartib indeksi (orqaga moslik uchun order)", example = "1")
     private Integer order;
 
-    @Schema(description = "Ustundagi vazifa kartalari ro'yxati")
-    private List<TaskCardDto> cards;
+    @Schema(description = "Ustun tartibi (rank)", example = "1")
+    private String rank;
+
+    @Schema(description = "Ustundagi vazifalar ro'yxati")
+    private List<TaskDto> tasks;
+
+    @Schema(description = "Ustundagi vazifalar ro'yxati (orqaga moslik uchun cards)")
+    private List<TaskDto> cards;
 
     @Data
     @Builder
@@ -81,11 +93,28 @@ public class ColumnWithCardsDto {
     }
 
     public static ColumnWithCardsDto fromEntity(BoardColumn c, List<Task> tasks) {
+        return fromEntity(c, tasks, java.util.Collections.emptyMap());
+    }
+
+    public static ColumnWithCardsDto fromEntity(BoardColumn c, List<Task> tasks, java.util.Map<String, com.taskcenter.model.User> reporterMap) {
+        List<TaskDto> taskDtos = tasks != null
+                ? tasks.stream()
+                        .map(t -> TaskDto.fromEntity(t, (t.getCreatedBy() != null && reporterMap != null) ? reporterMap.get(t.getCreatedBy()) : null))
+                        .collect(Collectors.toList())
+                : java.util.Collections.emptyList();
+
+        String colName = c.getTitle();
+        Integer colOrder = c.getOrder();
+
         return ColumnWithCardsDto.builder()
                 .id(c.getId())
-                .title(c.getTitle())
-                .order(c.getOrder())
-                .cards(tasks.stream().map(TaskCardDto::fromEntity).collect(Collectors.toList()))
+                .name(colName)
+                .title(colName)
+                .position(colOrder)
+                .order(colOrder)
+                .rank(colOrder != null ? String.valueOf(colOrder) : null)
+                .tasks(taskDtos)
+                .cards(taskDtos)
                 .build();
     }
 }

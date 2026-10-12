@@ -213,6 +213,98 @@ Avtomatik script ham bor: `swagger_auth_test2.ps1`
 powershell -ExecutionPolicy Bypass -File swagger_auth_test2.ps1
 ```
 
+## Telegram Mini App (TMA) Autentifikatsiyasi (Frontend uchun)
+
+Backend Telegram Mini App uchun 2 xil autentifikatsiya usulini taqdim etadi:
+
+### 1. Tavsiya etilgan usul (B-variant): `POST /api/auth/telegram` orqali bir marta JWT olish
+Frontend Telegram Mini App yuklanganda `initData` ni yuborib JWT token oladi va keyingi barcha so'rovlarda standart `Authorization: Bearer <token>` ishlatadi. Bu usul Swagger'da asosiy usul sifatida tavsiya etilgan.
+
+#### Qadamma-qadam login oqimi:
+1. **Frontend `initData` ni oladi:**
+   ```javascript
+   const initData = window.Telegram?.WebApp?.initData;
+   ```
+2. **Backendga POST so'rov yuboradi:**
+   - **Endpoint:** `POST /api/auth/telegram` (orqaga moslik uchun `POST /api/v1/auth/telegram` ham ishlaydi)
+   - **Headers:** `Content-Type: application/json`
+   - **Body:**
+     ```json
+     {
+       "initData": "query_id=AAHd...&user=%7B%22id%22%3A12345678...%7D&auth_date=1620000000&hash=..."
+     }
+     ```
+3. **Javobni qabul qilish:**
+   - **200 OK (Muvaffaqiyatli login):**
+     Oddiy login bilan bir xil formatda JWT token va foydalanuvchi ma'lumotlari qaytadi:
+     ```json
+     {
+       "success": true,
+       "message": "Tizimga muvaffaqiyatli kirdingiz",
+       "data": {
+         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+         "refreshToken": "d8e3b8a1-7c2e-4b6a-9f1a-8c3d5e7f9a0b",
+         "user": {
+           "id": "u-123456",
+           "name": "bekmurod",
+           "fullName": "Bekmurod",
+           "role": "USER",
+           "avatar": null,
+           "telegramChatId": 12345678
+         }
+       },
+       "timestamp": "2026-10-12T14:40:00Z"
+     }
+     ```
+     Olingan `token` keyingi so'rovlarda `Authorization: Bearer <token>` sarlavhasida ishlatiladi.
+
+   - **401 UNAUTHORIZED — Akkaunt ulanmagan (`Avval botda akkauntingizni ulang`):**
+     Agar Telegram foydalanuvchisi bazada topilmasa, xavfsizlik talablariga muvofiq yangi akkaunt **avtomatik ochilmaydi**.
+     ```json
+     {
+       "timestamp": "2026-10-12T14:40:00Z",
+       "status": 401,
+       "error": "UNAUTHORIZED",
+       "message": "Avval botda akkauntingizni ulang",
+       "path": "/api/auth/telegram"
+     }
+     ```
+     *Frontend harakati:* Foydalanuvchiga Telegram botga o'tib, bot orqali akkauntini ulashni taklif qiladi (yoki ish maydoniga taklif qilingan bo'lsa, taklif havolasi orqali ulanadi).
+
+   - **401 UNAUTHORIZED — Yaroqsiz yoki muddati o'tgan initData:**
+     HMAC-SHA256 imzosi buzilgan bo'lsa yoki `auth_date` 24 soatdan (86400 soniya) oshgan bo'lsa:
+     ```json
+     {
+       "timestamp": "2026-10-12T14:40:00Z",
+       "status": 401,
+       "error": "UNAUTHORIZED",
+       "message": "Invalid or expired initData",
+       "path": "/api/auth/telegram"
+     }
+     ```
+
+4. **Keyingi so'rovlar:**
+   ```http
+   GET /api/workspaces
+   Authorization: Bearer eyJhbGciOiJIUzI1Ni...
+   ```
+
+---
+
+### 2. Muqobil usul (A-variant, orqaga moslik uchun): Har so'rovda Header yuborish
+Mavjud frontend kodlari buzilmasligi uchun quyidagi usul ham to'liq qo'llab-quvvatlanadi:
+- Har bir so'rov sarlavhasida:
+  ```http
+  X-Telegram-Init-Data: <initData>
+  ```
+  yoki
+  ```http
+  Authorization: tma <initData>
+  ```
+*Eslatma:* Yangi ishlab chiqilayotgan frontendlar uchun har bir so'rovda butun initData ni yubormasdan, 1-usul orqali JWT olib ishlatish tavsiya etiladi.
+
+---
+
 ## Loyiha tuzilishi
 
 ```

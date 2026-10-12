@@ -110,7 +110,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     List<Task> findBySprintIdOrderByLexoRankAsc(String sprintId);
 
-    @EntityGraph(attributePaths = {"labels", "directions", "assignees"})
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     List<Task> findBySprintId(String sprintId);
 
     @Query("SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")

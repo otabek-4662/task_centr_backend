@@ -20,8 +20,8 @@ public class TelegramInitDataValidator {
     private final long maxAgeSec;
 
     public TelegramInitDataValidator(
-            @Value("${telegram.bot.token:}") String botToken,
-            @Value("${telegram.miniapp.max-age-sec:${TELEGRAM_AUTH_MAX_AGE_SECONDS:3600}}") long maxAgeSec) {
+            @Value("${telegram.bot.token:${TELEGRAM_BOT_TOKEN:}}") String botToken,
+            @Value("${telegram.miniapp.max-age-sec:${TELEGRAM_AUTH_MAX_AGE_SECONDS:86400}}") long maxAgeSec) {
         this.botToken = botToken;
         this.maxAgeSec = maxAgeSec;
     }

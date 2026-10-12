@@ -6,6 +6,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.*;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.customizers.OpenApiCustomizer;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class SwaggerConfig {
+public class OpenApiConfig {
 
     @Bean
     public OpenAPI customOpenAPI(@Value("${spring.profiles.active:local}") String activeProfile) {
@@ -26,15 +27,17 @@ public class SwaggerConfig {
         Schema<?> errorResponseSchema = new Schema<>()
                 .type("object")
                 .description("Standart xatolik javobi formati")
-                .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
+                .addProperty("timestamp", new DateTimeSchema().example("2026-10-12T13:45:00Z").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"))
+                .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
+                .addProperty("error", new StringSchema().example("BAD_REQUEST").description("HTTP status nomi yoki umumiy xatolik kodi"))
                 .addProperty("message", new StringSchema().example("Xatolik tavsifi").description("Foydalanuvchiga tushunarli xabar"))
-                .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
+                .addProperty("path", new StringSchema().example("/api/workspaces").description("So'rov yuborilgan endpoint manzili"))
+                .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
+                .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
                 .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi (backward compatibility)"))
                 .addProperty("errorCode", new StringSchema().example("INVITE_NOT_FOUND").description("Xatolikning mashina o'qiy oladigan enum kodi"))
-                .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
-                .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"))
-                .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
-                .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"));
+                .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
+                .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"));
 
         Schema<?> pageResponseSchema = createPageResponseSchema();
 
@@ -70,6 +73,7 @@ public class SwaggerConfig {
                                         .description("JWT access token. Faqat tokenni o'zini kiriting, 'Bearer ' prefiksi avtomatik qo'shiladi."))
                         .addSchemas("ErrorResponse", errorResponseSchema)
                         .addSchemas("PageResponse", pageResponseSchema))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .addTagsItem(new io.swagger.v3.oas.models.tags.Tag().name("Auth").description("Autentifikatsiya va avtorizatsiya (login, register, token refresh, parol tiklash)"))
                 .addTagsItem(new io.swagger.v3.oas.models.tags.Tag().name("Telegram Auth").description("Telegram Mini App autentifikatsiyasi"))
                 .addTagsItem(new io.swagger.v3.oas.models.tags.Tag().name("Users").description("Foydalanuvchi profili, shaxsiy vazifalar va Telegram integratsiyasi"))
@@ -107,15 +111,17 @@ public class SwaggerConfig {
                 Schema<?> errorResponseSchema = new Schema<>()
                         .type("object")
                         .description("Standart xatolik javobi formati")
-                        .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
+                        .addProperty("timestamp", new StringSchema().format("date-time").example("2026-10-12T13:45:00Z").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"))
+                        .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
+                        .addProperty("error", new StringSchema().example("BAD_REQUEST").description("HTTP status nomi yoki umumiy xatolik kodi"))
                         .addProperty("message", new StringSchema().example("Xatolik tavsifi").description("Foydalanuvchiga tushunarli xabar"))
-                        .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
+                        .addProperty("path", new StringSchema().example("/api/workspaces").description("So'rov yuborilgan endpoint manzili"))
+                        .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
+                        .addProperty("success", new BooleanSchema().example(false).description("Doimiy false"))
                         .addProperty("code", new StringSchema().example("BAD_REQUEST").description("Xatolik kodi (backward compatibility)"))
                         .addProperty("errorCode", new StringSchema().example("INVITE_NOT_FOUND").description("Xatolikning mashina o'qiy oladigan enum kodi"))
-                        .addProperty("fieldErrors", new ArraySchema().description("Validatsiya xatolarida maydon nomlari va tafsilotlari ro'yxati"))
-                        .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"))
-                        .addProperty("status", new IntegerSchema().example(400).description("HTTP status kodi"))
-                        .addProperty("timestamp", new DateTimeSchema().example("2026-10-08T17:00:00").description("Xatolik yuz bergan vaqt (ISO-8601 UTC)"));
+                        .addProperty("data", new ObjectSchema().description("Validatsiya xatolarida xatolar xaritasi {maydon: xabar}, aks holda null"))
+                        .addProperty("retryAfterSeconds", new IntegerSchema().example(45).description("Rate limit (429) bo'lganda kutish vaqti soniyalarda"));
                 openApi.getComponents().addSchemas("ErrorResponse", errorResponseSchema);
             }
 

@@ -21,9 +21,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-@Tag(name = "Telegram Auth", description = "Telegram Mini App autentifikatsiyasi")
+@Tag(name = "Telegram Auth", description = "Telegram Mini App autentifikatsiyasi API lari. Tavsiya etilgan usul: POST /api/auth/telegram orqali JWT token olish.")
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping({"/api/auth", "/api/v1/auth"})
 public class TelegramAuthController {
 
     private final TelegramInitDataValidator validator;
@@ -48,7 +48,7 @@ public class TelegramAuthController {
     }
 
     public record TelegramAuthRequest(
-            @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
+            @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri (window.Telegram.WebApp.initData)", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
             @NotBlank String initData) {}
 
     public record TelegramPendingInviteRequest(
@@ -61,12 +61,53 @@ public class TelegramAuthController {
             @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram botga yo'naltiruvchi havola", example = "https://t.me/task_center_bot?start=inv_pP3aK_91xL-w7Q3zD5eFg8hIjKlMnOpQrStUvWxYz01")
             String botLink) {}
 
-    @Operation(operationId = "loginWithTelegram", summary = "Telegram Mini App orqali login",
-            description = "Telegram WebApp tomonidan berilgan initData HMAC-SHA256 imzosini va auth_date muddatini tekshirib, tizimga ulangan foydalanuvchiga JWT token va refresh token beradi.")
+    @Operation(
+            operationId = "loginWithTelegram",
+            summary = "Telegram Mini App orqali login (Tavsiya etilgan usul)",
+            description = "Frontend Telegram Mini App ochilganda `window.Telegram.WebApp.initData` ni ushbu endpointga yuborib JWT token oladi va keyingi barcha so'rovlarda `Authorization: Bearer <token>` headerini ishlatadi. "
+                    + "Foydalanuvchi tizimda topilsa JWT token qaytariladi. Agar foydalanuvchi akkauntini botga ulamagan bo'lsa, xavfsizlik maqsadida avtomatik hisob ochilmaydi va 401 'Avval botda akkauntingizni ulang' xatosi qaytariladi."
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Muvaffaqiyatli kirish"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validatsiya xatosi (VALIDATION_ERROR)"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Yaroqsiz initData yoki bot ulanmagan (UNAUTHORIZED)")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Muvaffaqiyatli kirish — standart login bilan bir xil JWT token va foydalanuvchi ma'lumotlari qaytariladi",
+                    content = @io.swagger.v3.oas.annotations.media.Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ApiResponse.class),
+                            examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                    name = "SuccessResponse",
+                                    value = "{\"success\":true,\"message\":\"Tizimga muvaffaqiyatli kirdingiz\",\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\"refreshToken\":\"d8e3b8a1-7c2e-4b6a-9f1a-8c3d5e7f9a0b\",\"user\":{\"id\":\"u-123456\",\"name\":\"bekmurod\",\"fullName\":\"Bekmurod\",\"telegramLinked\":true}},\"timestamp\":\"2026-10-12T14:40:00Z\"}"
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validatsiya xatosi (VALIDATION_ERROR) — initData bo'sh bo'lganda",
+                    content = @io.swagger.v3.oas.annotations.media.Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.taskcenter.dto.ApiError.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Yaroqsiz/muddati o'tgan initData yoki akkaunt botga ulanmagan",
+                    content = @io.swagger.v3.oas.annotations.media.Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.taskcenter.dto.ApiError.class),
+                            examples = {
+                                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                            name = "InvalidInitData",
+                                            summary = "HMAC buzilgan yoki auth_date 24 soatdan oshgan",
+                                            value = "{\"timestamp\":\"2026-10-12T14:40:00Z\",\"status\":401,\"error\":\"UNAUTHORIZED\",\"message\":\"Invalid or expired initData\",\"path\":\"/api/auth/telegram\"}"
+                                    ),
+                                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                                            name = "UserNotLinked",
+                                            summary = "Telegram foydalanuvchi tizimda topilmadi",
+                                            value = "{\"timestamp\":\"2026-10-12T14:40:00Z\",\"status\":401,\"error\":\"UNAUTHORIZED\",\"message\":\"Avval botda akkauntingizni ulang\",\"path\":\"/api/auth/telegram\"}"
+                                    )
+                            }
+                    )
+            )
     })
     @PostMapping("/telegram")
     public ResponseEntity<ApiResponse<AuthResponse>> telegramLogin(@Valid @RequestBody TelegramAuthRequest req) throws Exception {

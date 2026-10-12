@@ -60,14 +60,14 @@ public class TelegramWebAppInterceptor implements HandlerInterceptor {
 
         Optional<Map<String, String>> paramsOpt = validator.validate(initData);
         if (paramsOpt.isEmpty()) {
-            writeError(response, "Invalid or expired Telegram WebApp initData");
+            writeError(request, response, "Invalid or expired Telegram WebApp initData");
             return false;
         }
 
         Map<String, String> params = paramsOpt.get();
         String userJson = params.get("user");
         if (!StringUtils.hasText(userJson)) {
-            writeError(response, "Telegram user data missing in initData");
+            writeError(request, response, "Telegram user data missing in initData");
             return false;
         }
 
@@ -85,15 +85,28 @@ public class TelegramWebAppInterceptor implements HandlerInterceptor {
             SecurityContextHolder.getContext().setAuthentication(auth);
             return true;
         } else {
-            writeError(response, "Telegram hisob tizim foydalanuvchisiga ulanmagan");
+            writeError(request, response, "Telegram hisob tizim foydalanuvchisiga ulanmagan");
             return false;
         }
     }
 
-    private void writeError(HttpServletResponse response, String message) throws IOException {
+    private void writeError(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
+        if (response.isCommitted()) {
+            return;
+        }
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error("UNAUTHORIZED", message, HttpServletResponse.SC_UNAUTHORIZED)));
+        com.taskcenter.dto.ApiError body = com.taskcenter.dto.ApiError.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpServletResponse.SC_UNAUTHORIZED)
+                .error("UNAUTHORIZED")
+                .message(message)
+                .path(request != null ? request.getRequestURI() : "")
+                .code("UNAUTHORIZED")
+                .errorCode("UNAUTHORIZED")
+                .success(false)
+                .build();
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

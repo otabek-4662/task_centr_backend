@@ -21,6 +21,12 @@ public class TaskDto {
     @Schema(description = "Qisqa inson o'qiy oladigan identifikator", example = "PROJ-12")
     private String publicId;
 
+    @Schema(description = "Vazifaning qisqa kodi/kaliti (masalan WFM-204)", example = "WFM-204")
+    private String key;
+
+    @Schema(description = "Vazifaning qisqa kodi (masalan WFM-204)", example = "WFM-204")
+    private String code;
+
     @Schema(description = "Ustun identifikatori", example = "col-12345")
     private String columnId;
 
@@ -35,6 +41,9 @@ public class TaskDto {
 
     @Schema(description = "LexoRank saralash tartibi", example = "0|hzzzzz:")
     private String lexoRank;
+
+    @Schema(description = "Vazifaning rank tartibi (LexoRank)", example = "0|hzzzzz:")
+    private String rank;
 
     @Schema(description = "Muhimlik darajasi", example = "HIGH")
     private Priority priority;
@@ -75,6 +84,12 @@ public class TaskDto {
     @Schema(description = "Vazifaga biriktirilgan ijrochilar")
     private List<UserDto> assignees;
 
+    @Schema(description = "Vazifaga biriktirilgan asosiy ijrochi", implementation = UserSummaryDto.class)
+    private UserSummaryDto assignee;
+
+    @Schema(description = "Vazifani yaratgan/hisob beruvchi foydalanuvchi", implementation = ReporterDto.class)
+    private ReporterDto reporter;
+
     @Schema(description = "Kuzatuvchilar ro'yxati")
     private List<UserDto> watchers;
 
@@ -87,15 +102,84 @@ public class TaskDto {
     @Schema(description = "So'nggi o'zgartirilgan vaqt (ISO-8601)", example = "2026-10-08T15:35:00")
     private java.time.LocalDateTime updatedAt;
 
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserSummaryDto {
+        @Schema(description = "Foydalanuvchi identifikatori", example = "u-123456")
+        private String id;
+
+        @Schema(description = "Foydalanuvchi to'liq ismi", example = "Ali Valiyev")
+        private String fullName;
+
+        @Schema(description = "Avatar havolasi", example = "https://example.com/avatar.png")
+        private String avatarUrl;
+
+        public static UserSummaryDto fromEntity(com.taskcenter.model.User user) {
+            if (user == null) return null;
+            return UserSummaryDto.builder()
+                    .id(user.getId())
+                    .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
+                    .avatarUrl(null)
+                    .build();
+        }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReporterDto {
+        @Schema(description = "Hisob beruvchi identifikatori", example = "u-123456")
+        private String id;
+
+        @Schema(description = "Hisob beruvchi to'liq ismi", example = "Vali Aliyev")
+        private String fullName;
+
+        public static ReporterDto fromEntity(com.taskcenter.model.User user) {
+            if (user == null) return null;
+            return ReporterDto.builder()
+                    .id(user.getId())
+                    .fullName(user.getFullName() != null ? user.getFullName() : user.getName())
+                    .build();
+        }
+    }
+
     public static TaskDto fromEntity(Task t) {
+        return fromEntity(t, null);
+    }
+
+    public static TaskDto fromEntity(Task t, com.taskcenter.model.User reporterUser) {
+        if (t == null) return null;
+
+        com.taskcenter.model.User firstAssignee = (t.getAssignees() != null && !t.getAssignees().isEmpty())
+                ? t.getAssignees().iterator().next()
+                : null;
+
+        ReporterDto reporterDto = null;
+        if (reporterUser != null) {
+            reporterDto = ReporterDto.fromEntity(reporterUser);
+        } else if (t.getCreatedBy() != null) {
+            reporterDto = ReporterDto.builder()
+                    .id(t.getCreatedBy())
+                    .fullName(t.getCreatedBy())
+                    .build();
+        }
+
+        String taskCode = t.getPublicId() != null ? t.getPublicId() : t.getId();
+
         return TaskDto.builder()
                 .id(t.getId())
                 .publicId(t.getPublicId())
+                .key(taskCode)
+                .code(taskCode)
                 .columnId(t.getColumnId())
                 .workspaceId(t.getWorkspaceId())
                 .title(t.getTitle())
                 .description(t.getDescription())
                 .lexoRank(t.getLexoRank())
+                .rank(t.getLexoRank())
                 .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
                 .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                 .dueDate(t.getDueDate())
@@ -109,6 +193,8 @@ public class TaskDto {
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .directions(t.getDirections() != null ? t.getDirections().stream().map(DirectionDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .assignee(UserSummaryDto.fromEntity(firstAssignee))
+                .reporter(reporterDto)
                 .watchers(t.getWatchers() != null ? t.getWatchers().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .isArchived(t.getIsArchived())
                 .createdAt(t.getCreatedAt())

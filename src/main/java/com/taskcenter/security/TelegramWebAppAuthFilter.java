@@ -72,7 +72,7 @@ public class TelegramWebAppAuthFilter extends OncePerRequestFilter {
 
             if (validatedParamsOpt.isEmpty()) {
                 log.warn("Telegram WebApp initData HMAC-SHA256 tekshiruvidan o'tmadi yoki muddati tugagan: URI={}", request.getRequestURI());
-                rejectUnauthorized(response, "Invalid or expired Telegram WebApp initData");
+                rejectUnauthorized(request, response, "Invalid or expired Telegram WebApp initData");
                 return;
             }
 
@@ -81,7 +81,7 @@ public class TelegramWebAppAuthFilter extends OncePerRequestFilter {
 
             if (!StringUtils.hasText(userJson)) {
                 log.warn("Telegram initData ichida user ma'lumotlari mavjud emas");
-                rejectUnauthorized(response, "Telegram user data is missing in initData");
+                rejectUnauthorized(request, response, "Telegram user data is missing in initData");
                 return;
             }
 
@@ -108,7 +108,7 @@ public class TelegramWebAppAuthFilter extends OncePerRequestFilter {
                     log.warn("Telegram ID ({}) ga bog'langan foydalanuvchi topilmadi", telegramId);
                     // Agar endpoint Telegram orqali login/link qilish uchun bo'lsa, davom etishga ruxsat berish mumkin,
                     // ammo himoyalangan resurslar uchun 401 qaytariladi
-                    rejectUnauthorized(response, "Telegram hisob tizim foydalanuvchisiga ulanmagan");
+                    rejectUnauthorized(request, response, "Telegram hisob tizim foydalanuvchisiga ulanmagan");
                     return;
                 }
             }
@@ -117,7 +117,7 @@ public class TelegramWebAppAuthFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
             log.error("Telegram WebApp autentifikatsiyasini tekshirishda xatolik: {}", e.getMessage(), e);
-            rejectUnauthorized(response, "Telegram WebApp autentifikatsiya xatosi: " + e.getMessage());
+            rejectUnauthorized(request, response, "Telegram WebApp autentifikatsiya xatosi: " + e.getMessage());
         }
     }
 
@@ -143,12 +143,25 @@ public class TelegramWebAppAuthFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private void rejectUnauthorized(HttpServletResponse response, String message) throws IOException {
+    private void rejectUnauthorized(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
+        if (response.isCommitted()) {
+            return;
+        }
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        ApiResponse<Void> apiResponse = ApiResponse.error("UNAUTHORIZED", message, HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+        String path = request != null ? request.getRequestURI() : "";
+        com.taskcenter.dto.ApiError body = com.taskcenter.dto.ApiError.builder()
+                .timestamp(java.time.Instant.now())
+                .status(HttpServletResponse.SC_UNAUTHORIZED)
+                .error("UNAUTHORIZED")
+                .message(message)
+                .path(path)
+                .code("UNAUTHORIZED")
+                .errorCode("UNAUTHORIZED")
+                .success(false)
+                .build();
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }
