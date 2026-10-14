@@ -11,13 +11,8 @@ public class FlywayConfig {
     @Bean
     public FlywayMigrationStrategy cleanMigrateStrategy() {
         return flyway -> {
-            try {
-                flyway.migrate();
-            } catch (FlywayValidateException e) {
-                // Faqat validatsiya yoki oldingi migratsiyada xato bo'lgandagina repair() chaqiriladi
-                flyway.repair();
-                flyway.migrate();
-            }
+            flyway.repair();
+            flyway.migrate();
         };
     }
 }

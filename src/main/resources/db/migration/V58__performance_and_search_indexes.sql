@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_task_activities_task_created_desc
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
     ON notifications (user_id, is_read, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_chat_messages_workspace_created_desc
-    ON chat_messages (workspace_id, created_at DESC)
+CREATE INDEX IF NOT EXISTS idx_chat_messages_type_created_desc
+    ON chat_messages (type, created_at DESC)
     WHERE deleted_at IS NULL;
+
