@@ -1,10 +1,12 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.TaskDetailsDto;
 import com.taskcenter.dto.TaskDto;
 import com.taskcenter.model.User;
 import com.taskcenter.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,7 +34,7 @@ public class TaskDirectController {
     )
     @GetMapping("/{id}")
     public ApiResponse<TaskDto> getTaskDirectById(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.getTaskDirectById(id, currentUser);
@@ -45,11 +47,11 @@ public class TaskDirectController {
             description = "Vazifa, uning izohlari va checklist elementlarini qaytaradi."
     )
     @GetMapping("/{id}/details")
-    public ApiResponse<com.taskcenter.dto.TaskDetailsDto> getTaskDetails(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+    public ApiResponse<TaskDetailsDto> getTaskDetails(
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
-        com.taskcenter.dto.TaskDetailsDto details = taskService.getTaskDetails(id, currentUser);
+        TaskDetailsDto details = taskService.getTaskDetails(id, currentUser);
         return ApiResponse.success("ok", details);
     }
 }

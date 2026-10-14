@@ -2,6 +2,7 @@ package com.taskcenter.security;
 
 import com.taskcenter.model.User;
 import com.taskcenter.repository.UserRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,6 +18,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
+    @Cacheable(value = "users", key = "#name.toLowerCase()")
     public UserDetails loadUserByUsername(String name) throws UsernameNotFoundException {
         User user = userRepository.findByNameOrEmail(name)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with name or email: " + name));

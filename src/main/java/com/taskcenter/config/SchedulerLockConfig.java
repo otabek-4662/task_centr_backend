@@ -6,7 +6,9 @@ import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import javax.sql.DataSource;
 
@@ -14,6 +16,21 @@ import javax.sql.DataSource;
 @EnableScheduling
 @EnableSchedulerLock(defaultLockAtMostFor = "15m")
 public class SchedulerLockConfig {
+
+    /**
+     * @Scheduled vazifalar WebSocket ning yagona oqimli MessageBroker-1 (sockJsScheduler)
+     * oqimini band qilib qo'ymasligi uchun alohida TaskScheduler bean ajratamiz.
+     */
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(2);
+        scheduler.setThreadNamePrefix("AppScheduler-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(20);
+        scheduler.initialize();
+        return scheduler;
+    }
 
     @Bean
     public LockProvider lockProvider(DataSource dataSource) {

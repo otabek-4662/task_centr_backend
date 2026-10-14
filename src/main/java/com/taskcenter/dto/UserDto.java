@@ -32,7 +32,7 @@ public class UserDto {
     @Schema(description = "Vazifalar soni", example = "15")
     private Long taskCount;
 
-    @Schema(description = "Foydalanuvchining o'zbekona maqomi / unvoni", example = "O'zimizdan")
+    @Schema(description = "Foydalanuvchining o'zbekona maqomi / unvoni", example = "O'zimizning bola")
     private String statusNickname;
 
     @Schema(description = "Telegram bot bilan ulanganmi (faqat joriy foydalanuvchi uchun qaytadi)", example = "true")
@@ -44,11 +44,11 @@ public class UserDto {
     public static String calculateStatusNickname(long count) {
         if (count <= 0) return "Begona bola";
         if (count <= 10) return "Do'konga chopuvchi";
-        if (count <= 25) return "O'zimizdan";
-        if (count <= 50) return "Ishonganimiz";
+        if (count <= 25) return "O'zimizning bola";
+        if (count <= 50) return "Ishongan tog'imiz";
         if (count <= 100) return "Ko'cha ko'rgan";
-        if (count <= 200) return "Katta uka";
-        return "Katta aka";
+        if (count <= 200) return "Okaxon";
+        return "Choyxona oqsoqoli";
     }
 
     public static UserDto fromEntity(User user) {

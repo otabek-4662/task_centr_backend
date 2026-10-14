@@ -2,28 +2,48 @@ package com.taskcenter.service;
 
 import com.taskcenter.dto.*;
 import com.taskcenter.exception.BadRequestException;
+import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.exception.ValidationException;
 import com.taskcenter.model.BoardColumn;
+import com.taskcenter.model.Direction;
 import com.taskcenter.model.IssueType;
+import com.taskcenter.model.Label;
 import com.taskcenter.model.Priority;
+import com.taskcenter.model.Sprint;
+import com.taskcenter.model.SprintStatus;
 import com.taskcenter.model.Task;
 import com.taskcenter.model.TaskActivityType;
+import com.taskcenter.model.TaskWorklog;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.model.WorkspaceRole;
 import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.DirectionRepository;
+import com.taskcenter.repository.LabelRepository;
+import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.repository.TaskWorklogRepository;
+import com.taskcenter.repository.TelegramReminderLogRepository;
 import com.taskcenter.repository.UserRepository;
+import com.taskcenter.util.LexoRankUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,35 +51,40 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class TaskService {
 
+    private static final Logger log = LoggerFactory.getLogger(TaskService.class);
+
     private final TaskRepository taskRepository;
     private final ColumnRepository columnRepository;
-    private final com.taskcenter.repository.SprintRepository sprintRepository;
+    private final SprintRepository sprintRepository;
     private final WorkspaceAuthorizationService authorizationService;
     private final TaskActivityService activityService;
     private final WebSocketNotifier webSocketNotifier;
     private final NotificationService notificationService;
-    private final com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository;
+    private final TelegramReminderLogRepository telegramReminderLogRepository;
     private final TelegramNotificationService telegramNotificationService;
     private final UserRepository userRepository;
-    private final com.taskcenter.repository.LabelRepository labelRepository;
-    private final com.taskcenter.repository.DirectionRepository directionRepository;
-    private final java.time.Clock clock;
+    private final LabelRepository labelRepository;
+    private final DirectionRepository directionRepository;
+    private final Clock clock;
+
+    private TaskWorklogRepository taskWorklogRepository;
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
-                       com.taskcenter.repository.SprintRepository sprintRepository,
+                       SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService,
                        WebSocketNotifier webSocketNotifier,
                        NotificationService notificationService,
-                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramReminderLogRepository telegramReminderLogRepository,
                        TelegramNotificationService telegramNotificationService,
                        UserRepository userRepository,
-                       java.time.Clock clock) {
+                       Clock clock) {
         this(taskRepository, columnRepository, sprintRepository, authorizationService,
              activityService, webSocketNotifier, notificationService,
              telegramReminderLogRepository, telegramNotificationService,
@@ -68,36 +93,36 @@ public class TaskService {
 
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
-                       com.taskcenter.repository.SprintRepository sprintRepository,
+                       SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService,
                        WebSocketNotifier webSocketNotifier,
                        NotificationService notificationService,
-                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramReminderLogRepository telegramReminderLogRepository,
                        TelegramNotificationService telegramNotificationService,
                        UserRepository userRepository,
-                       com.taskcenter.repository.LabelRepository labelRepository,
-                       java.time.Clock clock) {
+                       LabelRepository labelRepository,
+                       Clock clock) {
         this(taskRepository, columnRepository, sprintRepository, authorizationService,
              activityService, webSocketNotifier, notificationService,
              telegramReminderLogRepository, telegramNotificationService,
              userRepository, labelRepository, null, clock);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public TaskService(TaskRepository taskRepository,
                        ColumnRepository columnRepository,
-                       com.taskcenter.repository.SprintRepository sprintRepository,
+                       SprintRepository sprintRepository,
                        WorkspaceAuthorizationService authorizationService,
                        TaskActivityService activityService,
                        WebSocketNotifier webSocketNotifier,
                        NotificationService notificationService,
-                       com.taskcenter.repository.TelegramReminderLogRepository telegramReminderLogRepository,
+                       TelegramReminderLogRepository telegramReminderLogRepository,
                        TelegramNotificationService telegramNotificationService,
                        UserRepository userRepository,
-                       com.taskcenter.repository.LabelRepository labelRepository,
-                       com.taskcenter.repository.DirectionRepository directionRepository,
-                       java.time.Clock clock) {
+                       LabelRepository labelRepository,
+                       DirectionRepository directionRepository,
+                       Clock clock) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.sprintRepository = sprintRepository;
@@ -113,32 +138,38 @@ public class TaskService {
         this.clock = clock;
     }
 
+    @Autowired(required = false)
+    public void setTaskWorklogRepository(TaskWorklogRepository taskWorklogRepository) {
+        this.taskWorklogRepository = taskWorklogRepository;
+    }
+
     @Transactional(readOnly = true)
     public List<ColumnWithCardsDto> getBoard(String workspaceId, String sprintId, User currentUser) {
+        return getBoard(workspaceId, sprintId, null, currentUser);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ColumnWithCardsDto> getBoard(String workspaceId, String sprintId, Integer doneLimit, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        
+
         String effectiveSprintId = sprintId;
         if (effectiveSprintId == null) {
-            java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
+            Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE);
             if (activeOpt.isPresent()) {
                 effectiveSprintId = activeOpt.get().getId();
             }
         }
-        
-        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<Task> allTasks;
-        if (effectiveSprintId != null) {
-            allTasks = taskRepository.findBySprintId(effectiveSprintId);
-        } else {
-            allTasks = taskRepository.findByWorkspaceIdWithDetails(workspaceId);
-        }
 
-        // Barcha reporterlarni bitta IN so'rov bilan yig'ib olamiz (N+1 muammosini oldini olish)
+        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        List<Task> allTasks = (effectiveSprintId != null)
+                ? taskRepository.findBySprintId(effectiveSprintId)
+                : taskRepository.findByWorkspaceIdWithDetails(workspaceId);
+
         Set<String> creatorIds = allTasks.stream()
                 .map(Task::getCreatedBy)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        Map<String, User> reporterMap = new java.util.HashMap<>();
+        Map<String, User> reporterMap = new HashMap<>();
         if (!creatorIds.isEmpty()) {
             userRepository.findAllById(creatorIds).forEach(u -> {
                 if (u.getId() != null) {
@@ -148,32 +179,36 @@ public class TaskService {
         }
 
         return cols.stream().map(c -> {
-            List<Task> columnTasks = allTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()) && (t.getIsArchived() == null || Boolean.FALSE.equals(t.getIsArchived())))
-                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
-                    .collect(Collectors.toList());
+            Stream<Task> stream = allTasks.stream()
+                    .filter(t -> c.getId().equals(t.getColumnId()) && !Boolean.TRUE.equals(t.getIsArchived()))
+                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())));
+
+            if (Boolean.TRUE.equals(c.getIsDone()) && doneLimit != null && doneLimit > 0) {
+                stream = stream.limit(doneLimit);
+            }
+
+            List<Task> columnTasks = stream.collect(Collectors.toList());
             return ColumnWithCardsDto.fromEntity(c, columnTasks, reporterMap);
         }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<com.taskcenter.dto.BoardInitColumnDto> getBoardInit(String workspaceId, String sprintId, User currentUser) {
+    public List<BoardInitColumnDto> getBoardInit(String workspaceId, String sprintId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        
+
         String effectiveSprintId = sprintId;
         if (effectiveSprintId == null) {
-            java.util.Optional<com.taskcenter.model.Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, com.taskcenter.model.SprintStatus.ACTIVE);
+            Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE);
             if (activeOpt.isEmpty()) {
                 List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
                 return cols.stream()
-                        .map(c -> com.taskcenter.dto.BoardInitColumnDto.fromEntity(c, java.util.Collections.emptyList()))
+                        .map(c -> BoardInitColumnDto.fromEntity(c, Collections.emptyList()))
                         .collect(Collectors.toList());
             }
             effectiveSprintId = activeOpt.get().getId();
         }
-        
+
         final String targetSprintId = effectiveSprintId;
-        
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
         List<Task> allSprintTasks = taskRepository.findBySprintId(targetSprintId);
 
@@ -182,13 +217,13 @@ public class TaskService {
                     .filter(t -> c.getId().equals(t.getColumnId()) && Boolean.FALSE.equals(t.getIsArchived()))
                     .sorted(Comparator.comparing(Task::getLexoRank))
                     .collect(Collectors.toList());
-            return com.taskcenter.dto.BoardInitColumnDto.fromEntity(c, columnTasks);
+            return BoardInitColumnDto.fromEntity(c, columnTasks);
         }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<ColumnWithCardsDto> getBoard(String workspaceId, User currentUser) {
-        return getBoard(workspaceId, null, currentUser);
+        return getBoard(workspaceId, null, null, currentUser);
     }
 
     @Transactional(readOnly = true)
@@ -202,32 +237,31 @@ public class TaskService {
         if (query == null || query.isBlank()) {
             query = filter.getQ();
         }
-        if (query != null && !query.isBlank()) {
-            filter.setSearch(query.trim());
-        } else {
-            filter.setSearch(null);
-        }
+        filter.setSearch((query != null && !query.isBlank()) ? query.trim() : null);
+
         if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
-            filter.setEndOfWeek(LocalDate.now(clock).with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
+            filter.setEndOfWeek(LocalDate.now(clock).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)));
         }
         filter.setToday(LocalDate.now(clock));
+
         Page<String> idPage = taskRepository.findIdsByWorkspaceIdFiltered(workspaceId, filter, pageable);
         List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
-        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
+        Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
         List<TaskDto> dtos = idPage.getContent().stream()
                 .map(taskMap::get)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
-        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, idPage.getTotalElements());
+        return new PageImpl<>(dtos, pageable, idPage.getTotalElements());
     }
 
-    public Page<TaskDto> getMyTasks(User currentUser, com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<TaskDto> getMyTasks(User currentUser, TaskFilterRequest filter, Pageable pageable) {
         if (currentUser == null) {
-            throw new com.taskcenter.exception.ForbiddenException("Foydalanuvchi aniqlanmadi");
+            throw new ForbiddenException("Foydalanuvchi aniqlanmadi");
         }
         if (filter == null) {
-            filter = new com.taskcenter.dto.TaskFilterRequest();
+            filter = new TaskFilterRequest();
         }
         if (filter.getQ() != null && !filter.getQ().isBlank() && (filter.getSearch() == null || filter.getSearch().isBlank())) {
             filter.setSearch(filter.getQ());
@@ -236,23 +270,23 @@ public class TaskService {
             filter.setSearch(null);
         }
         if (Boolean.TRUE.equals(filter.getDueThisWeek())) {
-            filter.setEndOfWeek(LocalDate.now(clock).with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)));
+            filter.setEndOfWeek(LocalDate.now(clock).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)));
         }
         filter.setToday(LocalDate.now(clock));
         filter.setCurrentUserId(currentUser.getId());
 
         Page<String> idPage = taskRepository.findAssignedTaskIdsByUserIdFiltered(currentUser.getId(), filter, pageable);
         if (idPage.isEmpty()) {
-            return new org.springframework.data.domain.PageImpl<>(List.of(), pageable, idPage.getTotalElements());
+            return new PageImpl<>(List.of(), pageable, idPage.getTotalElements());
         }
         List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
-        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
+        Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
         List<TaskDto> dtos = idPage.getContent().stream()
                 .map(taskMap::get)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
-        return new org.springframework.data.domain.PageImpl<>(dtos, pageable, idPage.getTotalElements());
+        return new PageImpl<>(dtos, pageable, idPage.getTotalElements());
     }
 
     private Task getTaskAndValidateWorkspace(String id, String workspaceId) {
@@ -303,33 +337,28 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public com.taskcenter.dto.TaskDetailsDto getTaskDetails(String id, User currentUser) {
+    public TaskDetailsDto getTaskDetails(String id, User currentUser) {
         Task task = taskRepository.findByIdWithDetails(id)
                 .or(() -> taskRepository.findById(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + id));
         authorizationService.checkAccess(task.getWorkspaceId(), currentUser);
-        
-        com.taskcenter.dto.TaskDto taskDto = TaskDto.fromEntity(task);
-        // We can fetch comments and checklists from task if they are mapped, or just return empty for now if not injected.
-        // Actually, checklists are inside Task model!
-        List<com.taskcenter.dto.ChecklistItemDto> checklists = task.getChecklistItems() != null 
-                ? task.getChecklistItems().stream().map(com.taskcenter.dto.ChecklistItemDto::fromEntity).collect(Collectors.toList()) 
+
+        TaskDto taskDto = TaskDto.fromEntity(task);
+        List<ChecklistItemDto> checklists = task.getChecklistItems() != null
+                ? task.getChecklistItems().stream().map(ChecklistItemDto::fromEntity).collect(Collectors.toList())
                 : List.of();
-        // comments aren't eagerly loaded in task, but let's assume they are empty or we can just fetch if we had commentService.
-        // To strictly avoid duplicate logic and coupling without CommentService, we just build it.
-        return com.taskcenter.dto.TaskDetailsDto.builder()
+
+        return TaskDetailsDto.builder()
                 .task(taskDto)
                 .checklists(checklists)
-                .comments(List.of()) // Comment fetching can be done by client via existing /comments endpoint, or we can add it later
+                .comments(List.of())
                 .build();
     }
-
 
     @Transactional(readOnly = true)
     public TaskDto getTaskById(String workspaceId, String id, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         Task task = getTaskAndValidateWorkspace(id, workspaceId);
-
         return TaskDto.fromEntity(task);
     }
 
@@ -347,8 +376,86 @@ public class TaskService {
         return TaskDto.fromEntity(task);
     }
 
-    private Set<com.taskcenter.model.Direction> resolveDirections(String workspaceId, Set<String> directionIds, Set<String> directionNamesOrIds) {
-        Set<com.taskcenter.model.Direction> result = new HashSet<>();
+    @Transactional(readOnly = true)
+    public List<TaskDto> getSubtasks(String workspaceId, String parentTaskId, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        getTaskSimpleAndValidateWorkspace(parentTaskId, workspaceId);
+        List<Task> subtasks = taskRepository.findByParentIdOrderByLexoRankAsc(parentTaskId);
+        if (subtasks == null || subtasks.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return subtasks.stream()
+                .filter(t -> workspaceId.equals(t.getWorkspaceId()))
+                .map(TaskDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskWorklogDto> getWorklogs(String workspaceId, String taskId, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+        getTaskSimpleAndValidateWorkspace(taskId, workspaceId);
+        if (taskWorklogRepository == null) {
+            return Collections.emptyList();
+        }
+        List<TaskWorklog> logs = taskWorklogRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+        if (logs == null || logs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Set<String> userIds = logs.stream()
+                .map(TaskWorklog::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty() && userRepository != null) {
+            userRepository.findAllById(userIds).forEach(u -> {
+                if (u.getId() != null) {
+                    userMap.put(u.getId(), u);
+                }
+            });
+        }
+        return logs.stream()
+                .map(w -> TaskWorklogDto.fromEntity(w, userMap.get(w.getUserId())))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public TaskWorklogDto addWorklog(String workspaceId, String taskId, TaskWorklogCreateRequest req, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+        Task task = getTaskAndValidateWorkspace(taskId, workspaceId);
+        if (req == null || req.getHours() == null || req.getHours() <= 0) {
+            throw new BadRequestException("Sarflangan soat (hours) 0 dan katta bo'lishi shart");
+        }
+
+        LocalDate workDate = req.getWorkDate() != null ? req.getWorkDate() : LocalDate.now(clock);
+        TaskWorklog worklog = TaskWorklog.builder()
+                .taskId(taskId)
+                .workspaceId(workspaceId)
+                .userId(currentUser.getId())
+                .hours(req.getHours())
+                .description(req.getDescription())
+                .workDate(workDate)
+                .build();
+
+        if (taskWorklogRepository != null) {
+            worklog = taskWorklogRepository.save(worklog);
+            Double totalLogged = taskWorklogRepository.sumHoursByTaskId(taskId);
+            task.setLoggedHours(totalLogged != null ? totalLogged : req.getHours());
+        } else {
+            task.logTime(req.getHours());
+        }
+
+        Task savedTask = taskRepository.save(task);
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("TASK_UPDATED")
+                .workspaceId(workspaceId)
+                .data(TaskDto.fromEntity(savedTask))
+                .build());
+
+        return TaskWorklogDto.fromEntity(worklog, currentUser);
+    }
+
+    private Set<Direction> resolveDirections(String workspaceId, Set<String> directionIds, Set<String> directionNamesOrIds) {
+        Set<Direction> result = new HashSet<>();
         if (directionRepository == null) {
             return result;
         }
@@ -374,28 +481,28 @@ public class TaskService {
                     continue;
                 }
 
-                Optional<com.taskcenter.model.Direction> byId = directionRepository.findByIdAndWorkspaceId(trimmed, workspaceId);
+                Optional<Direction> byId = directionRepository.findByIdAndWorkspaceId(trimmed, workspaceId);
                 if (byId != null && byId.isPresent()) {
                     result.add(byId.get());
                     continue;
                 }
 
-                Optional<com.taskcenter.model.Direction> byName = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
+                Optional<Direction> byName = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
                 if (byName != null && byName.isPresent()) {
                     result.add(byName.get());
                     continue;
                 }
 
-                com.taskcenter.model.Direction newDir = com.taskcenter.model.Direction.builder()
+                Direction newDir = Direction.builder()
                         .workspaceId(workspaceId)
                         .name(trimmed)
                         .color("#3B82F6")
                         .build();
                 try {
-                    com.taskcenter.model.Direction saved = directionRepository.saveAndFlush(newDir);
+                    Direction saved = directionRepository.saveAndFlush(newDir);
                     result.add(saved != null ? saved : newDir);
                 } catch (Exception e) {
-                    Optional<com.taskcenter.model.Direction> fallback = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
+                    Optional<Direction> fallback = directionRepository.findByWorkspaceIdAndNameIgnoreCase(workspaceId, trimmed);
                     if (fallback != null && fallback.isPresent()) {
                         result.add(fallback.get());
                     } else {
@@ -448,23 +555,50 @@ public class TaskService {
                 Optional<User> byNameOrEmail = userRepository.findByNameOrEmail(identifier);
                 if (byNameOrEmail != null && byNameOrEmail.isPresent()) {
                     result.add(byNameOrEmail.get());
-                    continue;
                 }
             }
         }
         return result;
     }
 
+    /**
+     * Workspace keyPrefix asosida ketma-ket Jira uslubidagi kodni (masalan, LOY-1, LOY-2) generatsiya qiladi.
+     */
+    private String generateSequentialPublicId(String workspaceId, Workspace workspace) {
+        if (workspace == null) {
+            return null;
+        }
+        String rawPrefix = workspace.getKeyPrefix();
+        String cleanPrefix = "WFM";
+        if (rawPrefix != null && !rawPrefix.isBlank()) {
+            String head = rawPrefix.split("-")[0].replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+            if (!head.isEmpty()) {
+                cleanPrefix = head;
+            }
+        }
+        long baseCount = taskRepository.countAllByWorkspaceId(workspaceId);
+        long currentSeq = workspace.getTaskSeq() != null ? workspace.getTaskSeq() : 0L;
+        long nextSeq = Math.max(baseCount, currentSeq) + 1L;
+        workspace.setTaskSeq(nextSeq);
+        return cleanPrefix + "-" + nextSeq;
+    }
+
     @Transactional
     public TaskDto createTask(String workspaceId, TaskCreateRequest req, User currentUser) {
-        authorizationService.checkCanEdit(workspaceId, currentUser);
+        Workspace workspace = authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        BoardColumn column = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
+        getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
+
+        String parentId = null;
+        if (req.getParentId() != null && !req.getParentId().isBlank()) {
+            Task parentTask = getTaskSimpleAndValidateWorkspace(req.getParentId().trim(), workspaceId);
+            parentId = parentTask.getId();
+        }
 
         String lexoRank = req.getLexoRank();
         if (lexoRank == null || lexoRank.isBlank()) {
             String maxRank = taskRepository.findMaxLexoRankByColumnId(req.getColumnId());
-            lexoRank = com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null);
+            lexoRank = LexoRankUtil.getMiddleSafe(maxRank, null);
         }
 
         Priority priority = req.getPriority() != null ? req.getPriority() : Priority.MEDIUM;
@@ -472,20 +606,24 @@ public class TaskService {
 
         String sprintId = null;
         if (req.getSprintId() != null && !req.getSprintId().isBlank()) {
-            com.taskcenter.model.Sprint sprint = sprintRepository.findById(req.getSprintId())
+            Sprint sprint = sprintRepository.findById(req.getSprintId())
                     .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + req.getSprintId()));
             if (!workspaceId.equals(sprint.getWorkspaceId())) {
                 throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
             }
-            if (sprint.getStatus() == com.taskcenter.model.SprintStatus.COMPLETED) {
+            if (sprint.getStatus() == SprintStatus.COMPLETED) {
                 throw new BadRequestException("Yopilgan sprintga yangi vazifa biriktirib bo'lmaydi");
             }
             sprintId = sprint.getId();
         }
 
+        String sequentialPublicId = generateSequentialPublicId(workspaceId, workspace);
+
         Task task = Task.builder()
                 .workspaceId(workspaceId)
                 .columnId(req.getColumnId())
+                .parentId(parentId)
+                .publicId(sequentialPublicId)
                 .title(req.getTitle())
                 .description(req.getDescription())
                 .lexoRank(lexoRank)
@@ -493,6 +631,7 @@ public class TaskService {
                 .issueType(issueType)
                 .dueDate(req.getDueDate())
                 .storyPoints(req.getStoryPoints())
+                .estimatedHours(req.getEstimatedHours())
                 .sprintId(sprintId)
                 .build();
 
@@ -501,7 +640,7 @@ public class TaskService {
             task.getAssignees().addAll(assignees);
         }
 
-        Set<com.taskcenter.model.Direction> directions = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
+        Set<Direction> directions = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
         if (!directions.isEmpty()) {
             task.getDirections().addAll(directions);
         }
@@ -509,12 +648,17 @@ public class TaskService {
         if (req.getLabelIds() != null && !req.getLabelIds().isEmpty() && labelRepository != null) {
             Set<String> targetLabelIds = req.getLabelIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
             if (!targetLabelIds.isEmpty()) {
-                List<com.taskcenter.model.Label> labels = labelRepository.findAllById(targetLabelIds);
+                List<Label> labels = labelRepository.findAllById(targetLabelIds);
                 task.getLabels().addAll(labels);
             }
         }
 
         Task saved = taskRepository.save(task);
+        if (LexoRankUtil.needsRebalancing(saved.getLexoRank())) {
+            rebalanceColumnInternal(workspaceId, saved.getColumnId());
+            saved = taskRepository.findById(saved.getId()).orElse(saved);
+        }
+
         if (task.getAssignees() != null) {
             for (User assignee : task.getAssignees()) {
                 telegramNotificationService.sendTaskAssignedNotification(saved, assignee, currentUser);
@@ -534,11 +678,9 @@ public class TaskService {
     public TaskResponseV2 createTaskV2(String workspaceId, TaskCreateRequestV2 req, User currentUser) {
         Workspace workspace = authorizationService.checkCanEdit(workspaceId, currentUser);
 
-        // Unknown columnId -> 404 NOT_FOUND
         columnRepository.findByIdAndWorkspaceId(req.columnId(), workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ustun topilmadi: " + req.columnId()));
 
-        // Validation: every id in users must be a member of the workspace, otherwise 400 VALIDATION_ERROR
         if (req.users() != null && !req.users().isEmpty()) {
             for (String userId : req.users()) {
                 if (userId == null || userId.isBlank()) {
@@ -557,7 +699,6 @@ public class TaskService {
             }
         }
 
-        // Reuse existing createTask via mapper (users -> assigneeIds, direction -> existing directions mechanism)
         TaskCreateRequest v1Req = new TaskCreateRequest();
         v1Req.setColumnId(req.columnId());
         v1Req.setTitle(req.title());
@@ -629,9 +770,19 @@ public class TaskService {
             task.setColumnId(req.getColumnId());
             if (req.getLexoRank() == null) {
                 String maxRank = taskRepository.findMaxLexoRankByColumnId(req.getColumnId());
-                task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null));
+                task.setLexoRank(LexoRankUtil.getMiddleSafe(maxRank, null));
             }
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
+        }
+
+        if (req.getParentId() != null) {
+            String trimmedParent = req.getParentId().trim();
+            if (trimmedParent.isEmpty()) {
+                task.setParentId(null);
+            } else if (!trimmedParent.equals(task.getId())) {
+                Task parentTask = getTaskSimpleAndValidateWorkspace(trimmedParent, workspaceId);
+                task.setParentId(parentTask.getId());
+            }
         }
 
         if (req.getTitle() != null && !req.getTitle().equals(task.getTitle())) {
@@ -667,15 +818,18 @@ public class TaskService {
             task.setStoryPoints(req.getStoryPoints());
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STORY_POINTS_UPDATED, "storyPoints", String.valueOf(oldPoints), String.valueOf(req.getStoryPoints()));
         }
+        if (req.getEstimatedHours() != null) {
+            task.setEstimatedHours(req.getEstimatedHours());
+        }
         if (req.getSprintId() != null) {
             String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
             if (newSprintId != null && !newSprintId.equals(task.getSprintId())) {
-                com.taskcenter.model.Sprint sprint = sprintRepository.findById(newSprintId)
+                Sprint sprint = sprintRepository.findById(newSprintId)
                         .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi: " + newSprintId));
                 if (!workspaceId.equals(sprint.getWorkspaceId())) {
                     throw new BadRequestException("Sprint ushbu workspace ga tegishli emas");
                 }
-                if (sprint.getStatus() == com.taskcenter.model.SprintStatus.COMPLETED) {
+                if (sprint.getStatus() == SprintStatus.COMPLETED) {
                     throw new BadRequestException("Yopilgan sprintga vazifani ko'chirib bo'lmaydi");
                 }
                 String oldSprintId = task.getSprintId();
@@ -710,9 +864,9 @@ public class TaskService {
         }
 
         if ((req.getDirectionIds() != null || req.getDirection() != null) && directionRepository != null) {
-            Set<com.taskcenter.model.Direction> targetDirs = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
-            Set<String> targetDirIds = targetDirs.stream().map(com.taskcenter.model.Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
-            Set<String> existingDirIds = task.getDirections().stream().map(com.taskcenter.model.Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<Direction> targetDirs = resolveDirections(workspaceId, req.getDirectionIds(), req.getDirection());
+            Set<String> targetDirIds = targetDirs.stream().map(Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+            Set<String> existingDirIds = task.getDirections().stream().map(Direction::getId).filter(Objects::nonNull).collect(Collectors.toSet());
 
             if (!targetDirIds.equals(existingDirIds)) {
                 task.getDirections().removeIf(d -> d.getId() != null && !targetDirIds.contains(d.getId()));
@@ -722,13 +876,13 @@ public class TaskService {
 
         if (req.getLabelIds() != null && labelRepository != null) {
             Set<String> targetLabelIds = req.getLabelIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
-            Set<com.taskcenter.model.Label> existingLabels = new HashSet<>(task.getLabels());
-            Set<String> existingLabelIds = existingLabels.stream().map(com.taskcenter.model.Label::getId).collect(Collectors.toSet());
+            Set<Label> existingLabels = new HashSet<>(task.getLabels());
+            Set<String> existingLabelIds = existingLabels.stream().map(Label::getId).collect(Collectors.toSet());
 
             if (!targetLabelIds.equals(existingLabelIds)) {
                 task.getLabels().removeIf(l -> !targetLabelIds.contains(l.getId()));
                 if (!targetLabelIds.isEmpty()) {
-                    List<com.taskcenter.model.Label> newLabels = labelRepository.findAllById(targetLabelIds);
+                    List<Label> newLabels = labelRepository.findAllById(targetLabelIds);
                     task.getLabels().addAll(newLabels);
                 }
             }
@@ -768,21 +922,58 @@ public class TaskService {
             activityService.logActivity(task.getId(), currentUser, TaskActivityType.STATUS_UPDATED, "columnId", oldColId, req.getColumnId());
         }
 
-        task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(req.getPrevRank(), req.getNextRank()));
-        
+        String computedRank = LexoRankUtil.getMiddleSafe(req.getPrevRank(), req.getNextRank());
+        task.setLexoRank(computedRank);
+
         Task saved = taskRepository.save(task);
+
+        if (LexoRankUtil.needsRebalancing(req.getPrevRank(), req.getNextRank(), computedRank)) {
+            log.info("LexoRank auto-rebalancing triggered for workspace={}, column={}", workspaceId, saved.getColumnId());
+            rebalanceColumnInternal(workspaceId, saved.getColumnId());
+            saved = taskRepository.findById(saved.getId()).orElse(saved);
+        }
+
         if (columnChanged) {
             telegramNotificationService.sendTaskMovedNotification(saved, currentUser, oldColumnTitle, newColumnTitle);
         }
         TaskDto taskDto = TaskDto.fromEntity(saved);
-        
+
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_MOVED")
                 .workspaceId(workspaceId)
                 .data(taskDto)
                 .build());
-                
+
         return taskDto;
+    }
+
+    /**
+     * Ustundagi barcha vazifalarning LexoRank qiymatlarini Base-36 bo'yicha tekis qayta taqsimlaydi.
+     */
+    @Transactional
+    public List<TaskDto> rebalanceColumnRanks(String workspaceId, String columnId, User currentUser) {
+        authorizationService.checkCanEdit(workspaceId, currentUser);
+        getColumnAndValidateWorkspace(columnId, workspaceId);
+        List<Task> rebalanced = rebalanceColumnInternal(workspaceId, columnId);
+        return rebalanced.stream().map(TaskDto::fromEntity).collect(Collectors.toList());
+    }
+
+    private List<Task> rebalanceColumnInternal(String workspaceId, String columnId) {
+        List<Task> columnTasks = taskRepository.findByColumnIdOrderByLexoRankAsc(columnId);
+        if (columnTasks == null || columnTasks.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> balancedRanks = LexoRankUtil.generateBalancedRanks(columnTasks.size());
+        for (int i = 0; i < columnTasks.size(); i++) {
+            columnTasks.get(i).setLexoRank(balancedRanks.get(i));
+        }
+        List<Task> savedTasks = taskRepository.saveAll(columnTasks);
+        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                .type("COLUMN_REBALANCED")
+                .workspaceId(workspaceId)
+                .data(Map.of("columnId", columnId, "count", savedTasks.size()))
+                .build());
+        return savedTasks;
     }
 
     @Transactional
@@ -790,16 +981,14 @@ public class TaskService {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
         Task task = getTaskSimpleAndValidateWorkspace(id, workspaceId);
-
         taskRepository.deleteById(id);
-        
+
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_DELETED")
                 .workspaceId(workspaceId)
-                .data(java.util.Map.of("taskId", id, "columnId", task.getColumnId()))
+                .data(Map.of("taskId", id, "columnId", task.getColumnId()))
                 .build());
     }
-
 
     @Transactional
     public void toggleWatch(String workspaceId, String id, User currentUser) {
@@ -813,7 +1002,7 @@ public class TaskService {
         } else {
             task.getWatchers().add(currentUser);
         }
-        
+
         taskRepository.save(task);
     }
 
@@ -822,18 +1011,17 @@ public class TaskService {
         authorizationService.checkCanEdit(workspaceId, currentUser);
 
         Task task = getTaskAndValidateWorkspace(id, workspaceId);
-
         task.setIsArchived(archive);
         Task saved = taskRepository.save(task);
-        
+
         TaskDto taskDto = TaskDto.fromEntity(saved);
-        
+
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_UPDATED")
                 .workspaceId(workspaceId)
                 .data(taskDto)
                 .build());
-                
+
         return taskDto;
     }
 
@@ -854,20 +1042,20 @@ public class TaskService {
             task.getAssignees().add(assignee);
             newlyAssigned = true;
         }
-        
+
         Task saved = taskRepository.save(task);
 
         if (newlyAssigned) {
             telegramNotificationService.sendTaskAssignedNotification(saved, assignee, currentUser);
         }
         TaskDto taskDto = TaskDto.fromEntity(saved);
-        
+
         webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
                 .type("TASK_UPDATED")
                 .workspaceId(workspaceId)
                 .data(taskDto)
                 .build());
-                
+
         return taskDto;
     }
 
@@ -878,4 +1066,3 @@ public class TaskService {
         }
     }
 }
-

@@ -244,6 +244,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     @Transactional
     public void onUpdateReceived(Update update) {
+        if (update.hasInlineQuery()) {
+            handleInlineQuery(update.getInlineQuery());
+            return;
+        }
         if (update.hasCallbackQuery()) {
             if (update.getCallbackQuery().getMessage() == null || 
                 update.getCallbackQuery().getMessage().getChat() == null || 
@@ -306,9 +310,24 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         taskCreationStates.remove(chatId);
                         sendMessage(chatId, "Kechirasiz, bu buyruqni tushunmadim. Quyidagi menyu tugmalaridan foydalaning yoki /help buyrug'ini bering.");
                     }
+                } else if (update.getMessage().getForwardDate() != null
+                        || update.getMessage().getForwardFrom() != null
+                        || update.getMessage().getForwardSenderName() != null) {
+                    handleCreateTaskCommand(chatId, text);
                 } else {
                     sendMessage(chatId, "Kechirasiz, bu buyruqni tushunmadim. Quyidagi menyu tugmalaridan foydalaning yoki /help buyrug'ini bering.");
                 }
+            }
+        } else if (update.hasMessage()
+                && update.getMessage().getChat() != null
+                && "private".equals(update.getMessage().getChat().getType())) {
+            Long chatId = update.getMessage().getChatId();
+            String caption = update.getMessage().getCaption();
+            if (caption != null && !caption.isBlank()) {
+                handleCreateTaskCommand(chatId, caption.trim());
+            } else if (update.getMessage().hasVoice() || update.getMessage().hasAudio()) {
+                String voiceTitle = "🎙 Ovozli vazifa (" + LocalDate.now(clock) + ")";
+                handleCreateTaskCommand(chatId, voiceTitle);
             }
         }
     }
@@ -1718,13 +1737,20 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         task.setColumnId(doneColumn.getId());
         String maxRank = taskRepository.findMaxLexoRankByColumnId(doneColumn.getId());
-        task.setLexoRank(com.taskcenter.util.LexoRankUtil.getMiddle(maxRank, null));
+        task.setLexoRank(LexoRankUtil.getMiddleSafe(maxRank, null));
         taskRepository.save(task);
 
         activityService.logActivity(task.getId(), user, TaskActivityType.STATUS_UPDATED,
                 "columnId", oldColId, doneColumn.getId());
 
         telegramNotificationService.sendTaskMovedNotification(task, user, oldColumnTitle, doneColumn.getTitle());
+        if (webSocketNotifier != null) {
+            webSocketNotifier.notifyWorkspace(task.getWorkspaceId(), WebSocketEvent.builder()
+                    .type("TASK_MOVED")
+                    .workspaceId(task.getWorkspaceId())
+                    .data(TaskDto.fromEntity(task))
+                    .build());
+        }
 
         answerCallback(callbackQuery, "✅ Bajarildi!");
         editTaskViewMessage(callbackQuery, chatId, task);
@@ -1773,6 +1799,13 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         activityService.logActivity(task.getId(), user, TaskActivityType.DUE_DATE_SNOOZED,
                 "dueDate", String.valueOf(oldDate), String.valueOf(tomorrow));
+        if (webSocketNotifier != null) {
+            webSocketNotifier.notifyWorkspace(task.getWorkspaceId(), WebSocketEvent.builder()
+                    .type("TASK_UPDATED")
+                    .workspaceId(task.getWorkspaceId())
+                    .data(TaskDto.fromEntity(task))
+                    .build());
+        }
 
         answerCallback(callbackQuery, "📅 Muddat ertaga surildi!");
         editTaskViewMessage(callbackQuery, chatId, task);
@@ -1918,5 +1951,64 @@ public class TelegramBotService extends TelegramLongPollingBot {
         keyboard.add(row2);
         keyboardMarkup.setKeyboard(keyboard);
         return keyboardMarkup;
+    }
+
+    private void handleInlineQuery(org.telegram.telegrambots.meta.api.objects.inlinequery.InlineQuery inlineQuery) {
+        if (inlineQuery == null || inlineQuery.getFrom() == null) {
+            return;
+        }
+        Long tgUserId = inlineQuery.getFrom().getId();
+        String queryText = inlineQuery.getQuery() != null ? inlineQuery.getQuery().trim().toLowerCase() : "";
+
+        Optional<User> userOpt = userRepository.findByTelegramChatId(tgUserId);
+        List<org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResult> results = new ArrayList<>();
+
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            List<Task> activeTasks = taskRepository.findActiveTasksByUserId(user.getId());
+            int count = 0;
+            for (Task t : activeTasks) {
+                if (t == null) continue;
+                String code = t.getPublicId() != null ? t.getPublicId() : t.getId();
+                String title = t.getTitle() != null ? t.getTitle() : "";
+                if (!queryText.isEmpty()
+                        && !title.toLowerCase().contains(queryText)
+                        && !code.toLowerCase().contains(queryText)) {
+                    continue;
+                }
+
+                org.telegram.telegrambots.meta.api.objects.inlinequery.inputmessagecontent.InputTextMessageContent msgContent =
+                        new org.telegram.telegrambots.meta.api.objects.inlinequery.inputmessagecontent.InputTextMessageContent();
+                String prio = t.getPriority() != null ? t.getPriority().name() : "MEDIUM";
+                String dueStr = t.getDueDate() != null ? ("\n📅 Muddat: <b>" + t.getDueDate() + "</b>") : "";
+                msgContent.setMessageText("📌 <b>[" + TelegramUtil.escapeHtml(code) + "] " + TelegramUtil.escapeHtml(title) + "</b>\n"
+                        + "⚡ Muhimlik: <b>" + prio + "</b>" + dueStr);
+                msgContent.setParseMode("HTML");
+
+                org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResultArticle article =
+                        new org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResultArticle();
+                article.setId(t.getId());
+                article.setTitle("[" + code + "] " + title);
+                article.setDescription("Muhimlik: " + prio + (t.getDueDate() != null ? " | Muddat: " + t.getDueDate() : ""));
+                article.setInputMessageContent(msgContent);
+                results.add(article);
+
+                if (++count >= 25) {
+                    break;
+                }
+            }
+        }
+
+        org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery answer =
+                new org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery();
+        answer.setInlineQueryId(inlineQuery.getId());
+        answer.setResults(results);
+        answer.setCacheTime(5);
+        answer.setIsPersonal(true);
+        try {
+            execute(answer);
+        } catch (Exception e) {
+            log.debug("InlineQuery javob qaytarishda xatolik: {}", e.getMessage());
+        }
     }
 }

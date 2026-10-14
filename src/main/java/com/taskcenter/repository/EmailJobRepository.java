@@ -4,8 +4,10 @@ import com.taskcenter.model.EmailJob;
 import com.taskcenter.model.EmailJobStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,7 +23,8 @@ public interface EmailJobRepository extends JpaRepository<EmailJob, String> {
 
     long countByStatus(EmailJobStatus status);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Transactional
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE EmailJob j SET j.status = :newStatus, j.attempts = j.attempts + 1, j.updatedAt = :now WHERE j.id = :id AND j.status = :expectedStatus")
     int claimJobAtomic(
             @Param("id") String id,
@@ -30,7 +33,8 @@ public interface EmailJobRepository extends JpaRepository<EmailJob, String> {
             @Param("now") LocalDateTime now
     );
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Transactional
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE EmailJob j SET " +
            "j.attempts = j.attempts + 1, " +
            "j.status = CASE WHEN (j.attempts + 1 >= j.maxAttempts) THEN :failedStatus ELSE :pendingStatus END, " +

@@ -2,190 +2,665 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>G'alvalar boshqaruvi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Choylashamiz — Milliy Ish Maydoni va Vazifalar Boshqaruvi</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<link rel="icon" href="data:,">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="style.css?v=10" rel="stylesheet">
+<link rel="icon" href="piyola-3d.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="style.css?v=25" rel="stylesheet">
 </head>
 <body>
 
-<div id="loader">
-  <div class="spinner"></div>
-  <div id="loader-msg" class="hint">Ma'lumotlar yuklanmoqda...</div>
+<!-- Global Loading Screen with Uzbek Piyola Emblem -->
+<div id="loader" role="status" aria-live="polite">
+  <div class="loader-emblem-wrap">
+    <div class="loader-ring"></div>
+    <img src="piyola-3d.png" alt="Choylashamiz piyolasi" class="loader-piyola">
+  </div>
+  <div class="loader-brand-title">Choylashamiz</div>
+  <div id="loader-msg" class="hint">Ish maydoni tayyorlanmoqda...</div>
 </div>
 
-<div id="login-view" style="display:none;padding:20px;text-align:center">
-  <h2 class="sheet-title">Tizimga kirish</h2>
-  <p class="hint" style="margin:0 0 20px">Mini App dan foydalanish va Telegramni ulash uchun akkauntingizga kiring.</p>
-  <div class="form-group" style="text-align:left">
-    <label for="login-username">Login yoki Email</label>
-    <input type="text" id="login-username" placeholder="Masalan: admin" autocomplete="username">
-  </div>
-  <div class="form-group" style="text-align:left">
-    <label for="login-password">Quloqqa aytiladigan so'z (Parol)</label>
-    <input type="password" id="login-password" placeholder="Maxfiy so'z" autocomplete="current-password">
-  </div>
-  <div id="login-error" class="error-text"></div>
-</div>
-
-<div id="tab-board" class="tab-content active">
-  <header id="main-header">
-    <div class="ws-switcher"><select id="ws" aria-label="Guruh tanlash"></select></div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <div id="live-indicator" class="live-indicator" title="Jonli aloqa">
-        <span class="live-dot"></span>
-        <span class="live-text">Jonli</span>
+<!-- Auth Screen with 3D Uzbek Piyola Showcase -->
+<div id="login-view" class="auth-screen" style="display:none">
+  <div class="auth-ambient-pattern" aria-hidden="true"></div>
+  <div class="auth-layout">
+    <div class="auth-hero-panel">
+      <div class="uz-badge-pill">
+        <span class="uz-star-dot">✦</span>
+        <span>O‘zbekiston zamonaviy jamoalari uchun</span>
       </div>
-      <button id="btn-refresh" class="icon-btn" data-action="refresh-board" aria-label="Yangilash">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      <div class="auth-3d-stage" id="auth-3d-stage">
+        <div class="stage-mandala" aria-hidden="true"></div>
+        <div class="stage-orbit orbit-1" aria-hidden="true"></div>
+        <div class="stage-orbit orbit-2" aria-hidden="true"></div>
+        <svg class="tea-steam-svg" viewBox="0 0 180 90" fill="none" aria-hidden="true">
+          <path class="steam-path s-1" d="M62 82 C52 60, 74 42, 60 16" stroke="url(#steamGradAuth)" stroke-width="3" stroke-linecap="round"/>
+          <path class="steam-path s-2" d="M90 86 C104 58, 76 38, 92 10" stroke="url(#steamGradAuth)" stroke-width="3.5" stroke-linecap="round"/>
+          <path class="steam-path s-3" d="M118 82 C108 62, 128 42, 116 18" stroke="url(#steamGradAuth)" stroke-width="3" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="steamGradAuth" x1="0" y1="90" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.75"/>
+              <stop offset="60%" stop-color="#F8F4EC" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#D4AF37" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <img src="piyola-3d.png" alt="Paxta gulli piyola" class="piyola-3d-img">
+        <div class="piyola-shadow" aria-hidden="true"></div>
+      </div>
+      <h1 class="auth-hero-heading">Choylashamiz — <span class="gold-gradient-text">Tartibli ish maydoni</span></h1>
+      <p class="auth-hero-sub">Loyihalar, Kanban doskalar, Agile sprintlar va jamoaviy muloqot — milliy ruh va xalqaro darajadagi sifat uyg‘unligida.</p>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-badge"><img src="piyola-3d.png" alt="" class="brand-piyola-icon"></div>
+        <div>
+          <h2 class="auth-title">Xush kelibsiz</h2>
+          <p class="hint">Hisobingizga kiring yoki yangi jamoa oching</p>
+        </div>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" data-action="switch-auth-mode" data-mode="login">Kirish</button>
+        <button type="button" class="auth-tab" data-action="switch-auth-mode" data-mode="register">Ro‘yxatdan o‘tish</button>
+      </div>
+
+      <div class="form-group">
+        <label for="login-username">Foydalanuvchi nomi yoki Email</label>
+        <input type="text" id="login-username" placeholder="Masalan: elshod" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="login-password">Maxfiy parol</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-group" id="invite-token-group" style="display:none">
+        <label for="register-invite-token">Taklif kodi (ixtiyoriy)</label>
+        <input type="text" id="register-invite-token" placeholder="Taklifnoma kodi bo‘lsa kiriting">
+      </div>
+
+      <div id="login-error" class="error-text" role="alert"></div>
+
+      <button type="button" id="btn-auth-submit" class="btn-action btn-primary btn-full" data-action="submit-auth">
+        Tizimga kirish
       </button>
     </div>
-  </header>
+  </div>
+</div>
 
-  <div class="filters" id="main-filters">
-    <div class="search-bar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="search-input" placeholder="Izlash..." aria-label="Izlash">
+<!-- Main Application Shell (Responsive Sidebar on Desktop + Bottom Bar on Mobile) -->
+<div id="app-shell" class="app-shell">
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar" aria-label="Asosiy navigatsiya">
+    <div class="sidebar-brand">
+      <div class="brand-badge"><img src="piyola-3d.png" alt="Choylashamiz" class="brand-piyola-icon"></div>
+      <div class="brand-text">
+        <strong>Choylashamiz</strong>
+        <span>Ish maydoni • Workspace</span>
+      </div>
     </div>
-    <div class="filter-chips">
-      <div class="chip active" data-filter="all" data-action="filter">Hammasi</div>
-      <div class="chip" data-filter="mine" data-action="filter">Mening g'alvalarim</div>
-      <div class="chip" data-filter="overdue" data-action="filter">Kechikkan</div>
-      <div class="chip" data-filter="high" data-action="filter">O'ta muhim</div>
+
+    <div class="sidebar-ws-box">
+      <label class="sidebar-label" for="ws-desktop">Ish maydoni (Loyiha)</label>
+      <div class="ws-row">
+        <div class="ws-switcher full"><select id="ws-desktop" aria-label="Ish maydonini tanlash"></select></div>
+        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi ish maydoni yaratish" aria-label="Yangi ish maydoni yaratish">+</button>
+      </div>
     </div>
-  </div>
 
-  <div id="board-container" class="ptr-container"></div>
-  <button class="fab" data-action="new-task" aria-label="Yangi g'alva">+</button>
+    <nav class="sidebar-nav">
+      <button type="button" class="nav-item active" data-tab="board" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+        <span>Vazifalar doskasi</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="stats" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Analitika va Hisobot</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="sprints" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Sprintlar va Reja</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="mytasks" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Mening vazifalarim</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="chat" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Jamoaviy muloqot</span>
+        <span id="nav-chat-badge" class="badge-pill" style="display:none">0</span>
+      </button>
+      <button type="button" class="nav-item" data-tab="workspace" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Jamoa va Sozlamalar</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-ornament-divider" aria-hidden="true">
+      <span>❖</span><span>✦</span><span>❖</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <button type="button" class="btn-action btn-primary btn-full" data-action="new-task">+ Yangi vazifa</button>
+      <div class="sidebar-user" data-action="tab" data-tab="workspace" role="button" tabindex="0">
+        <div id="sidebar-avatar" class="assignee-avatar lg">U</div>
+        <div class="sidebar-user-info">
+          <div id="sidebar-username" class="u-name">Foydalanuvchi</div>
+          <div id="sidebar-userrole" class="u-role">Faol</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Workspace Area -->
+  <div class="main-area">
+    <!-- Top Header -->
+    <header id="main-header" class="top-header">
+      <div class="header-left">
+        <div class="mobile-brand-mark" data-action="toggle-hero" title="Choylashamiz 3D vitrinasini ko‘rsatish / yig‘ish">
+          <img src="piyola-3d.png" alt="Choylashamiz" class="header-piyola-icon">
+        </div>
+        <div class="ws-switcher"><select id="ws" aria-label="Ish maydonini tanlash"></select></div>
+        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi ish maydoni yaratish" aria-label="Yangi ish maydoni yaratish">+</button>
+        <div class="sprint-filter-wrap">
+          <select id="board-sprint-select" aria-label="Sprint bo‘yicha filtrlash">
+            <option value="">Barcha vazifalar (Doska)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button type="button" id="btn-hero-toggle" class="hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
+          <span>✦ 3D Vitrina</span>
+        </button>
+        <div id="live-indicator" class="live-indicator" title="Jonli WebSocket aloqasi">
+          <span class="live-dot"></span>
+          <span class="live-text">Jonli</span>
+        </div>
+        <button type="button" class="icon-btn" data-action="open-notifications" title="Bildirishnomalar" aria-label="Bildirishnomalar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notif-badge" class="notif-dot" style="display:none">0</span>
+        </button>
+        <button type="button" class="icon-btn" data-action="toggle-theme" title="Mavzuni o‘zgartirish (Kun / Tun)" aria-label="Mavzuni o‘zgartirish">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" id="btn-refresh" class="icon-btn" data-action="refresh-board" title="Ma’lumotlarni yangilash" aria-label="Yangilash">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- TAB 1: KANBAN BOARD + 3D ANIMATED HERO -->
+    <div id="tab-board" class="tab-content active">
+      <!-- Breathtaking 3D Animated Uzbek Hero Showcase (Collapsible for Power Users) -->
+      <section id="hero-showcase" class="hero-showcase" aria-label="Choylashamiz 3D bosh sahifa vitrinasi">
+        <div class="hero-ikat-border" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <div class="hero-eyebrow">
+              <span class="eyebrow-gem">❖</span>
+              <span id="hero-greeting-badge">Choylashamiz • Milliy Ish Maydoni</span>
+              <span id="hero-rank-pill" class="hero-rank-pill">☕ O‘zimizdan</span>
+            </div>
+            <h1 class="hero-headline" id="hero-ws-title">Bir piyola choy ustida <span class="gold-accent">tartibli rejalar</span></h1>
+            <p class="hero-description" id="hero-ws-desc">
+              Vazifalarni ustuvorlik bo‘yicha boshqaring, sprint tezligini kuzating va jamoa bilan real vaqtda hamkorlik qiling.
+            </p>
+            <div class="hero-live-kpis" id="hero-live-kpis">
+              <div class="hero-kpi-chip" data-action="tab" data-tab="stats">
+                <span class="kpi-chip-val" id="hkpi-total">0</span>
+                <span class="kpi-chip-lbl">Jami vazifalar</span>
+              </div>
+              <div class="hero-kpi-chip ok" data-action="tab" data-tab="stats">
+                <span class="kpi-chip-val" id="hkpi-done">0%</span>
+                <span class="kpi-chip-lbl">Bajarildi</span>
+              </div>
+              <div class="hero-kpi-chip progress" data-action="tab" data-tab="stats">
+                <span class="kpi-chip-val" id="hkpi-active">0</span>
+                <span class="kpi-chip-lbl">Jarayonda</span>
+              </div>
+              <div class="hero-kpi-chip warn" data-action="tab" data-tab="mytasks">
+                <span class="kpi-chip-val" id="hkpi-overdue">0</span>
+                <span class="kpi-chip-lbl">Muddati o‘tgan</span>
+              </div>
+            </div>
+            <div class="hero-cta-row">
+              <button type="button" class="btn-action btn-primary hero-btn-main" data-action="new-task">
+                <span>+ Yangi vazifa</span>
+              </button>
+              <button type="button" class="btn-action btn-gold-outline" data-action="tab" data-tab="stats">
+                <span>📊 Analitika va Hisobot</span>
+              </button>
+              <button type="button" class="btn-action btn-soft hero-btn-collapse" data-action="toggle-hero" title="Vitrinani yig‘ish">
+                <span>▲ Yig‘ish</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive 3D Piyola Stage -->
+          <div class="hero-3d-viewport" id="hero-3d-viewport" aria-label="3D Paxta gulli piyola sahnasi">
+            <div class="hero-3d-scene" id="hero-3d-scene">
+              <!-- Depth Layer -35px: Registan Ganch Star Mandala -->
+              <svg class="hero-ganch-mandala" viewBox="0 0 260 260" fill="none" aria-hidden="true">
+                <g stroke="currentColor" stroke-width="1.2" opacity="0.35">
+                  <rect x="38" y="38" width="184" height="184" rx="12"/>
+                  <rect x="38" y="38" width="184" height="184" rx="12" transform="rotate(45 130 130)"/>
+                  <circle cx="130" cy="130" r="88" stroke-dasharray="4 6"/>
+                  <circle cx="130" cy="130" r="64"/>
+                </g>
+              </svg>
+
+              <!-- Depth Layer 0px: Golden 3D Orbital Rings -->
+              <div class="hero-3d-ring ring-outer" aria-hidden="true"></div>
+              <div class="hero-3d-ring ring-inner" aria-hidden="true"></div>
+
+              <!-- Depth Layer +48px: Rising Golden Tea Steam Wisps -->
+              <svg class="hero-steam-svg" viewBox="0 0 220 110" fill="none" aria-hidden="true">
+                <path class="steam-wisp w-1" d="M75 98 C62 72, 92 46, 74 14" stroke="url(#heroSteamGrad)" stroke-width="3.5" stroke-linecap="round"/>
+                <path class="steam-wisp w-2" d="M110 102 C126 70, 92 42, 112 8" stroke="url(#heroSteamGrad)" stroke-width="4" stroke-linecap="round"/>
+                <path class="steam-wisp w-3" d="M145 98 C132 72, 158 46, 142 16" stroke="url(#heroSteamGrad)" stroke-width="3.5" stroke-linecap="round"/>
+                <defs>
+                  <linearGradient id="heroSteamGrad" x1="0" y1="110" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.82"/>
+                    <stop offset="55%" stop-color="#FFFDF9" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#D4AF37" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              <!-- Depth Layer +32px: Authentic Uploaded Paxta-Gulli Piyola -->
+              <div class="hero-piyola-card3d">
+                <img src="piyola-3d.png" alt="Choylashamiz Paxta gulli piyola" class="hero-piyola-img">
+                <div class="hero-piyola-glint" aria-hidden="true"></div>
+              </div>
+
+              <!-- Depth Layer +55px: Floating Live Status Badges -->
+              <div class="floating-3d-chip chip-top-left" id="float-chip-status">
+                <span class="f-dot ok"></span>
+                <span id="float-chip-done-text">Barakalla • Bajarildi</span>
+              </div>
+              <div class="floating-3d-chip chip-bottom-right" id="float-chip-brand">
+                <span>✦ Choylashamiz Pro</span>
+              </div>
+
+              <!-- Saucer Shadow Plane -->
+              <div class="hero-saucer-shadow" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Board Search & Filter Bar -->
+      <div class="filters" id="main-filters">
+        <div class="filters-top-row">
+          <div class="search-bar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Vazifa nomi, kodi (LOY-1) yoki tavsifi bo‘yicha qidirish..." aria-label="Qidirish">
+          </div>
+          <div class="board-toolbar-actions">
+            <select id="filter-direction" class="compact-select" aria-label="Yo‘nalish bo‘yicha filtrlash">
+              <option value="">Barcha yo‘nalishlar</option>
+            </select>
+            <select id="filter-label" class="compact-select" aria-label="Teg bo‘yicha filtrlash">
+              <option value="">Barcha teglar</option>
+            </select>
+            <button type="button" class="btn-chip-action" data-action="add-column">+ Ustun</button>
+            <button type="button" class="btn-chip-action primary" data-action="new-task">+ Yangi vazifa</button>
+          </div>
+        </div>
+        <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
+          <div class="chip active" data-filter="all" data-action="filter">Barchasi</div>
+          <div class="chip" data-filter="mine" data-action="filter">Menga biriktirilgan</div>
+          <div class="chip" data-filter="overdue" data-action="filter">Muddati o‘tgan</div>
+          <div class="chip" data-filter="high" data-action="filter">Yuqori ustuvorlik</div>
+          <div class="chip" data-filter="archived" data-action="filter">Arxivlanganlar</div>
+        </div>
+      </div>
+
+      <div id="board-container" class="ptr-container"></div>
+      <button type="button" class="fab" data-action="new-task" aria-label="Yangi vazifa yaratish">+</button>
+    </div>
+
+    <!-- TAB 2: SPRINTS & BACKLOG -->
+    <div id="tab-sprints" class="tab-content" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>Sprintlar va Rejalashtirish (Backlog)</h2>
+          <p class="hint">Agile sprintlarni boshqarish, vazifalarni taqsimlash va jamoa tezligini oshirish</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-action btn-soft" data-action="refresh-sprints">Yangilash</button>
+          <button type="button" class="btn-action btn-primary" data-action="open-sprint-modal">+ Yangi sprint</button>
+        </div>
+      </div>
+      <div id="sprints-container" class="page-scroll-body"></div>
+    </div>
+
+    <!-- TAB 3: MY TASKS -->
+    <div id="tab-mytasks" class="tab-content ptr-container" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>Mening vazifalarim</h2>
+          <p class="hint">Barcha ish maydonlarida sizga biriktirilgan vazifalar muddati bo‘yicha guruhlangan</p>
+        </div>
+        <button type="button" class="icon-btn" data-action="refresh-mytasks" aria-label="Yangilash">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+        </button>
+      </div>
+      <div id="mytasks-container" class="page-scroll-body"></div>
+    </div>
+
+    <!-- TAB 4: CHAT -->
+    <div id="tab-chat" class="tab-content" style="display:none">
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-header">
+            <h3>Jamoaviy muloqot</h3>
+            <div class="chat-mode-pills">
+              <button type="button" class="chip active" data-action="chat-channel" data-channel="public">Umumiy xona</button>
+              <button type="button" class="chip" data-action="chat-channel" data-channel="direct">Shaxsiy xabar</button>
+            </div>
+          </div>
+          <div id="chat-users-list" class="chat-users-list"></div>
+        </div>
+        <div class="chat-main">
+          <div class="chat-room-header">
+            <div>
+              <strong id="chat-room-title">Umumiy Jamoa Chati</strong>
+              <div id="chat-room-subtitle" class="hint" style="font-size:12px">Barcha jamoa a’zolari uchun ochiq muloqot maydoni</div>
+            </div>
+            <button type="button" class="icon-btn sm" data-action="refresh-chat" title="Suhbatni yangilash">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+            </button>
+          </div>
+          <div id="chat-messages-box" class="chat-messages-box"></div>
+          <div id="chat-reply-banner" class="chat-reply-banner" style="display:none">
+            <span id="chat-reply-text"></span>
+            <button type="button" class="icon-btn sm" data-action="cancel-chat-reply">×</button>
+          </div>
+          <div class="chat-composer">
+            <input type="text" id="chat-msg-input" placeholder="Xabar yozing... (Enter — yuborish)">
+            <button type="button" class="btn-action btn-primary" data-action="send-chat-msg">Yuborish</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: STATS & ANALYTICS DASHBOARD -->
+    <div id="tab-stats" class="tab-content ptr-container" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>Samaradorlik va Analitika markazi</h2>
+          <p class="hint">Haqiqiy loyiha ko‘rsatkichlari, ustunlar holati, sprint tezligi (Velocity), jamoa yuklamasi va faollik tarixi</p>
+        </div>
+        <div class="header-actions">
+          <div class="ws-switcher"><select id="stats-ws" aria-label="Ish maydonini tanlash"></select></div>
+          <button type="button" class="btn-action btn-soft" data-action="export-csv">📥 CSV yuklab olish</button>
+        </div>
+      </div>
+      <div id="stats-container" class="page-scroll-body"></div>
+    </div>
+
+    <!-- TAB 6: WORKSPACE SETTINGS, TEAM, INVITES, LABELS, DIRECTIONS & PROFILE -->
+    <div id="tab-workspace" class="tab-content" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>Jamoa, Teglar va Shaxsiy profil</h2>
+          <p class="hint">A’zolar va taklifnomalar, yo‘nalishlar (Directions), teglar (Labels) hamda hisob sozlamalari</p>
+        </div>
+        <button type="button" class="btn-action btn-soft" data-action="refresh-workspace-tab">Yangilash</button>
+      </div>
+      <div id="workspace-settings-container" class="page-scroll-body"></div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-tab-bar" aria-label="Mobil navigatsiya">
+      <div class="tab-btn active" data-tab="board" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="14"/></svg>
+        <span>Doska</span>
+      </div>
+      <div class="tab-btn" data-tab="stats" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Analitika</span>
+      </div>
+      <div class="tab-btn" data-tab="sprints" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>Sprintlar</span>
+      </div>
+      <div class="tab-btn" data-tab="mytasks" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Vazifalarim</span>
+      </div>
+      <div class="tab-btn" data-tab="chat" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Muloqot</span>
+      </div>
+      <div class="tab-btn" data-tab="workspace" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span>Jamoa</span>
+      </div>
+    </nav>
+  </div>
 </div>
 
-<div id="tab-mytasks" class="tab-content ptr-container" style="display:none">
-  <div class="tab-header">
-    <h2>Mening vazifalarim</h2>
-    <button class="icon-btn" data-action="refresh-mytasks" aria-label="Yangilash">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-    </button>
-  </div>
-  <div id="mytasks-container" style="padding:4px 16px 16px"></div>
-</div>
-
-<div id="tab-stats" class="tab-content ptr-container" style="display:none">
-  <div class="tab-header">
-    <h2>Statistika</h2>
-    <div class="ws-switcher"><select id="stats-ws" aria-label="Guruh tanlash"></select></div>
-  </div>
-  <div id="stats-container" style="padding:4px 16px 16px"></div>
-</div>
-
-<nav class="bottom-tab-bar">
-  <div class="tab-btn active" data-tab="board" data-action="tab" role="button" tabindex="0">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="14"/></svg>
-    <span>Bosh og'riq</span>
-  </div>
-  <div class="tab-btn" data-tab="mytasks" data-action="tab" role="button" tabindex="0">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-    <span>Mening vazifalarim</span>
-  </div>
-  <div class="tab-btn" data-tab="stats" data-action="tab" role="button" tabindex="0">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    <span>Statistika</span>
-  </div>
-</nav>
-
+<!-- Universal Modal / Bottom Sheet Overlay -->
 <div id="sheet-overlay" data-action="close-sheet"></div>
-<div id="bottom-sheet">
+<div id="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-handle"></div>
+  <div class="sheet-top-bar">
+    <h2 id="sheet-title" class="sheet-title">Oyna</h2>
+    <button type="button" class="icon-btn sm" data-action="close-sheet" aria-label="Yopish">×</button>
+  </div>
 
-  <!-- Create / Edit -->
+  <!-- 1. Create / Edit Task View -->
   <div id="task-form-view" style="display:none">
-    <h2 id="sheet-title" class="sheet-title">Yangi g'alva</h2>
     <input type="hidden" id="f-id">
-    <div class="form-group">
-      <label for="f-col">Ustun</label>
-      <select id="f-col"></select>
-    </div>
-    <div class="form-group">
-      <label for="f-title">Sarlavha</label>
-      <input type="text" id="f-title" placeholder="Masalan: Frontni ko'tarish">
-    </div>
-    <div class="form-group">
-      <label for="f-desc">Ichingizdagi gaplar bo'lsa :</label>
-      <textarea id="f-desc" rows="3" placeholder="Gapning indallosi..."></textarea>
-    </div>
-    <div class="form-group form-row">
-      <div>
-        <label for="f-priority">Muhimlik</label>
-        <select id="f-priority">
-          <option value="LOW">Past</option>
-          <option value="MEDIUM" selected>O'rta</option>
-          <option value="HIGH">Yuqori</option>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="f-col">Holati (Ustun)</label>
+        <select id="f-col"></select>
+      </div>
+      <div class="form-group">
+        <label for="f-issue-type">Vazifa turi</label>
+        <select id="f-issue-type">
+          <option value="TASK" selected>📋 Vazifa (Task)</option>
+          <option value="BUG">🐞 Xatolik (Bug)</option>
+          <option value="STORY">📘 Foydalanuvchi hikoyasi (Story)</option>
+          <option value="EPIC">🚀 Yirik maqsad (Epic)</option>
         </select>
       </div>
-      <div>
-        <label for="f-date">Muddat</label>
+    </div>
+
+    <div class="form-group">
+      <label for="f-title">Vazifa sarlavhasi *</label>
+      <input type="text" id="f-title" placeholder="Masalan: To‘lov tizimi API integratsiyasi">
+    </div>
+
+    <div class="form-group">
+      <label for="f-desc">Batafsil tavsif</label>
+      <textarea id="f-desc" rows="3" placeholder="Texnik talablar, qabul mezonlari yoki izoh..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="f-priority">Ustuvorlik darajasi</label>
+        <select id="f-priority">
+          <option value="LOW">🟢 Past (Low)</option>
+          <option value="MEDIUM" selected>🟡 O‘rtacha (Medium)</option>
+          <option value="HIGH">🔴 Yuqori (High)</option>
+          <option value="URGENT">🔥 Shoshilinch (Urgent)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-date">Bajarilish muddati</label>
         <input type="date" id="f-date">
       </div>
     </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="f-story-points">Story Points (Hajm)</label>
+        <input type="number" id="f-story-points" min="0" max="100" placeholder="Masalan: 3, 5, 8">
+      </div>
+      <div class="form-group">
+        <label for="f-est-hours">Taxminiy soat (ixtiyoriy)</label>
+        <input type="number" id="f-est-hours" min="0" step="0.5" placeholder="Masalan: 4.5">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="f-sprint">Sprint</label>
+        <select id="f-sprint">
+          <option value="">Backlog (Sprintsiz)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-parent-task">Asosiy vazifa (Sub-task uchun)</label>
+        <select id="f-parent-task">
+          <option value="">Mustaqil vazifa</option>
+        </select>
+      </div>
+    </div>
+
     <div class="form-group">
-      <label>Kimga ilamiz?</label>
+      <label>Mas’ul ijrochilar (Bir nechta tanlash mumkin)</label>
       <div class="assignee-picker" id="f-assignee-picker"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Yo‘nalishlar (Directions)</label>
+      <div class="tag-picker" id="f-direction-picker"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Teglar (Labels)</label>
+      <div class="tag-picker" id="f-label-picker"></div>
+    </div>
+
+    <div class="detail-actions">
+      <button type="button" class="btn-action btn-soft" data-action="close-sheet">Bekor qilish</button>
+      <button type="button" class="btn-action btn-primary" data-action="save-task">O‘zgarishlarni saqlash</button>
     </div>
   </div>
 
-  <!-- Details -->
+  <!-- 2. Task Details View -->
   <div id="task-detail-view" style="display:none">
-    <div class="detail-title" id="d-title"></div>
-    <div class="badges" id="d-badges" style="margin-bottom:16px"></div>
+    <div class="detail-header-meta">
+      <span id="d-public-id" class="task-key-badge">LOY-1</span>
+      <div class="detail-quick-pills">
+        <button type="button" id="btn-watch-task" class="btn-chip-action" data-action="toggle-watch">👁 Kuzatish</button>
+        <button type="button" id="btn-archive-task" class="btn-chip-action" data-action="toggle-archive">📦 Arxivlash</button>
+      </div>
+    </div>
 
-    <div class="form-group">
-      <label for="d-col-select">Ustun (ko'chirish)</label>
-      <select id="d-col-select"></select>
+    <div class="detail-title" id="d-title"></div>
+    <div class="badges" id="d-badges" style="margin-bottom:14px"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="d-col-select">Joriy holati (Ustun)</label>
+        <select id="d-col-select"></select>
+      </div>
+      <div class="form-group">
+        <label>Mas’ul ijrochilar</label>
+        <div id="d-assignees-list" class="d-assignees-list"></div>
+      </div>
     </div>
 
     <div class="detail-desc" id="d-desc"></div>
 
-    <div class="detail-actions">
-      <button class="btn-action btn-soft" data-action="share-task">Ulashish</button>
-      <button class="btn-action btn-primary" data-action="edit-task">Ta'miri</button>
-      <button class="btn-action btn-danger" data-action="delete-task">Chopish</button>
+    <div class="detail-actions" style="margin-top:12px;margin-bottom:16px">
+      <button type="button" class="btn-action btn-soft" data-action="share-task">🔗 Ulashish</button>
+      <button type="button" class="btn-action btn-primary" data-action="edit-task">✏️ Tahrirlash</button>
+      <button type="button" class="btn-action btn-danger" data-action="delete-task">🗑 O‘chirish</button>
     </div>
 
-    <div class="checklists-section">
-      <h3>Ichki vazifalar</h3>
+    <!-- Sub-tabs inside Task Details -->
+    <div class="sub-tabs" role="tablist">
+      <button type="button" class="sub-tab active" data-action="detail-subtab" data-subtab="checklists">Ro‘yxat (Checklist)</button>
+      <button type="button" class="sub-tab" data-action="detail-subtab" data-subtab="subtasks">Ostki vazifalar (<span id="subtasks-count">0</span>)</button>
+      <button type="button" class="sub-tab" data-action="detail-subtab" data-subtab="worklogs">Vaqt hisobi (<span id="worklogs-total">0s</span>)</button>
+      <button type="button" class="sub-tab" data-action="detail-subtab" data-subtab="comments">Izohlar (<span id="comments-count">0</span>)</button>
+      <button type="button" class="sub-tab" data-action="detail-subtab" data-subtab="attachments">Fayllar</button>
+      <button type="button" class="sub-tab" data-action="detail-subtab" data-subtab="activities">Tarix</button>
+    </div>
+
+    <!-- Subtab 1: Checklists -->
+    <div id="subtab-checklists" class="subtab-panel">
+      <div class="checklist-progress-wrap">
+        <div class="checklist-progress-bar"><div id="checklist-progress-fill" style="width:0%"></div></div>
+        <span id="checklist-progress-text" class="hint" style="font-size:12px">0%</span>
+      </div>
       <div id="checklists-list"></div>
       <div class="comment-input-wrap">
-        <input type="text" id="checklist-input" placeholder="Yangi band...">
-        <button data-action="add-checklist" aria-label="Band qo'shish">+</button>
+        <input type="text" id="checklist-input" placeholder="Yangi qadam qo‘shish (100% bo‘lsa vazifa avtomatik yopiladi)...">
+        <button type="button" data-action="add-checklist" aria-label="Qo‘shish">+</button>
       </div>
     </div>
 
-    <div class="comments-section">
-      <h3>Gap-so'zlar (<span id="comments-count">0</span>)</h3>
-      <div id="comments-list" style="max-height:250px;overflow-y:auto"></div>
+    <!-- Subtab 2: Subtasks -->
+    <div id="subtab-subtasks" class="subtab-panel" style="display:none">
+      <div id="subtasks-list" style="margin-bottom:10px"></div>
       <div class="comment-input-wrap">
-        <input type="text" id="comment-input" placeholder="Gap qistiring...">
-        <button data-action="add-comment" aria-label="Yuborish">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
+        <input type="text" id="subtask-input" placeholder="Yangi ostki vazifa (Sub-task) sarlavhasi...">
+        <button type="button" data-action="add-subtask" aria-label="Ostki vazifa qo‘shish">+</button>
       </div>
+    </div>
+
+    <!-- Subtab 3: Worklogs (Time Tracking) -->
+    <div id="subtab-worklogs" class="subtab-panel" style="display:none">
+      <div id="worklogs-list" style="max-height:220px;overflow-y:auto;margin-bottom:10px"></div>
+      <div class="worklog-form-row">
+        <input type="number" id="worklog-hours-input" min="0.25" step="0.25" placeholder="Soat (1.5)" style="width:95px">
+        <input type="text" id="worklog-desc-input" placeholder="Bajarilgan ish tavsifi..." style="flex:1">
+        <button type="button" class="btn-action btn-primary" data-action="add-worklog">+ Yozish</button>
+      </div>
+    </div>
+
+    <!-- Subtab 4: Comments -->
+    <div id="subtab-comments" class="subtab-panel" style="display:none">
+      <div id="comments-list" style="max-height:260px;overflow-y:auto"></div>
+      <div class="comment-input-wrap">
+        <input type="text" id="comment-input" placeholder="Izoh yozing (@username orqali belgilash mumkin)...">
+        <button type="button" data-action="add-comment" aria-label="Yuborish">➤</button>
+      </div>
+    </div>
+
+    <!-- Subtab 5: Attachments -->
+    <div id="subtab-attachments" class="subtab-panel" style="display:none">
+      <div id="attachments-list" style="margin-bottom:12px"></div>
+      <div class="attachment-upload-row">
+        <input type="file" id="attachment-file-input">
+        <button type="button" class="btn-action btn-primary" data-action="upload-attachment">📎 Biriktirish</button>
+      </div>
+    </div>
+
+    <!-- Subtab 6: Activity History -->
+    <div id="subtab-activities" class="subtab-panel" style="display:none">
+      <div id="activities-list" style="max-height:260px;overflow-y:auto"></div>
     </div>
   </div>
 
-  <!-- Quick actions -->
+  <!-- 3. Quick Actions View -->
   <div id="quick-action-view" style="display:none">
     <div class="detail-title" id="qa-title" style="margin-bottom:18px;font-size:18px"></div>
-    <button class="btn-action btn-primary btn-block" data-action="qa-edit">Ta'miri</button>
+    <button type="button" class="btn-action btn-primary btn-block" data-action="qa-edit">✏️ Vazifani tahrirlash</button>
     <div class="form-group">
-      <select id="qa-col-select" aria-label="Ustunga ko'chirish"></select>
+      <label for="qa-col-select">Boshqa ustunga ko‘chirish</label>
+      <select id="qa-col-select" aria-label="Ustunga ko‘chirish"></select>
     </div>
-    <button class="btn-action btn-danger btn-block" data-action="delete-task">Chopish</button>
+    <button type="button" class="btn-action btn-soft btn-block" data-action="toggle-archive">📦 Arxivlash / Qaytarish</button>
+    <button type="button" class="btn-action btn-danger btn-block" data-action="delete-task">🗑 Vazifani o‘chirish</button>
   </div>
+
+  <!-- 4. Custom Dynamic Modal Content -->
+  <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="app.js?v=11"></script>
-<script src="ui-bind.js?v=11"></script>
+<script src="app.js?v=25"></script>
+<script src="ui-bind.js?v=25"></script>
 </body>
 </html>

@@ -16,8 +16,10 @@ import java.util.Optional;
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, String> {
 
+    @EntityGraph(attributePaths = {"sender", "replyTo"})
     Page<ChatMessage> findByTypeOrderByCreatedAtDesc(ChatMessageType type, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo"})
     @Query("SELECT m FROM ChatMessage m WHERE m.type = :type AND " +
            "((m.senderId = :user1 AND m.recipientId = :user2) OR (m.senderId = :user2 AND m.recipientId = :user1)) " +
            "ORDER BY m.createdAt DESC")
@@ -31,6 +33,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
     @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
     Optional<ChatMessage> findWithDetailsById(String id);
 
+    @EntityGraph(attributePaths = {"sender", "replyTo"})
     @Query("SELECT m FROM ChatMessage m WHERE m.type = :type AND " +
            "LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "ORDER BY m.createdAt DESC")
@@ -40,6 +43,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo"})
     @Query("SELECT m FROM ChatMessage m WHERE m.type = :type AND " +
            "((m.senderId = :user1 AND m.recipientId = :user2) OR (m.senderId = :user2 AND m.recipientId = :user1)) " +
            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
@@ -52,6 +56,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo"})
     @Query("SELECT m FROM ChatMessage m WHERE " +
            "(m.type = 'PUBLIC' OR (m.type = 'DIRECT' AND (m.senderId = :userId OR m.recipientId = :userId))) " +
            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
@@ -62,8 +67,22 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
             Pageable pageable
     );
 
-    // Foydalanuvchining barcha DM xabarlarini vaqt bo'yicha olish (suhbatlar ro'yxati uchun)
-    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo", "attachments", "reactions"})
+    /**
+     * PostgreSQL DISTINCT ON yordamida har bir suhbatdosh bilan faqat ENG OXIRGI
+     * shaxsiy xabarni bazadan oladi — barcha DM tarixini xotiraga (RAM) tortmaydi.
+     */
+    @Query(value = "SELECT * FROM (" +
+           "  SELECT DISTINCT ON (LEAST(m.sender_id, m.recipient_id), GREATEST(m.sender_id, m.recipient_id)) m.* " +
+           "  FROM chat_messages m " +
+           "  WHERE m.type = 'DIRECT' AND m.deleted_at IS NULL " +
+           "    AND (m.sender_id = :userId OR m.recipient_id = :userId) " +
+           "  ORDER BY LEAST(m.sender_id, m.recipient_id), GREATEST(m.sender_id, m.recipient_id), m.created_at DESC" +
+           ") latest ORDER BY latest.created_at DESC",
+           nativeQuery = true)
+    List<ChatMessage> findLatestDirectMessagesPerConversation(@Param("userId") String userId);
+
+    // Fallback (H2 testlar yoki legacy chaqiruvlar uchun)
+    @EntityGraph(attributePaths = {"sender", "recipient", "replyTo"})
     @Query("SELECT m FROM ChatMessage m WHERE m.type = 'DIRECT' " +
            "AND (m.senderId = :userId OR m.recipientId = :userId) " +
            "ORDER BY m.createdAt DESC")
@@ -77,4 +96,11 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, String
             @Param("userId") String userId,
             @Param("otherUserId") String otherUserId
     );
+
+    // Barcha suhbatdoshlar bo'yicha o'qilmagan DM xabarlarni bitta GROUP BY so'rovda hisoblash
+    @Query("SELECT m.senderId, COUNT(m) FROM ChatMessage m WHERE m.type = 'DIRECT' " +
+           "AND m.recipientId = :userId " +
+           "AND m.id NOT IN (SELECT rs.messageId FROM MessageReadStatus rs WHERE rs.userId = :userId) " +
+           "GROUP BY m.senderId")
+    List<Object[]> countUnreadDirectMessagesGroupedBySender(@Param("userId") String userId);
 }

@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -14,6 +16,8 @@ import java.util.UUID;
 @Component
 @Order(1)
 public class RequestLoggingFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,13 +36,13 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             int status = response.getStatus();
 
             if (duration > 1000 || status >= 500) {
-                System.err.printf("[SLOW/ERROR] requestId=%s method=%s uri=%s status=%d duration=%dms%n",
+                log.error("[SLOW/ERROR] requestId={} method={} uri={} status={} duration={}ms",
                         requestId, method, uri, status, duration);
             } else if (status >= 400) {
-                System.out.printf("[WARN] requestId=%s method=%s uri=%s status=%d duration=%dms%n",
+                log.warn("[WARN] requestId={} method={} uri={} status={} duration={}ms",
                         requestId, method, uri, status, duration);
             } else {
-                System.out.printf("[INFO] requestId=%s method=%s uri=%s status=%d duration=%dms%n",
+                log.debug("[INFO] requestId={} method={} uri={} status={} duration={}ms",
                         requestId, method, uri, status, duration);
             }
         }

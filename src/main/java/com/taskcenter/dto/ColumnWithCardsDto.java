@@ -1,10 +1,18 @@
 package com.taskcenter.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.taskcenter.model.BoardColumn;
+import com.taskcenter.model.IssueType;
+import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
+
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Data
@@ -30,6 +38,12 @@ public class ColumnWithCardsDto {
     @Schema(description = "Ustun tartibi (rank)", example = "1")
     private String rank;
 
+    @Schema(description = "Tugallanganlik (Done) ustunimi", example = "false")
+    private Boolean isDone;
+
+    @Schema(description = "Ustundagi vazifalar maksimal limiti (WIP Limit)", example = "5")
+    private Integer wipLimit;
+
     @Schema(description = "Ustundagi vazifalar ro'yxati")
     private List<TaskDto> tasks;
 
@@ -54,19 +68,19 @@ public class ColumnWithCardsDto {
         private String lexoRank;
 
         @Schema(description = "Muhimlik darajasi", example = "HIGH")
-        private com.taskcenter.model.Priority priority;
+        private Priority priority;
 
         @Schema(description = "Vazifa turi", example = "TASK")
-        private com.taskcenter.model.IssueType issueType;
+        private IssueType issueType;
 
         @Schema(description = "Muddati (YYYY-MM-DD)", example = "2026-10-10")
-        private java.time.LocalDate dueDate;
+        private LocalDate dueDate;
 
         @Schema(description = "Story Points bahosi", example = "3")
         private Integer storyPoints;
 
         @Schema(hidden = true)
-        @com.fasterxml.jackson.annotation.JsonIgnore
+        @JsonIgnore
         private String sprintId;
 
         @Schema(description = "Vazifaga biriktirilgan teglar")
@@ -81,8 +95,8 @@ public class ColumnWithCardsDto {
                     .publicId(t.getPublicId())
                     .title(t.getTitle())
                     .lexoRank(t.getLexoRank())
-                    .priority(t.getPriority() != null ? t.getPriority() : com.taskcenter.model.Priority.MEDIUM)
-                    .issueType(t.getIssueType() != null ? t.getIssueType() : com.taskcenter.model.IssueType.TASK)
+                    .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
+                    .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                     .dueDate(t.getDueDate())
                     .storyPoints(t.getStoryPoints())
                     .sprintId(t.getSprintId())
@@ -93,15 +107,15 @@ public class ColumnWithCardsDto {
     }
 
     public static ColumnWithCardsDto fromEntity(BoardColumn c, List<Task> tasks) {
-        return fromEntity(c, tasks, java.util.Collections.emptyMap());
+        return fromEntity(c, tasks, Collections.emptyMap());
     }
 
-    public static ColumnWithCardsDto fromEntity(BoardColumn c, List<Task> tasks, java.util.Map<String, com.taskcenter.model.User> reporterMap) {
+    public static ColumnWithCardsDto fromEntity(BoardColumn c, List<Task> tasks, Map<String, User> reporterMap) {
         List<TaskDto> taskDtos = tasks != null
                 ? tasks.stream()
                         .map(t -> TaskDto.fromEntity(t, (t.getCreatedBy() != null && reporterMap != null) ? reporterMap.get(t.getCreatedBy()) : null))
                         .collect(Collectors.toList())
-                : java.util.Collections.emptyList();
+                : Collections.emptyList();
 
         String colName = c.getTitle();
         Integer colOrder = c.getOrder();
@@ -113,6 +127,8 @@ public class ColumnWithCardsDto {
                 .position(colOrder)
                 .order(colOrder)
                 .rank(colOrder != null ? String.valueOf(colOrder) : null)
+                .isDone(c.getIsDone())
+                .wipLimit(c.getWipLimit())
                 .tasks(taskDtos)
                 .cards(taskDtos)
                 .build();

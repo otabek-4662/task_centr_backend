@@ -2,11 +2,13 @@ package com.taskcenter.service;
 
 import com.taskcenter.dto.*;
 import com.taskcenter.exception.BadRequestException;
+import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.*;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.util.AppTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -14,13 +16,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import com.taskcenter.dto.WebSocketEvent;
-import com.taskcenter.util.AppTime;
 
 @Service
 public class SprintService {
@@ -57,7 +59,7 @@ public class SprintService {
                 ? sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtDesc(workspaceId, status)
                 : sprintRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
 
-        java.util.Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
+        Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
                 .stream()
                 .collect(Collectors.toMap(SprintStatsProjection::getSprintId, s -> s, (a, b) -> a));
 
@@ -77,7 +79,7 @@ public class SprintService {
 
         List<Sprint> closedSprints = sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtAsc(workspaceId, SprintStatus.COMPLETED);
 
-        java.util.Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
+        Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
                 .stream()
                 .collect(Collectors.toMap(SprintStatsProjection::getSprintId, s -> s, (a, b) -> a));
 
@@ -174,7 +176,7 @@ public class SprintService {
 
         Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(sprint.getWorkspaceId(), SprintStatus.ACTIVE);
         if (activeOpt.isPresent()) {
-            throw new com.taskcenter.exception.ConflictException("Ushbu workspaceda allaqachon faol sprint mavjud. Yangisini boshlashdan oldin uni yakunlang.");
+            throw new ConflictException("Ushbu workspaceda allaqachon faol sprint mavjud. Yangisini boshlashdan oldin uni yakunlang.");
         }
 
         sprint.setStatus(SprintStatus.ACTIVE);
@@ -187,7 +189,7 @@ public class SprintService {
         long taskCount = taskRepository.countBySprintId(saved.getId());
         Integer storyPoints = taskRepository.sumStoryPointsBySprintId(saved.getId());
         SprintDto dto = SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
-        
+
         webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
                 .type("SPRINT_STARTED")
                 .workspaceId(sprint.getWorkspaceId())
@@ -196,7 +198,7 @@ public class SprintService {
         if (cacheInvalidationService != null) {
             cacheInvalidationService.evictSprint(sprint.getWorkspaceId(), sprint.getId());
         }
-                
+
         return dto;
     }
 
@@ -231,34 +233,31 @@ public class SprintService {
             sprint.setEndDate(AppTime.today());
         }
 
-        // Identify done columns to keep finished tasks in this sprint history
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(sprint.getWorkspaceId());
         Set<String> doneColumnIds = columns.stream()
                 .filter(c -> Boolean.TRUE.equals(c.getIsDone()))
                 .map(BoardColumn::getId)
                 .collect(Collectors.toSet());
 
-        // Agar nomidan topilmasa, eng oxirgi ustunni tugallangan deb hisoblaymiz (agar ustunlar bo'lsa)
         if (doneColumnIds.isEmpty() && !columns.isEmpty()) {
             doneColumnIds.add(columns.get(columns.size() - 1).getId());
         }
 
-        // Bajarilmagan tasklarni yangi sprintga yoki backlogga ko'chirish
         List<Task> tasks = taskRepository.findBySprintId(sprintId);
-        List<Task> tasksToMove = new java.util.ArrayList<>();
-        List<com.taskcenter.model.TaskActivity> activitiesToLog = new java.util.ArrayList<>();
-        
+        List<Task> tasksToMove = new ArrayList<>();
+        List<TaskActivity> activitiesToLog = new ArrayList<>();
+
         for (Task task : tasks) {
             if (!doneColumnIds.contains(task.getColumnId())) {
                 task.setSprintId(targetSprintId);
                 tasksToMove.add(task);
-                
+
                 String targetName = targetSprintId != null ? targetSprintName : "Backlog";
-                com.taskcenter.model.TaskActivityType actionType = targetSprintId != null ? 
-                        com.taskcenter.model.TaskActivityType.SPRINT_ASSIGNED : 
-                        com.taskcenter.model.TaskActivityType.SPRINT_REMOVED;
-                        
-                activitiesToLog.add(com.taskcenter.model.TaskActivity.builder()
+                TaskActivityType actionType = targetSprintId != null
+                        ? TaskActivityType.SPRINT_ASSIGNED
+                        : TaskActivityType.SPRINT_REMOVED;
+
+                activitiesToLog.add(TaskActivity.builder()
                         .taskId(task.getId())
                         .userId(currentUser.getId())
                         .user(currentUser)
@@ -278,11 +277,11 @@ public class SprintService {
         long taskCount = taskRepository.countBySprintId(saved.getId());
         Integer storyPoints = taskRepository.sumStoryPointsBySprintId(saved.getId());
         SprintDto dto = SprintDto.fromEntity(saved, taskCount, storyPoints != null ? storyPoints : 0);
-        
+
         webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
                 .type("SPRINT_COMPLETED")
                 .workspaceId(sprint.getWorkspaceId())
-                .data(java.util.Map.of(
+                .data(Map.of(
                         "sprint", dto,
                         "updatedTasks", tasksToMove.stream().map(TaskDto::fromEntity).collect(Collectors.toList())
                 ))
@@ -290,7 +289,7 @@ public class SprintService {
         if (cacheInvalidationService != null) {
             cacheInvalidationService.evictSprint(sprint.getWorkspaceId(), sprint.getId());
         }
-                
+
         return dto;
     }
 
@@ -300,17 +299,16 @@ public class SprintService {
 
         authorizationService.checkCanEdit(sprint.getWorkspaceId(), currentUser);
 
-        // Sprintdagi tasklarni backlogga qaytarish
         List<Task> tasks = taskRepository.findBySprintId(sprintId);
-        List<com.taskcenter.model.TaskActivity> activitiesToLog = new java.util.ArrayList<>();
-        
+        List<TaskActivity> activitiesToLog = new ArrayList<>();
+
         for (Task task : tasks) {
             task.setSprintId(null);
-            activitiesToLog.add(com.taskcenter.model.TaskActivity.builder()
+            activitiesToLog.add(TaskActivity.builder()
                     .taskId(task.getId())
                     .userId(currentUser.getId())
                     .user(currentUser)
-                    .actionType(com.taskcenter.model.TaskActivityType.SPRINT_REMOVED)
+                    .actionType(TaskActivityType.SPRINT_REMOVED)
                     .fieldName("sprint")
                     .oldValue(sprint.getName())
                     .newValue("Backlog")
@@ -349,7 +347,7 @@ public class SprintService {
             throw new BadRequestException("Yopilgan sprintga yangi vazifalar qo'shib bo'lmaydi");
         }
 
-        List<Task> tasksToSave = new java.util.ArrayList<>();
+        List<Task> tasksToSave = new ArrayList<>();
         for (String taskId : req.getTaskIds()) {
             Task task = taskRepository.findById(taskId)
                     .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
@@ -375,13 +373,13 @@ public class SprintService {
                 .stream()
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
-                
+
         webSocketNotifier.notifyWorkspace(sprint.getWorkspaceId(), WebSocketEvent.builder()
                 .type("SPRINT_TASKS_ADDED")
                 .workspaceId(sprint.getWorkspaceId())
-                .data(java.util.Map.of("sprintId", sprintId, "tasks", result))
+                .data(Map.of("sprintId", sprintId, "tasks", result))
                 .build());
-                
+
         return result;
     }
 
@@ -420,11 +418,11 @@ public class SprintService {
         Pageable pageable = PageRequest.of(page, size);
         Page<String> idPage = taskRepository.findBacklogTaskIds(workspaceId, pageable);
         List<Task> tasks = taskRepository.findByIdIn(idPage.getContent());
-        java.util.Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
+        Map<String, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, t -> t));
 
         List<TaskDto> taskDtos = idPage.getContent().stream()
                 .map(taskMap::get)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(TaskDto::fromEntity)
                 .collect(Collectors.toList());
 
@@ -452,7 +450,7 @@ public class SprintService {
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new BadRequestException("Tugash sanasi boshlanish sanasidan oldin bo'lishi mumkin emas");
+            throw new BadRequestException("Tugash sanasi (endDate) boshlanish sanasidan (startDate) oldin bo'lishi mumkin emas");
         }
     }
 }

@@ -3,7 +3,6 @@ package com.taskcenter.service;
 import com.taskcenter.dto.WorkspaceCreateRequest;
 import com.taskcenter.dto.WorkspaceDto;
 import com.taskcenter.dto.WorkspaceListDto;
-import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.User;
@@ -13,13 +12,11 @@ import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.WorkspaceRepository;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 public class WorkspaceService {
@@ -52,7 +49,6 @@ public class WorkspaceService {
         return workspacePage.map(WorkspaceListDto::fromEntity);
     }
 
-    // Kesh (@Cacheable) ishlatilmaydi: kesh urilganda metod chaqirilmaydi va checkAccess o'tkazib yuboriladi
     @Transactional(readOnly = true)
     public WorkspaceDto getWorkspaceById(String id, User currentUser) {
         Workspace workspace = authorizationService.checkAccess(id, currentUser);
@@ -67,7 +63,7 @@ public class WorkspaceService {
         } else if (basePrefix.isEmpty()) {
             basePrefix = "WS";
         }
-        String uniqueKeyPrefix = basePrefix + "-" + java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String uniqueKeyPrefix = basePrefix + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
 
         Workspace workspace = Workspace.builder()
                 .title(request.getTitle())

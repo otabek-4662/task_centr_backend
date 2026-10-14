@@ -19,27 +19,26 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
-# Local config
+# Local config & secrets
 application-local.yml
 application-local.properties
 .env
+.env.*
 
-# Build
-*.war
-*.ear
+# Local uploads & backups (Zahira)
+uploads/
+backup/
+zahira/
+*.bak
 
-# Logs
+# Logs & temporary files
 logs/
 *.log
-
-# Temporary
 *.tmp
 *.temp
 
-# Reports
+# Reports & local test scripts
 WORKSPACE_TASK_REPORT.md
-
-# Sensitive local test scripts
 test_smtp.py
 test_invite.py
 send_invite_test.py

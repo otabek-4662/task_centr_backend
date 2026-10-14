@@ -33,6 +33,9 @@ public class ColumnDto {
     @Schema(description = "Tugallanganlik (Done) ustunimi", example = "false")
     private Boolean isDone;
 
+    @Schema(description = "Ustundagi vazifalar maksimal limiti (WIP Limit)", example = "5")
+    private Integer wipLimit;
+
     @Schema(description = "Ustundagi vazifalar ro'yxati")
     @Builder.Default
     private List<TaskDto> tasks = new ArrayList<>();
@@ -52,6 +55,7 @@ public class ColumnDto {
                 .order(c.getOrder())
                 .isDefault(c.getIsDefault())
                 .isDone(c.getIsDone())
+                .wipLimit(c.getWipLimit())
                 .tasks(taskList)
                 .build();
     }

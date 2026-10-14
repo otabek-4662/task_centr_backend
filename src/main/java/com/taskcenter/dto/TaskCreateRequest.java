@@ -22,6 +22,9 @@ public class TaskCreateRequest {
     @NotBlank(message = "Ustun tanlanishi shart")
     private String columnId;
 
+    @Schema(description = "Ota vazifa (Parent Task) ID si (Sub-task yaratish uchun, ixtiyoriy)", example = "task-parent-123", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String parentId;
+
     @Schema(description = "Vazifa nomi", example = "Swagger UI integratsiyasini ulash", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "Vazifa (Bosh og'riq) sarlavhasi bo'sh bo'lishi mumkin emas")
     @Size(max = 255, message = "Sarlavha 255 belgidan oshmasligi kerak")
@@ -45,6 +48,9 @@ public class TaskCreateRequest {
 
     @Schema(description = "Story Points (Agile bahosi)", example = "5", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Integer storyPoints;
+
+    @Schema(description = "Taxmin qilingan soatlar", example = "4.0", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Double estimatedHours;
 
     @Schema(hidden = true)
     @com.fasterxml.jackson.annotation.JsonIgnore

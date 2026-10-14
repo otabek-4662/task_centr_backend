@@ -12,6 +12,7 @@ import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -66,6 +67,7 @@ public class UserService {
         this.eventPublisher = eventPublisher;
     }
 
+    @Transactional(readOnly = true)
     public UserDto getCurrentUser(User currentUser) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
@@ -116,6 +118,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public void unlinkTelegram(User currentUser) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
@@ -129,6 +132,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public UserDto linkTelegramViaInitData(User currentUser, String initData) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
@@ -172,6 +176,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public UserDto updateProfile(User currentUser, UpdateProfileRequest request) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");
@@ -200,6 +205,7 @@ public class UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public void changePassword(User currentUser, ChangePasswordRequest request) {
         if (currentUser == null) {
             throw new ForbiddenException("Foydalanuvchi tizimga kirmagan");

@@ -10,6 +10,7 @@ import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.dto.WebSocketEvent;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public ColumnDto createColumn(String workspaceId, ColumnCreateRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -54,12 +56,14 @@ public class ColumnService {
         }
 
         Boolean isDone = request.getIsDone() != null ? request.getIsDone() : false;
+        Integer wipLimit = (request.getWipLimit() != null && request.getWipLimit() > 0) ? request.getWipLimit() : null;
 
         BoardColumn column = BoardColumn.builder()
                 .workspaceId(workspaceId)
                 .title(request.getTitle())
                 .order(order)
                 .isDone(isDone)
+                .wipLimit(wipLimit)
                 .build();
 
         BoardColumn saved = columnRepository.save(column);
@@ -81,6 +85,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public ColumnDto updateColumn(String workspaceId, String id, ColumnCreateRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -98,6 +103,9 @@ public class ColumnService {
         if (request.getIsDone() != null) {
             column.setIsDone(request.getIsDone());
         }
+        if (request.getWipLimit() != null) {
+            column.setWipLimit(request.getWipLimit() > 0 ? request.getWipLimit() : null);
+        }
 
         BoardColumn saved = columnRepository.save(column);
         ColumnDto dto = ColumnDto.fromEntity(saved);
@@ -112,6 +120,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public ColumnDto patchColumn(String workspaceId, String id, ColumnPatchRequest request, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -129,6 +138,9 @@ public class ColumnService {
         if (request.getIsDone() != null) {
             column.setIsDone(request.getIsDone());
         }
+        if (request.getWipLimit() != null) {
+            column.setWipLimit(request.getWipLimit() > 0 ? request.getWipLimit() : null);
+        }
 
         BoardColumn saved = columnRepository.save(column);
         ColumnDto dto = ColumnDto.fromEntity(saved);
@@ -143,6 +155,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public List<ColumnDto> reorderColumns(String workspaceId, List<ColumnReorderItem> items, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -166,6 +179,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public List<ColumnDto> reorderColumnsByIds(String workspaceId, List<String> columnIds, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -188,6 +202,7 @@ public class ColumnService {
     }
 
     @Transactional
+    @CacheEvict(value = "columns", key = "#workspaceId")
     public void deleteColumn(String workspaceId, String id, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 

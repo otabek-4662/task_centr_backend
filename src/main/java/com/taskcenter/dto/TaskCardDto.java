@@ -3,10 +3,13 @@ package com.taskcenter.dto;
 import com.taskcenter.model.IssueType;
 import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.TaskChecklistItem;
+import com.taskcenter.util.AppTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -79,10 +82,10 @@ public class TaskCardDto {
     private Boolean isArchived;
 
     @Schema(description = "Yaratilgan vaqt (ISO-8601)", example = "2026-10-08T15:30:00")
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     @Schema(description = "So'nggi o'zgartirilgan vaqt (ISO-8601)", example = "2026-10-08T15:35:00")
-    private java.time.LocalDateTime updatedAt;
+    private LocalDateTime updatedAt;
 
     public static TaskCardDto fromEntity(Task t) {
         return TaskCardDto.builder()
@@ -98,9 +101,9 @@ public class TaskCardDto {
                 .storyPoints(t.getStoryPoints())
                 .estimatedHours(t.getEstimatedHours())
                 .loggedHours(t.getLoggedHours())
-                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(com.taskcenter.util.AppTime.today()))
+                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(AppTime.today()))
                 .totalChecklistItems(t.getChecklistItems() != null ? t.getChecklistItems().size() : 0)
-                .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(com.taskcenter.model.TaskChecklistItem::getIsCompleted).count() : 0)
+                .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .directions(t.getDirections() != null ? t.getDirections().stream().map(DirectionDto::fromEntity).collect(Collectors.toList()) : List.of())

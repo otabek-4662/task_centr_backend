@@ -1,11 +1,13 @@
-// Replaces the inline onclick/oninput/onchange attributes that the page's
-// Content-Security-Policy blocks. Calls the existing global functions in app.js.
+// Event delegation binder compliant with Content-Security-Policy (no inline onclick/onchange)
 (function () {
   'use strict';
 
   function call(name) {
     var fn = window[name];
-    if (typeof fn !== 'function') { console.warn('ui-bind: missing function', name); return; }
+    if (typeof fn !== 'function') {
+      console.warn('ui-bind: missing function', name);
+      return;
+    }
     return fn.apply(null, Array.prototype.slice.call(arguments, 1));
   }
 
@@ -13,21 +15,105 @@
     var el = e.target.closest('[data-action]');
     if (!el) return;
     switch (el.dataset.action) {
+      case 'switch-auth-mode':
+        call('switchAuthMode', el.dataset.mode);
+        break;
+      case 'submit-auth':
+        call('handleLogin');
+        break;
+      case 'toggle-theme':
+        call('toggleTheme');
+        break;
+      case 'toggle-hero':
+        call('toggleHeroShowcase');
+        break;
+      case 'open-ws-modal':
+        call('openWorkspaceModal');
+        break;
+      case 'open-notifications':
+        call('openNotificationsModal');
+        break;
       case 'refresh-board':
         if (typeof currentWsId !== 'undefined' && currentWsId) call('loadBoard', currentWsId);
         break;
-      case 'refresh-mytasks': call('loadMyTasks'); break;
-      case 'filter': call('setFilter', el); break;
-      case 'new-task': call('openSheet', 'create'); break;
-      case 'tab': call('switchTab', el.dataset.tab); break;
-      case 'close-sheet': call('closeSheet'); break;
-      case 'share-task': call('shareTask'); break;
+      case 'refresh-sprints':
+        call('loadSprintsTab');
+        break;
+      case 'open-sprint-modal':
+        call('openSprintModal');
+        break;
+      case 'refresh-mytasks':
+        call('loadMyTasks');
+        break;
+      case 'refresh-chat':
+        call('loadChatTab');
+        break;
+      case 'chat-channel':
+        call('switchChatChannel', el.dataset.channel);
+        break;
+      case 'send-chat-msg':
+        call('sendChatMessage');
+        break;
+      case 'cancel-chat-reply':
+        call('cancelChatReply');
+        break;
+      case 'export-csv':
+        call('exportWorkspaceCsv');
+        break;
+      case 'refresh-workspace-tab':
+        call('loadWorkspaceSettingsTab');
+        break;
+      case 'filter':
+        call('setFilter', el);
+        break;
+      case 'add-column':
+        call('promptAddColumn');
+        break;
+      case 'new-task':
+        call('openSheet', 'create');
+        break;
+      case 'save-task':
+        call('saveTask');
+        break;
+      case 'tab':
+        call('switchTab', el.dataset.tab);
+        break;
+      case 'detail-subtab':
+        call('switchDetailSubtab', el.dataset.subtab);
+        break;
+      case 'close-sheet':
+        call('closeSheet');
+        break;
+      case 'share-task':
+        call('shareTask');
+        break;
       case 'edit-task':
         if (typeof currentTaskId !== 'undefined') call('openSheet', 'edit', currentTaskId);
         break;
-      case 'delete-task': call('deleteTask'); break;
-      case 'add-checklist': call('addChecklist'); break;
-      case 'add-comment': call('addComment'); break;
+      case 'delete-task':
+        call('deleteTask');
+        break;
+      case 'toggle-watch':
+        call('toggleWatchTask');
+        break;
+      case 'toggle-archive':
+        call('toggleArchiveTask');
+        break;
+      case 'add-checklist':
+        call('addChecklist');
+        break;
+      case 'add-subtask':
+        call('addSubtask');
+        break;
+      case 'add-worklog':
+        call('addWorklog');
+        break;
+      case 'add-comment':
+        call('addComment');
+        break;
+      case 'upload-attachment':
+        call('uploadTaskAttachment');
+        break;
       case 'qa-edit':
         call('closeSheet');
         setTimeout(function () {
@@ -37,11 +123,37 @@
     }
   });
 
-  // keyboard access for the tab bar (role="button" divs)
   document.addEventListener('keydown', function (e) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.tab-btn')) {
       e.preventDefault();
       call('switchTab', e.target.dataset.tab);
+    }
+    if (e.key === 'Escape') {
+      var overlay = document.getElementById('sheet-overlay');
+      if (overlay && overlay.classList.contains('active')) {
+        call('closeSheet');
+      }
+    }
+    if (e.key === 'Enter') {
+      if (e.target.id === 'login-password' || e.target.id === 'login-username') {
+        e.preventDefault();
+        call('handleLogin');
+      } else if (e.target.id === 'chat-msg-input') {
+        e.preventDefault();
+        call('sendChatMessage');
+      } else if (e.target.id === 'checklist-input') {
+        e.preventDefault();
+        call('addChecklist');
+      } else if (e.target.id === 'subtask-input') {
+        e.preventDefault();
+        call('addSubtask');
+      } else if (e.target.id === 'worklog-desc-input' || e.target.id === 'worklog-hours-input') {
+        e.preventDefault();
+        call('addWorklog');
+      } else if (e.target.id === 'comment-input') {
+        e.preventDefault();
+        call('addComment');
+      }
     }
   });
 
@@ -52,8 +164,11 @@
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (t.id === 'stats-ws') call('loadStats');
-    else if (t.id === 'd-col-select') call('moveTaskFromSelect', t.value);
-    else if (t.id === 'qa-col-select') {
+    else if (t.id === 'board-sprint-select' || t.id === 'filter-direction' || t.id === 'filter-label') {
+      call('applyFilters');
+    } else if (t.id === 'd-col-select') {
+      call('moveTaskFromSelect', t.value);
+    } else if (t.id === 'qa-col-select') {
       Promise.resolve(call('moveTaskFromSelect', t.value)).then(function () { call('closeSheet'); });
     }
   });

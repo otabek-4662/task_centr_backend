@@ -1,6 +1,6 @@
 package com.taskcenter.config;
 
-import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.exception.FlywayValidateException;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,8 +11,13 @@ public class FlywayConfig {
     @Bean
     public FlywayMigrationStrategy cleanMigrateStrategy() {
         return flyway -> {
-            flyway.repair();
-            flyway.migrate();
+            try {
+                flyway.migrate();
+            } catch (FlywayValidateException e) {
+                // Faqat validatsiya yoki oldingi migratsiyada xato bo'lgandagina repair() chaqiriladi
+                flyway.repair();
+                flyway.migrate();
+            }
         };
     }
 }

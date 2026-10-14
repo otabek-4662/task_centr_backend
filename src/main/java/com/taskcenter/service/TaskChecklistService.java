@@ -2,11 +2,16 @@ package com.taskcenter.service;
 
 import com.taskcenter.dto.*;
 import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.TaskActivityType;
 import com.taskcenter.model.TaskChecklistItem;
 import com.taskcenter.model.User;
+import com.taskcenter.repository.ColumnRepository;
 import com.taskcenter.repository.TaskChecklistItemRepository;
 import com.taskcenter.repository.TaskRepository;
+import com.taskcenter.util.LexoRankUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +27,9 @@ public class TaskChecklistService {
     private final WorkspaceAuthorizationService authorizationService;
     private final WebSocketNotifier webSocketNotifier;
 
+    private ColumnRepository columnRepository;
+    private TaskActivityService activityService;
+
     public TaskChecklistService(TaskChecklistItemRepository checklistItemRepository,
                                 TaskRepository taskRepository,
                                 WorkspaceAuthorizationService authorizationService,
@@ -30,6 +38,16 @@ public class TaskChecklistService {
         this.taskRepository = taskRepository;
         this.authorizationService = authorizationService;
         this.webSocketNotifier = webSocketNotifier;
+    }
+
+    @Autowired(required = false)
+    public void setColumnRepository(ColumnRepository columnRepository) {
+        this.columnRepository = columnRepository;
+    }
+
+    @Autowired(required = false)
+    public void setActivityService(TaskActivityService activityService) {
+        this.activityService = activityService;
     }
 
     public String resolveWorkspaceId(String taskId) {
@@ -59,7 +77,7 @@ public class TaskChecklistService {
 
     @Transactional
     public ChecklistItemDto addItem(String workspaceId, String taskId, ChecklistItemCreateRequest req, User currentUser) {
-        Task task = checkAccessAndGetTask(workspaceId, taskId, currentUser, true);
+        checkAccessAndGetTask(workspaceId, taskId, currentUser, true);
         
         Integer nextOrder = checklistItemRepository.findMaxOrderIndexByTaskId(taskId) + 1;
         TaskChecklistItem item = TaskChecklistItem.builder()
@@ -81,7 +99,7 @@ public class TaskChecklistService {
 
     @Transactional
     public ChecklistItemDto updateItem(String workspaceId, String taskId, String itemId, ChecklistItemUpdateRequest req, User currentUser) {
-        checkAccessAndGetTask(workspaceId, taskId, currentUser, true);
+        Task task = checkAccessAndGetTask(workspaceId, taskId, currentUser, true);
         
         TaskChecklistItem item = checklistItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Checklist item topilmadi"));
@@ -103,6 +121,38 @@ public class TaskChecklistService {
                 .workspaceId(workspaceId)
                 .data(dto)
                 .build());
+
+        // Workspace Automation Rule: Barcha checklist elementlari 100% bajarilganda vazifani avtomatik "Done" ustuniga o'tkazish
+        if (Boolean.TRUE.equals(saved.getIsCompleted()) && columnRepository != null) {
+            List<TaskChecklistItem> allItems = checklistItemRepository.findByTaskIdOrderByOrderIndexAsc(taskId);
+            if (allItems != null && !allItems.isEmpty()
+                    && allItems.stream().allMatch(i -> Boolean.TRUE.equals(i.getIsCompleted()))) {
+                List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+                if (columns != null) {
+                    BoardColumn doneCol = columns.stream()
+                            .filter(c -> Boolean.TRUE.equals(c.getIsDone()))
+                            .findFirst()
+                            .orElse(null);
+                    if (doneCol != null && !doneCol.getId().equals(task.getColumnId())) {
+                        String oldColumnId = task.getColumnId();
+                        String maxRank = taskRepository.findMaxLexoRankByColumnId(doneCol.getId());
+                        task.setColumnId(doneCol.getId());
+                        task.setLexoRank(LexoRankUtil.getMiddleSafe(maxRank, null));
+                        Task movedTask = taskRepository.save(task);
+                        if (activityService != null) {
+                            activityService.logActivity(movedTask.getId(), currentUser, TaskActivityType.STATUS_UPDATED,
+                                    "columnId", oldColumnId, doneCol.getId());
+                        }
+                        webSocketNotifier.notifyWorkspace(workspaceId, WebSocketEvent.builder()
+                                .type("TASK_MOVED")
+                                .workspaceId(workspaceId)
+                                .data(TaskDto.fromEntity(movedTask))
+                                .build());
+                    }
+                }
+            }
+        }
+
         return dto;
     }
 

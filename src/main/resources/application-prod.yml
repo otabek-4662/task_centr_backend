@@ -1,9 +1,28 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:5}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+      connection-timeout: 10000
+      validation-timeout: 3000
+      keepalive-time: 120000
+      max-lifetime: 1800000
+      idle-timeout: 300000
+      data-source-properties:
+        options: "-c statement_timeout=15000 -c lock_timeout=5000 -c idle_in_transaction_session_timeout=30000"
+        tcpKeepAlive: true
+        socketTimeout: 20
+
 springdoc:
   api-docs:
     enabled: false
   swagger-ui:
     enabled: false
 
+telegram:
+  bot:
+    webhook-url: ${TELEGRAM_BOT_WEBHOOK_URL:https://task-centr-backend.onrender.com/api/webhooks/telegram}
+
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://task-center-frontend.onrender.com}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://task-center-frontend.onrender.com,https://task-centr-backend.onrender.com}

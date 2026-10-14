@@ -61,17 +61,33 @@ public class TelegramBotConfig implements DisposableBean {
         this.telegramBotService = telegramBotService;
     }
 
+    /**
+     * Agar telegram.bot.webhook-url berilgan bo'lsa yoki Render muhitida RENDER_EXTERNAL_URL
+     * mavjud bo'lsa, avtomatik Webhook URL qaytaradi (Long-polling va DB lock o'rniga).
+     */
+    private String resolveEffectiveWebhookUrl() {
+        if (webhookUrl != null && !webhookUrl.isBlank()) {
+            return webhookUrl.trim();
+        }
+        String renderExternalUrl = System.getenv("RENDER_EXTERNAL_URL");
+        if (renderExternalUrl != null && !renderExternalUrl.isBlank()) {
+            return renderExternalUrl.trim().replaceAll("/+$", "") + "/api/webhooks/telegram";
+        }
+        return null;
+    }
+
     @Bean
     public TelegramBotsApi telegramBotsApi(TelegramBotService telegramBotService) {
-        if (webhookUrl != null && !webhookUrl.isBlank()) {
-            log.info("Telegram Bot Webhook rejimida: {}. Long-polling (DefaultBotSession) o'chirildi (409 Conflict bartaraf etildi).", webhookUrl);
+        String effectiveWebhookUrl = resolveEffectiveWebhookUrl();
+        if (effectiveWebhookUrl != null && !effectiveWebhookUrl.isBlank()) {
+            log.info("Telegram Bot Webhook rejimida: {}. Long-polling (DefaultBotSession) va DB advisory lock o'chirildi.", effectiveWebhookUrl);
             try {
-                SetWebhook.SetWebhookBuilder builder = SetWebhook.builder().url(webhookUrl.trim());
+                SetWebhook.SetWebhookBuilder builder = SetWebhook.builder().url(effectiveWebhookUrl);
                 if (webhookSecret != null && !webhookSecret.isBlank()) {
                     builder.secretToken(webhookSecret.trim());
                 }
                 telegramBotService.execute(builder.build());
-                log.info("Telegram Bot Webhook muvaffaqiyatli o'rnatildi.");
+                log.info("Telegram Bot Webhook muvaffaqiyatli o'rnatildi: {}", effectiveWebhookUrl);
             } catch (TelegramApiException e) {
                 log.warn("Telegram Webhook o'rnatishda xatolik: {}", e.getMessage());
             }
@@ -84,8 +100,9 @@ public class TelegramBotConfig implements DisposableBean {
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        if (webhookUrl != null && !webhookUrl.isBlank()) {
-            // Webhook allaqachon telegramBotsApi metodida sozlangan
+        String effectiveWebhookUrl = resolveEffectiveWebhookUrl();
+        if (effectiveWebhookUrl != null && !effectiveWebhookUrl.isBlank()) {
+            // Webhook allaqachon telegramBotsApi metodida sozlangan — DB connection band qilinmaydi
             return;
         }
 
@@ -109,7 +126,6 @@ public class TelegramBotConfig implements DisposableBean {
             return t;
         });
 
-        // Darhol yoki har 5 soniyada leader lock olishga urinish
         leaderScheduler.scheduleWithFixedDelay(this::tryAcquireLeaderAndRegisterBot, 0, 5, TimeUnit.SECONDS);
     }
 
@@ -119,7 +135,6 @@ public class TelegramBotConfig implements DisposableBean {
         }
 
         if (botSession != null && botSession.isRunning()) {
-            // Allaqachon leader sifatida ishlamoqda
             return;
         }
 
@@ -149,7 +164,6 @@ public class TelegramBotConfig implements DisposableBean {
                     releaseLeaderLock();
                 }
             } else {
-                // Boshqa instance (masalan, deploy paytidagi eski konteyner) botni ushlab turibdi
                 log.info("Telegram Bot leader lock boshqa instance tomonidan band. Yangi instance standby rejimida kutmoqda (5s dan so'ng qayta tekshiriladi)...");
                 conn.close();
             }

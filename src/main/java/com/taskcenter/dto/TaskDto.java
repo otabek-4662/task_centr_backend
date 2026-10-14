@@ -1,12 +1,19 @@
 package com.taskcenter.dto;
 
+import com.taskcenter.model.Direction;
 import com.taskcenter.model.IssueType;
+import com.taskcenter.model.Label;
 import com.taskcenter.model.Priority;
 import com.taskcenter.model.Task;
+import com.taskcenter.model.TaskChecklistItem;
+import com.taskcenter.model.User;
+import com.taskcenter.util.AppTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,6 +39,9 @@ public class TaskDto {
 
     @Schema(description = "Ishchi maydon identifikatori", example = "ws-12345")
     private String workspaceId;
+
+    @Schema(description = "Ota vazifa (Parent Task) identifikatori (Sub-task uchun)", example = "task-parent-123")
+    private String parentId;
 
     @Schema(description = "Vazifa sarlavhasi", example = "Swagger UI integratsiyasini ulash")
     private String title;
@@ -78,11 +88,17 @@ public class TaskDto {
     @Schema(description = "Vazifaga biriktirilgan teglar")
     private List<LabelDto> labels;
 
+    @Schema(description = "Frontend kartochkalari uchun teg/yo'nalish nomlari ro'yxati")
+    private List<String> labelNames;
+
     @Schema(description = "Vazifaga biriktirilgan yo'nalishlar (Frontend, Backend, QA va h.k.)")
     private List<DirectionDto> directions;
 
     @Schema(description = "Vazifaga biriktirilgan ijrochilar")
     private List<UserDto> assignees;
+
+    @Schema(description = "Frontend kartochkalari uchun biriktirilgan ijrochilar ismlari ro'yxati")
+    private List<String> members;
 
     @Schema(description = "Vazifaga biriktirilgan asosiy ijrochi", implementation = UserSummaryDto.class)
     private UserSummaryDto assignee;
@@ -97,10 +113,10 @@ public class TaskDto {
     private Boolean isArchived;
 
     @Schema(description = "Yaratilgan vaqt (ISO-8601)", example = "2026-10-08T15:30:00")
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     @Schema(description = "So'nggi o'zgartirilgan vaqt (ISO-8601)", example = "2026-10-08T15:35:00")
-    private java.time.LocalDateTime updatedAt;
+    private LocalDateTime updatedAt;
 
     @Data
     @Builder
@@ -116,7 +132,7 @@ public class TaskDto {
         @Schema(description = "Avatar havolasi", example = "https://example.com/avatar.png")
         private String avatarUrl;
 
-        public static UserSummaryDto fromEntity(com.taskcenter.model.User user) {
+        public static UserSummaryDto fromEntity(User user) {
             if (user == null) return null;
             return UserSummaryDto.builder()
                     .id(user.getId())
@@ -137,7 +153,7 @@ public class TaskDto {
         @Schema(description = "Hisob beruvchi to'liq ismi", example = "Vali Aliyev")
         private String fullName;
 
-        public static ReporterDto fromEntity(com.taskcenter.model.User user) {
+        public static ReporterDto fromEntity(User user) {
             if (user == null) return null;
             return ReporterDto.builder()
                     .id(user.getId())
@@ -150,10 +166,10 @@ public class TaskDto {
         return fromEntity(t, null);
     }
 
-    public static TaskDto fromEntity(Task t, com.taskcenter.model.User reporterUser) {
+    public static TaskDto fromEntity(Task t, User reporterUser) {
         if (t == null) return null;
 
-        com.taskcenter.model.User firstAssignee = (t.getAssignees() != null && !t.getAssignees().isEmpty())
+        User firstAssignee = (t.getAssignees() != null && !t.getAssignees().isEmpty())
                 ? t.getAssignees().iterator().next()
                 : null;
 
@@ -169,6 +185,29 @@ public class TaskDto {
 
         String taskCode = t.getPublicId() != null ? t.getPublicId() : t.getId();
 
+        List<String> memberNames = t.getAssignees() != null
+                ? t.getAssignees().stream()
+                        .map(u -> (u.getFullName() != null && !u.getFullName().isBlank()) ? u.getFullName() : u.getName())
+                        .filter(n -> n != null && !n.isBlank())
+                        .collect(Collectors.toList())
+                : List.of();
+
+        List<String> combinedLabelNames = new ArrayList<>();
+        if (t.getDirections() != null) {
+            for (Direction d : t.getDirections()) {
+                if (d.getName() != null && !d.getName().isBlank()) {
+                    combinedLabelNames.add(d.getName().trim().toLowerCase());
+                }
+            }
+        }
+        if (t.getLabels() != null) {
+            for (Label l : t.getLabels()) {
+                if (l.getName() != null && !l.getName().isBlank()) {
+                    combinedLabelNames.add(l.getName().trim().toLowerCase());
+                }
+            }
+        }
+
         return TaskDto.builder()
                 .id(t.getId())
                 .publicId(t.getPublicId())
@@ -176,6 +215,7 @@ public class TaskDto {
                 .code(taskCode)
                 .columnId(t.getColumnId())
                 .workspaceId(t.getWorkspaceId())
+                .parentId(t.getParentId())
                 .title(t.getTitle())
                 .description(t.getDescription())
                 .lexoRank(t.getLexoRank())
@@ -186,13 +226,15 @@ public class TaskDto {
                 .storyPoints(t.getStoryPoints())
                 .estimatedHours(t.getEstimatedHours())
                 .loggedHours(t.getLoggedHours())
-                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(com.taskcenter.util.AppTime.today()))
+                .isOverdue(t.getDueDate() != null && t.getDueDate().isBefore(AppTime.today()))
                 .totalChecklistItems(t.getChecklistItems() != null ? t.getChecklistItems().size() : 0)
-                .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(com.taskcenter.model.TaskChecklistItem::getIsCompleted).count() : 0)
+                .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .labelNames(combinedLabelNames)
                 .directions(t.getDirections() != null ? t.getDirections().stream().map(DirectionDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .assignees(t.getAssignees() != null ? t.getAssignees().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
+                .members(memberNames)
                 .assignee(UserSummaryDto.fromEntity(firstAssignee))
                 .reporter(reporterDto)
                 .watchers(t.getWatchers() != null ? t.getWatchers().stream().map(UserDto::fromEntity).collect(Collectors.toList()) : List.of())
@@ -202,4 +244,3 @@ public class TaskDto {
                 .build();
     }
 }
-

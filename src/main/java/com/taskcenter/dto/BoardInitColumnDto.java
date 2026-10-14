@@ -25,6 +25,12 @@ public class BoardInitColumnDto {
     @Schema(description = "Ustun tartib indeksi", example = "0")
     private Integer order;
 
+    @Schema(description = "Tugallanganlik (Done) ustunimi", example = "false")
+    private Boolean isDone;
+
+    @Schema(description = "Ustundagi vazifalar maksimal limiti (WIP Limit)", example = "5")
+    private Integer wipLimit;
+
     @Schema(description = "Ustundagi vazifa kartalari ro'yxati (yengillashtirilgan)")
     private List<TaskCardDto> cards;
 
@@ -33,6 +39,8 @@ public class BoardInitColumnDto {
                 .id(c.getId())
                 .title(c.getTitle())
                 .order(c.getOrder())
+                .isDone(c.getIsDone())
+                .wipLimit(c.getWipLimit())
                 .cards(tasks.stream().map(TaskCardDto::fromEntity).collect(Collectors.toList()))
                 .build();
     }

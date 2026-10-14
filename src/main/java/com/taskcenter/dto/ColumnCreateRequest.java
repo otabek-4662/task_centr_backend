@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 @Schema(
         description = "Yangi ustun (Column) yaratish so'rovi",
-        example = "{\"title\": \"Ko'rib chiqilmoqda\", \"order\": 2, \"isDone\": false}"
+        example = "{\"title\": \"Ko'rib chiqilmoqda\", \"order\": 2, \"isDone\": false, \"wipLimit\": 5}"
 )
 public class ColumnCreateRequest {
     @Schema(description = "Ustun nomi", example = "Ko'rib chiqilmoqda", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -21,4 +21,7 @@ public class ColumnCreateRequest {
 
     @Schema(description = "Tugallanganlik (Done) ustunimi", example = "false", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Boolean isDone;
+
+    @Schema(description = "Ustundagi vazifalar maksimal soni (WIP Limit, ixtiyoriy)", example = "5", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Integer wipLimit;
 }

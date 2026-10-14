@@ -1,18 +1,24 @@
 package com.taskcenter.service;
 
+import com.taskcenter.dto.ColumnTaskCountProjection;
+import com.taskcenter.dto.SprintReportDto;
 import com.taskcenter.dto.UserWorkloadDto;
+import com.taskcenter.dto.UserWorkloadProjection;
 import com.taskcenter.dto.WorkspaceReportDto;
+import com.taskcenter.exception.BadRequestException;
+import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.BoardColumn;
+import com.taskcenter.model.Sprint;
 import com.taskcenter.model.Task;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.ColumnRepository;
+import com.taskcenter.repository.SprintRepository;
 import com.taskcenter.repository.TaskRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class ReportService {
@@ -20,26 +26,24 @@ public class ReportService {
     private final TaskRepository taskRepository;
     private final ColumnRepository columnRepository;
     private final WorkspaceAuthorizationService authorizationService;
-    private final com.taskcenter.repository.SprintRepository sprintRepository;
+    private final SprintRepository sprintRepository;
 
     public ReportService(TaskRepository taskRepository,
                          ColumnRepository columnRepository,
                          WorkspaceAuthorizationService authorizationService,
-                         com.taskcenter.repository.SprintRepository sprintRepository) {
+                         SprintRepository sprintRepository) {
         this.taskRepository = taskRepository;
         this.columnRepository = columnRepository;
         this.authorizationService = authorizationService;
         this.sprintRepository = sprintRepository;
     }
 
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public WorkspaceReportDto getWorkspaceSummary(String workspaceId, User currentUser) {
-        // Ruxsatni tekshirish
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        // Workspace ustunlarini olish (Done ustunini aniqlash uchun)
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        
+
         String todoColumnId = null;
         String inProgressColumnId = null;
         String doneColumnId = null;
@@ -54,29 +58,27 @@ public class ReportService {
             }
         }
 
-        // Baza orqali agregatsiya (DB da sanaymiz)
-        List<com.taskcenter.dto.ColumnTaskCountProjection> taskCounts = taskRepository.getWorkspaceTaskCountsByColumn(workspaceId);
-        
+        List<ColumnTaskCountProjection> taskCounts = taskRepository.getWorkspaceTaskCountsByColumn(workspaceId);
+
         long totalTasks = 0;
         long todoTasks = 0;
         long inProgressTasks = 0;
         long doneTasks = 0;
 
-        for (com.taskcenter.dto.ColumnTaskCountProjection proj : taskCounts) {
+        for (ColumnTaskCountProjection proj : taskCounts) {
             long count = proj.getTaskCount() != null ? proj.getTaskCount() : 0L;
             totalTasks += count;
-            
+
             String colId = proj.getColumnId();
             if (colId.equals(todoColumnId)) todoTasks += count;
             else if (colId.equals(inProgressColumnId)) inProgressTasks += count;
             else if (colId.equals(doneColumnId)) doneTasks += count;
         }
 
-        // Xodimlar yuklamasini Baza orqali olish
-        List<com.taskcenter.dto.UserWorkloadProjection> workloadProjections = taskRepository.getWorkspaceWorkloadStats(workspaceId, doneColumnId);
+        List<UserWorkloadProjection> workloadProjections = taskRepository.getWorkspaceWorkloadStats(workspaceId, doneColumnId);
         List<UserWorkloadDto> workloadList = new ArrayList<>();
-        
-        for (com.taskcenter.dto.UserWorkloadProjection wp : workloadProjections) {
+
+        for (UserWorkloadProjection wp : workloadProjections) {
             workloadList.add(UserWorkloadDto.builder()
                     .userId(wp.getUserId())
                     .userName(wp.getUserName())
@@ -102,15 +104,15 @@ public class ReportService {
                 .build();
     }
 
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public com.taskcenter.dto.SprintReportDto getSprintSummary(String workspaceId, String sprintId, User currentUser) {
+    @Transactional(readOnly = true)
+    public SprintReportDto getSprintSummary(String workspaceId, String sprintId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        com.taskcenter.model.Sprint sprint = sprintRepository.findById(sprintId)
-                .orElseThrow(() -> new com.taskcenter.exception.ResourceNotFoundException("Sprint topilmadi"));
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sprint topilmadi"));
 
         if (!sprint.getWorkspaceId().equals(workspaceId)) {
-            throw new com.taskcenter.exception.BadRequestException("Sprint ushbu g'alvaga tegishli emas");
+            throw new BadRequestException("Sprint ushbu g'alvaga tegishli emas");
         }
 
         List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
@@ -144,11 +146,10 @@ public class ReportService {
         if (totalStoryPoints > 0) {
             completionPercentage = Math.round(((double) completedStoryPoints / totalStoryPoints) * 1000.0) / 10.0;
         } else if (totalTasks > 0) {
-            // Agar story point kiritilmagan bo'lsa, vazifalar soniga qarab hisoblaymiz
             completionPercentage = Math.round(((double) completedTasks / totalTasks) * 1000.0) / 10.0;
         }
 
-        return com.taskcenter.dto.SprintReportDto.builder()
+        return SprintReportDto.builder()
                 .sprintId(sprint.getId())
                 .sprintName(sprint.getName())
                 .status(sprint.getStatus().name())

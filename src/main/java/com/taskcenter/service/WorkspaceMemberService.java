@@ -1,6 +1,8 @@
 package com.taskcenter.service;
 
+import com.taskcenter.dto.InviteRequestDto;
 import com.taskcenter.dto.UserDto;
+import com.taskcenter.dto.WorkspaceInvitationDto;
 import com.taskcenter.dto.WorkspaceMemberInviteRequest;
 import com.taskcenter.dto.WorkspaceMemberResponseDto;
 import com.taskcenter.dto.WorkspaceMemberRoleUpdateRequest;
@@ -8,22 +10,31 @@ import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
 import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.model.InvitationStatus;
+import com.taskcenter.model.InvitationType;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
+import com.taskcenter.model.WorkspaceInvitation;
 import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.model.WorkspaceRole;
 import com.taskcenter.repository.UserRepository;
-import com.taskcenter.repository.WorkspaceMemberRepository;
-import com.taskcenter.model.WorkspaceInvitation;
-import com.taskcenter.model.InvitationStatus;
 import com.taskcenter.repository.WorkspaceInvitationRepository;
+import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.repository.WorkspaceRepository;
+import com.taskcenter.util.InvitationTokenUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-
-import java.util.*;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,7 +70,7 @@ public class WorkspaceMemberService {
         this(memberRepository, userRepository, workspaceRepository, authorizationService, invitationRepository, emailService, notificationService, telegramNotificationService, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public WorkspaceMemberService(WorkspaceMemberRepository memberRepository,
                                   UserRepository userRepository,
                                   WorkspaceRepository workspaceRepository,
@@ -68,7 +79,7 @@ public class WorkspaceMemberService {
                                   EmailService emailService,
                                   NotificationService notificationService,
                                   TelegramNotificationService telegramNotificationService,
-                                  @org.springframework.beans.factory.annotation.Autowired(required = false) WorkspaceInvitationService invitationService) {
+                                  @Autowired(required = false) WorkspaceInvitationService invitationService) {
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
@@ -124,7 +135,6 @@ public class WorkspaceMemberService {
             }
         }
 
-        // DB darajasida faqat PENDING takliflarni olish (barcha tarixni tortmaydi)
         List<WorkspaceInvitation> pendingInvitations = invitationRepository.findByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
 
         for (WorkspaceInvitation inv : pendingInvitations) {
@@ -152,10 +162,10 @@ public class WorkspaceMemberService {
         if (targetUserOpt.isEmpty()) {
             if (query.contains("@")) {
                 if (invitationService != null) {
-                    com.taskcenter.dto.InviteRequestDto inviteReq = new com.taskcenter.dto.InviteRequestDto();
+                    InviteRequestDto inviteReq = new InviteRequestDto();
                     inviteReq.setUsernameOrEmail(query);
                     inviteReq.setRole(roleToAssign);
-                    com.taskcenter.dto.WorkspaceInvitationDto inviteDto = invitationService.inviteUser(workspaceId, inviteReq, currentUser);
+                    WorkspaceInvitationDto inviteDto = invitationService.inviteUser(workspaceId, inviteReq, currentUser);
                     return WorkspaceMemberResponseDto.builder()
                             .id(inviteDto.getId())
                             .name("Taklif etilgan")
@@ -182,25 +192,24 @@ public class WorkspaceMemberService {
                             .roleName(existing.getRole() != null ? existing.getRole().getDisplayName() : null)
                             .build();
                 }
-                
-                // DB darajasida COUNT — barcha tarixni tortib filter qilish o'rniga
+
                 long pendingCount = invitationRepository.countByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
                 if (pendingCount >= 50) {
                     throw new BadRequestException("Ushbu loyihada kutilayotgan takliflar soni 50 tadan oshib ketdi. Eski takliflarni bekor qiling.");
                 }
 
-                String rawToken = com.taskcenter.util.InvitationTokenUtil.generateToken();
-                String tokenHash = com.taskcenter.util.InvitationTokenUtil.hashToken(rawToken);
+                String rawToken = InvitationTokenUtil.generateToken();
+                String tokenHash = InvitationTokenUtil.hashToken(rawToken);
 
                 WorkspaceInvitation invitation = WorkspaceInvitation.builder()
                         .workspaceId(workspaceId)
                         .senderId(currentUser.getId())
                         .receiverEmail(query)
-                        .type(com.taskcenter.model.InvitationType.EMAIL)
+                        .type(InvitationType.EMAIL)
                         .tokenHash(tokenHash)
                         .role(roleToAssign)
                         .status(InvitationStatus.PENDING)
-                        .expiresAt(LocalDateTime.now(java.time.ZoneOffset.UTC).plusDays(7))
+                        .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7))
                         .build();
 
                 EmailService.EmailDeliveryResult deliveryResult = emailService.sendInvitationEmailDirect(
@@ -209,7 +218,7 @@ public class WorkspaceMemberService {
                 invitation.setEmailDeliveryError(deliveryResult.errorMessage());
 
                 WorkspaceInvitation saved = invitationRepository.save(invitation);
-                
+
                 return WorkspaceMemberResponseDto.builder()
                         .id(saved.getId())
                         .name("Taklif etilgan")
@@ -258,7 +267,7 @@ public class WorkspaceMemberService {
     }
 
     private void reconcilePendingInvitations(String workspaceId, User targetUser) {
-        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<WorkspaceInvitation> pendingInvites = new ArrayList<>();
 
         invitationRepository.findByWorkspaceIdAndReceiverIdAndStatus(workspaceId, targetUser.getId(), InvitationStatus.PENDING)
@@ -335,13 +344,9 @@ public class WorkspaceMemberService {
     @Transactional
     public void removeMember(String workspaceId, String targetUserId, User currentUser) {
         boolean isSelf = targetUserId.equals(currentUser.getId());
-        Workspace workspace;
-        
-        if (!isSelf) {
-            workspace = authorizationService.checkAdmin(workspaceId, currentUser);
-        } else {
-            workspace = authorizationService.checkAccess(workspaceId, currentUser);
-        }
+        Workspace workspace = !isSelf
+                ? authorizationService.checkAdmin(workspaceId, currentUser)
+                : authorizationService.checkAccess(workspaceId, currentUser);
 
         if (workspace.getOwnerId().equals(targetUserId)) {
             throw new BadRequestException("Workspace egasini jamoadan chiqarib bo'lmaydi");
@@ -349,7 +354,7 @@ public class WorkspaceMemberService {
 
         if (!isSelf) {
             boolean isCurrentUserOwner = workspace.getOwnerId().equals(currentUser.getId());
-            
+
             Optional<WorkspaceInvitation> invOpt = invitationRepository.findById(targetUserId);
             if (invOpt.isPresent()) {
                 WorkspaceInvitation inv = invOpt.get();

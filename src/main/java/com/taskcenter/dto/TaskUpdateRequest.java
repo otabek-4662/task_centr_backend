@@ -29,6 +29,9 @@ public class TaskUpdateRequest {
     @Schema(description = "Ko'chiriladigan ustun ID si", example = "col-123", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String columnId;
 
+    @Schema(description = "Ota vazifa (Parent Task) ID si", example = "task-parent-123", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String parentId;
+
     @Schema(description = "LexoRank yangi tartib qiymati", example = "0|hzzzzz:", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String lexoRank;
 
@@ -43,6 +46,9 @@ public class TaskUpdateRequest {
 
     @Schema(description = "Story Points (Agile bahosi)", example = "5", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Integer storyPoints;
+
+    @Schema(description = "Taxmin qilingan soatlar", example = "4.0", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Double estimatedHours;
 
     @Schema(hidden = true)
     @com.fasterxml.jackson.annotation.JsonIgnore

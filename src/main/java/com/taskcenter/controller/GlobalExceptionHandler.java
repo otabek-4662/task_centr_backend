@@ -7,6 +7,7 @@ import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.RateLimitException;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.exception.ValidationException;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -45,7 +46,6 @@ public class GlobalExceptionHandler {
         return request != null ? request.getRequestURI() : "";
     }
 
-    // 1. Validation: MethodArgumentNotValidException
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         List<ApiError.FieldErrorItem> fieldErrors = new ArrayList<>();
@@ -76,7 +76,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 2. Validation: ConstraintViolationException (e.g. @PathVariable, @RequestParam)
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex, HttpServletRequest request) {
         List<ApiError.FieldErrorItem> fieldErrors = new ArrayList<>();
@@ -104,7 +103,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 3. Validation: Custom ValidationException
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiError> handleCustomValidationException(ValidationException ex, HttpServletRequest request) {
         Map<String, String> errors = ex.getErrors() != null ? ex.getErrors() : Map.of("error", ex.getMessage());
@@ -126,7 +124,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 4. 404: ResourceNotFoundException
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         String errCode = ex.getErrorCode() != null ? ex.getErrorCode() : "NOT_FOUND";
@@ -143,7 +140,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    // 5. 404: UsernameNotFoundException
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<ApiError> handleUsernameNotFound(UsernameNotFoundException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -159,7 +155,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    // 6. 404: NoResourceFoundException (Spring Web 404)
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -175,7 +170,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    // 6b. 404: NoSuchElementException
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ApiError> handleNoSuchElement(NoSuchElementException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -191,7 +185,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    // 7. 403: ForbiddenException
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
         String errCode = ex.getErrorCode() != null ? ex.getErrorCode() : "FORBIDDEN";
@@ -209,7 +202,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
-    // 8. 403: AccessDeniedException
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         String message = ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : "Amalni bajarish uchun ruxsat yetarli emas";
@@ -226,7 +218,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
-    // 9. 401: BadCredentialsException
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -242,7 +233,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
-    // 10. 400: BadRequestException
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex, HttpServletRequest request) {
         String errCode = ex.getErrorCode() != null ? ex.getErrorCode() : "BAD_REQUEST";
@@ -259,7 +249,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 11. 400: IllegalArgumentException
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -275,7 +264,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 12. 400: HttpMessageNotReadableException (JSON formati xato)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
         log.error("JSON parse xatosi: path={}", getPath(request), ex);
@@ -292,7 +280,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 12b. 400: MissingServletRequestParameterException
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiError> handleMissingServletRequestParameter(
             MissingServletRequestParameterException ex, HttpServletRequest request) {
@@ -313,7 +300,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 12c. 400: MethodArgumentTypeMismatchException
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleMethodArgumentTypeMismatch(
             MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
@@ -336,7 +322,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 12d. 405: HttpRequestMethodNotSupportedException
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiError> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
@@ -353,7 +338,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
-    // 13. 409: ConflictException
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex, HttpServletRequest request) {
         String errCode = ex.getErrorCode() != null ? ex.getErrorCode() : "CONFLICT";
@@ -370,7 +354,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    // 14. 409: DataIntegrityViolationException
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
         log.error("Data integrity violation: path={}", getPath(request), ex);
@@ -387,23 +370,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    // 15. 409: ObjectOptimisticLockingFailureException
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ApiError> handleOptimisticLock(ObjectOptimisticLockingFailureException ex, HttpServletRequest request) {
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
+    public ResponseEntity<ApiError> handleOptimisticLock(Exception ex, HttpServletRequest request) {
+        Map<String, Object> details = new HashMap<>();
+        details.put("reason", "CONCURRENT_MODIFICATION");
+        if (ex instanceof ObjectOptimisticLockingFailureException ole) {
+            if (ole.getPersistentClassName() != null) {
+                details.put("entity", ole.getPersistentClassName());
+            }
+            if (ole.getIdentifier() != null) {
+                details.put("id", String.valueOf(ole.getIdentifier()));
+            }
+        }
+
         ApiError body = ApiError.builder()
                 .status(HttpStatus.CONFLICT.value())
                 .error("CONFLICT")
-                .message("Ma'lumotlar bir vaqtda o'zgartirildi. Iltimos, qayta urinib ko'ring.")
+                .message("Ushbu yozuv boshqa foydalanuvchi tomonidan bir vaqtda o'zgartirildi. Sahifani yangilab, qayta urinib ko'ring.")
                 .path(getPath(request))
+                .data(details)
                 .code("CONFLICT")
-                .errorCode("CONFLICT")
+                .errorCode("CONCURRENT_MODIFICATION")
                 .success(false)
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    // 16. 429: RateLimitException
     @ExceptionHandler(RateLimitException.class)
     public ResponseEntity<ApiError> handleRateLimitException(RateLimitException ex, HttpServletRequest request) {
         String errCode = ex.getErrorCode() != null ? ex.getErrorCode() : "TOO_MANY_REQUESTS";
@@ -423,7 +416,6 @@ public class GlobalExceptionHandler {
                 .body(body);
     }
 
-    // 17. 413: MaxUploadSizeExceededException
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex, HttpServletRequest request) {
         ApiError body = ApiError.builder()
@@ -439,7 +431,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
-    // 18. ResponseStatusException
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> handleResponseStatusException(ResponseStatusException ex, HttpServletRequest request) {
         int statusCode = ex.getStatusCode().value();
@@ -460,7 +451,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 
-    // 19. 500: DataAccessException
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiError> handleDataAccess(DataAccessException ex, HttpServletRequest request) {
         log.error("Ma'lumotlar bazasida xatolik yuz berdi: path={}", getPath(request), ex);
@@ -477,7 +467,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
-    // 20. 500: Noma'lum umumiy xato (stack trace faqat logda, javobda emas)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Kutilmagan ichki server xatoligi: path={}", getPath(request), ex);

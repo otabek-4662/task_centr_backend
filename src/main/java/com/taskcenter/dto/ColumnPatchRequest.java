@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 @Schema(
         description = "Ustunni qisman tahrirlash so'rovi",
-        example = "{\"title\": \"Tekshiruvda\", \"order\": 3, \"isDone\": true}"
+        example = "{\"title\": \"Tekshiruvda\", \"order\": 3, \"isDone\": true, \"wipLimit\": 5}"
 )
 public class ColumnPatchRequest {
     @Schema(description = "Ustun yangi nomi", example = "Tekshiruvda", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
@@ -19,4 +19,7 @@ public class ColumnPatchRequest {
 
     @Schema(description = "Tugallanganlik (Done) belgisi", example = "true", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Boolean isDone;
+
+    @Schema(description = "Ustundagi vazifalar maksimal soni (WIP Limit, ixtiyoriy)", example = "5", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Integer wipLimit;
 }

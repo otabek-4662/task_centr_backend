@@ -1,22 +1,29 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.TaskAssignRequest;
 import com.taskcenter.dto.TaskCreateRequest;
 import com.taskcenter.dto.TaskDto;
+import com.taskcenter.dto.TaskFilterRequest;
+import com.taskcenter.dto.TaskReorderRequest;
 import com.taskcenter.dto.TaskUpdateRequest;
+import com.taskcenter.dto.TaskWorklogCreateRequest;
+import com.taskcenter.dto.TaskWorklogDto;
+import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.model.User;
 import com.taskcenter.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -39,11 +46,11 @@ public class TaskController {
     )
     @GetMapping
     public ApiResponse<Page<TaskDto>> getTasks(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @AuthenticationPrincipal User currentUser,
-            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
-            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @ModelAttribute TaskFilterRequest filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<TaskDto> tasks = taskService.getTasksByWorkspace(workspaceId, currentUser, filter, pageable);
         return ApiResponse.success("ok", tasks);
     }
@@ -55,13 +62,62 @@ public class TaskController {
     )
     @GetMapping("/{id}")
     public ApiResponse<TaskDto> getTaskById(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.getTaskById(workspaceId, id, currentUser);
         return ApiResponse.success("ok", task);
+    }
+
+    @Operation(
+            operationId = "getTaskSubtasks",
+            summary = "Ota vazifaga biriktirilgan ostki vazifalar (Subtasks) ro'yxatini olish",
+            description = "Berilgan vazifa ID si bo'yicha barcha sub-tasklarni LexoRank tartibida qaytaradi."
+    )
+    @GetMapping("/{id}/subtasks")
+    public ApiResponse<List<TaskDto>> getSubtasks(
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String workspaceId,
+            @Parameter(description = "Ota vazifa (parent task) ID si", example = "task-uuid-123")
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        List<TaskDto> subtasks = taskService.getSubtasks(workspaceId, id, currentUser);
+        return ApiResponse.success("ok", subtasks);
+    }
+
+    @Operation(
+            operationId = "getTaskWorklogs",
+            summary = "Vazifa bo'yicha sarflangan ish vaqti (Worklogs) tarixini olish",
+            description = "Vazifaga yozilgan barcha vaqt qaydlarini (soatlar, tavsif, sana, foydalanuvchi) qaytaradi."
+    )
+    @GetMapping("/{id}/worklogs")
+    public ApiResponse<List<TaskWorklogDto>> getWorklogs(
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String workspaceId,
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        List<TaskWorklogDto> worklogs = taskService.getWorklogs(workspaceId, id, currentUser);
+        return ApiResponse.success("ok", worklogs);
+    }
+
+    @Operation(
+            operationId = "addTaskWorklog",
+            summary = "Vazifaga sarflangan ish vaqtini (Worklog) qo'shish",
+            description = "Vazifaga yangi worklog yozuvini qo'shadi va vazifaning umumiy loggedHours qiymatini avtomatik yangilaydi."
+    )
+    @PostMapping("/{id}/worklogs")
+    public ApiResponse<TaskWorklogDto> addWorklog(
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String workspaceId,
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @PathVariable String id,
+            @Valid @RequestBody TaskWorklogCreateRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        TaskWorklogDto worklog = taskService.addWorklog(workspaceId, id, request, currentUser);
+        return ApiResponse.success("Ish vaqti muvaffaqiyatli qayd etildi", worklog);
     }
 
     @Operation(
@@ -71,7 +127,7 @@ public class TaskController {
     )
     @PostMapping
     public ApiResponse<TaskDto> createTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
             @Valid @RequestBody TaskCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -86,9 +142,9 @@ public class TaskController {
     )
     @PutMapping("/{id}")
     public ApiResponse<TaskDto> updateTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @Valid @RequestBody TaskUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -103,9 +159,9 @@ public class TaskController {
     )
     @PatchMapping("/{id}")
     public ApiResponse<TaskDto> patchTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @Valid @RequestBody TaskUpdateRequest request,
             @AuthenticationPrincipal User currentUser) {
@@ -116,18 +172,34 @@ public class TaskController {
     @Operation(
             operationId = "reorderWorkspaceTask",
             summary = "Vazifaning o'rnini (rank) va ustunini yangilash (Lexorank)",
-            description = "Kanban doskasida kartochkani sudrab ko'chirish (drag-and-drop) natijasida uning yangi ustunini va prevRank/nextRank asosida LexoRank tartibini yangilaydi."
+            description = "Kanban doskasida kartochkani sudrab ko'chirish (drag-and-drop) natijasida uning yangi ustunini va prevRank/nextRank asosida LexoRank tartibini yangilaydi. Agar rank uzunligi chegaradan oshsa, ustun avtomatik rebalance qilinadi."
     )
     @PatchMapping("/{id}/reorder")
     public ApiResponse<TaskDto> reorderTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
-            @Valid @RequestBody com.taskcenter.dto.TaskReorderRequest request,
+            @Valid @RequestBody TaskReorderRequest request,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.reorderTask(workspaceId, id, request, currentUser);
         return ApiResponse.success("Vazifa tartibi yangilandi", task);
+    }
+
+    @Operation(
+            operationId = "rebalanceColumnLexoRanks",
+            summary = "Ustundagi barcha vazifalar LexoRank tartibini qayta muvozanatlash (Rebalance)",
+            description = "Ko'p marta drag-and-drop qilingan ustundagi vazifalarning LexoRank qiymatlarini Base-36 bo'yicha tekis masofada qayta raqamlaydi."
+    )
+    @PostMapping("/columns/{columnId}/rebalance")
+    public ApiResponse<List<TaskDto>> rebalanceColumnRanks(
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable String workspaceId,
+            @Parameter(description = "Ustun (column) ID si", example = "col-uuid-123")
+            @PathVariable String columnId,
+            @AuthenticationPrincipal User currentUser) {
+        List<TaskDto> tasks = taskService.rebalanceColumnRanks(workspaceId, columnId, currentUser);
+        return ApiResponse.success("Ustun vazifalari tartibi qayta muvozanatlandi", tasks);
     }
 
     @Operation(
@@ -137,9 +209,9 @@ public class TaskController {
     )
     @PostMapping("/{id}/watch")
     public ApiResponse<Void> watchTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         taskService.toggleWatch(workspaceId, id, currentUser);
@@ -153,9 +225,9 @@ public class TaskController {
     )
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         taskService.deleteTask(workspaceId, id, currentUser);
@@ -169,9 +241,9 @@ public class TaskController {
     )
     @PostMapping("/{id}/archive")
     public ApiResponse<TaskDto> archiveTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.toggleArchive(workspaceId, id, true, currentUser);
@@ -185,9 +257,9 @@ public class TaskController {
     )
     @PostMapping("/{id}/unarchive")
     public ApiResponse<TaskDto> unarchiveTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
             @AuthenticationPrincipal User currentUser) {
         TaskDto task = taskService.toggleArchive(workspaceId, id, false, currentUser);
@@ -201,13 +273,13 @@ public class TaskController {
     )
     @PostMapping("/{id}/assign")
     public ApiResponse<TaskDto> assignTask(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "Ishchi maydon (workspace) ID si", example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String workspaceId,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
+            @Parameter(description = "Vazifa (task) ID si", example = "task-uuid-123")
             @PathVariable String id,
-            @io.swagger.v3.oas.annotations.Parameter(description = "Biriktiriladigan foydalanuvchi ID si (ixtiyoriy, agar request body bo'lmasa)", example = "user-uuid-123")
+            @Parameter(description = "Biriktiriladigan foydalanuvchi ID si (ixtiyoriy, agar request body bo'lmasa)", example = "user-uuid-123")
             @RequestParam(required = false) String userId,
-            @RequestBody(required = false) com.taskcenter.dto.TaskAssignRequest request,
+            @RequestBody(required = false) TaskAssignRequest request,
             @AuthenticationPrincipal User currentUser) {
         String targetUserId = userId;
         if (targetUserId == null && request != null) {
@@ -222,7 +294,7 @@ public class TaskController {
         }
 
         if (targetUserId == null || targetUserId.isBlank()) {
-            throw new com.taskcenter.exception.BadRequestException("userId yoki assigneeIds ko'rsatilishi shart");
+            throw new BadRequestException("userId yoki assigneeIds ko'rsatilishi shart");
         }
 
         TaskDto task = taskService.toggleAssignee(workspaceId, id, targetUserId, currentUser);

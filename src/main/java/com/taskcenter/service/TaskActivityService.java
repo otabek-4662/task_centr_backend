@@ -2,7 +2,6 @@ package com.taskcenter.service;
 
 import com.taskcenter.dto.TaskActivityDto;
 import com.taskcenter.exception.ResourceNotFoundException;
-import com.taskcenter.model.Task;
 import com.taskcenter.model.TaskActivity;
 import com.taskcenter.model.TaskActivityType;
 import com.taskcenter.model.User;
@@ -12,6 +11,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class TaskActivityService {
@@ -39,6 +40,14 @@ public class TaskActivityService {
                 .map(TaskActivityDto::fromEntity);
     }
 
+    @Transactional(readOnly = true)
+    public Page<TaskActivityDto> getWorkspaceActivities(String workspaceId, Pageable pageable, User currentUser) {
+        authorizationService.checkAccess(workspaceId, currentUser);
+
+        return activityRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId, pageable)
+                .map(TaskActivityDto::fromEntity);
+    }
+
     @Transactional
     public void logActivity(String taskId, User user, TaskActivityType actionType,
                             String fieldName, String oldValue, String newValue) {
@@ -54,9 +63,9 @@ public class TaskActivityService {
 
         activityRepository.save(activity);
     }
-    
+
     @Transactional
-    public void logActivities(java.util.List<TaskActivity> activities) {
+    public void logActivities(List<TaskActivity> activities) {
         if (activities != null && !activities.isEmpty()) {
             activityRepository.saveAll(activities);
         }

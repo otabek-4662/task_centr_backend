@@ -1,5 +1,11 @@
 package com.taskcenter.repository;
 
+import com.taskcenter.dto.ColumnTaskCountProjection;
+import com.taskcenter.dto.SprintStatsProjection;
+import com.taskcenter.dto.TaskFilterRequest;
+import com.taskcenter.dto.TelegramReminderTaskDto;
+import com.taskcenter.dto.UserTaskStatsProjection;
+import com.taskcenter.dto.UserWorkloadProjection;
 import com.taskcenter.model.Task;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +14,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,10 +23,16 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByColumnIdOrderByLexoRankAsc(String columnId);
     List<Task> findByWorkspaceIdOrderByLexoRankAsc(String workspaceId);
     List<Task> findByWorkspaceId(String workspaceId);
-    
+
+    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems"})
+    List<Task> findByParentIdOrderByLexoRankAsc(String parentId);
+
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.workspaceId = :workspaceId")
+    long countAllByWorkspaceId(@Param("workspaceId") String workspaceId);
+
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     Optional<Task> findByPublicId(String publicId);
-    
+
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);
@@ -32,18 +46,18 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"assignees", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithAssigneesAndWatchers(@Param("id") String id);
-    
+
     @Query("SELECT t.workspaceId FROM Task t WHERE t.id = :taskId")
     Optional<String> findWorkspaceIdById(@Param("taskId") String taskId);
-    
-    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
-    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
+
+    @EntityGraph(attributePaths = {"labels", "assignees"})
+    @Query("SELECT DISTINCT t FROM Task t WHERE t.workspaceId = :workspaceId ORDER BY t.lexoRank ASC")
     List<Task> findByWorkspaceIdWithDetails(@Param("workspaceId") String workspaceId);
 
     @EntityGraph(attributePaths = {"assignees"})
-    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
+    @Query("SELECT DISTINCT t FROM Task t WHERE t.workspaceId = :workspaceId")
     List<Task> findByWorkspaceIdWithAssignees(@Param("workspaceId") String workspaceId);
-    
+
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId")
     Page<Task> findByWorkspaceIdPaginated(@Param("workspaceId") String workspaceId, Pageable pageable);
 
@@ -64,7 +78,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
            "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
            "))")
-    Page<String> findIdsByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
+    Page<String> findIdsByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") TaskFilterRequest filter, Pageable pageable);
 
     @Query("SELECT t.id FROM Task t JOIN t.assignees a WHERE a.id = :userId " +
            "AND t.deletedAt IS NULL " +
@@ -83,7 +97,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
            "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
            "))")
-    Page<String> findAssignedTaskIdsByUserIdFiltered(@Param("userId") String userId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
+    Page<String> findAssignedTaskIdsByUserIdFiltered(@Param("userId") String userId, @Param("filter") TaskFilterRequest filter, Pageable pageable);
 
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
            "AND (:#{#filter.columnId} IS NULL OR t.columnId = :#{#filter.columnId}) " +
@@ -102,15 +116,15 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "  (t.publicId IS NOT NULL AND LOWER(t.publicId) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%'))) OR " +
            "  (t.description IS NOT NULL AND LOWER(t.description) LIKE LOWER(CONCAT('%', :#{#filter.search}, '%')))" +
            "))")
-    Page<Task> findByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") com.taskcenter.dto.TaskFilterRequest filter, Pageable pageable);
+    Page<Task> findByWorkspaceIdFiltered(@Param("workspaceId") String workspaceId, @Param("filter") TaskFilterRequest filter, Pageable pageable);
 
     @Query("SELECT MAX(t.lexoRank) FROM Task t WHERE t.columnId = :columnId")
     String findMaxLexoRankByColumnId(@Param("columnId") String columnId);
 
-    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findBySprintIdOrderByLexoRankAsc(String sprintId);
 
-    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findBySprintId(String sprintId);
 
     @Query("SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
@@ -119,7 +133,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NULL AND t.isArchived = false ORDER BY t.lexoRank ASC")
     Page<Task> findBacklogTasks(@Param("workspaceId") String workspaceId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
+    @EntityGraph(attributePaths = {"labels", "assignees"})
     List<Task> findByIdIn(List<String> ids);
 
     long countBySprintId(String sprintId);
@@ -135,12 +149,12 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     @Query("SELECT t.sprintId as sprintId, COUNT(t) as taskCount, COALESCE(SUM(t.storyPoints), 0) as totalStoryPoints " +
            "FROM Task t WHERE t.workspaceId = :workspaceId AND t.sprintId IS NOT NULL GROUP BY t.sprintId")
-    List<com.taskcenter.dto.SprintStatsProjection> findSprintStatsByWorkspaceId(@Param("workspaceId") String workspaceId);
+    List<SprintStatsProjection> findSprintStatsByWorkspaceId(@Param("workspaceId") String workspaceId);
 
     @Query("SELECT t.columnId AS columnId, COUNT(t.id) AS taskCount " +
            "FROM Task t WHERE t.workspaceId = :workspaceId " +
            "GROUP BY t.columnId")
-    List<com.taskcenter.dto.ColumnTaskCountProjection> getWorkspaceTaskCountsByColumn(@Param("workspaceId") String workspaceId);
+    List<ColumnTaskCountProjection> getWorkspaceTaskCountsByColumn(@Param("workspaceId") String workspaceId);
 
     @Query("SELECT u.id AS userId, u.name AS userName, u.fullName AS userFullName, " +
            "COUNT(t.id) AS totalTasks, " +
@@ -149,7 +163,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "FROM Task t JOIN t.assignees u " +
            "WHERE t.workspaceId = :workspaceId " +
            "GROUP BY u.id, u.name, u.fullName")
-    List<com.taskcenter.dto.UserWorkloadProjection> getWorkspaceWorkloadStats(@Param("workspaceId") String workspaceId, @Param("doneColumnId") String doneColumnId);
+    List<UserWorkloadProjection> getWorkspaceWorkloadStats(@Param("workspaceId") String workspaceId, @Param("doneColumnId") String doneColumnId);
 
     @Transactional
     void deleteByColumnId(String columnId);
@@ -172,9 +186,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND u.deletedAt IS NULL " +
            "AND u.telegramChatId IS NOT NULL " +
            "AND u.telegramNotifyDeadlines = true")
-    List<com.taskcenter.dto.TelegramReminderTaskDto> findTasksWithAssigneesForTelegramReminder(
-            @Param("startDate") java.time.LocalDate startDate,
-            @Param("endDate") java.time.LocalDate endDate);
+    List<TelegramReminderTaskDto> findTasksWithAssigneesForTelegramReminder(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
     @Query("SELECT new com.taskcenter.dto.TelegramReminderTaskDto(" +
            "t.id, t.title, t.workspaceId, t.dueDate, u.id, u.telegramChatId) " +
@@ -188,8 +202,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND u.deletedAt IS NULL " +
            "AND u.telegramChatId IS NOT NULL " +
            "AND u.telegramDailyDigest = true")
-    List<com.taskcenter.dto.TelegramReminderTaskDto> findTasksForTelegramDigest(
-            @Param("today") java.time.LocalDate today);
+    List<TelegramReminderTaskDto> findTasksForTelegramDigest(
+            @Param("today") LocalDate today);
 
     @Query("SELECT " +
            "COUNT(t.id) AS totalAssigned, " +
@@ -201,20 +215,19 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "JOIN t.assignees a " +
            "JOIN BoardColumn bc ON bc.id = t.columnId " +
            "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL)")
-    com.taskcenter.dto.UserTaskStatsProjection getUserTaskStats(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
+    UserTaskStatsProjection getUserTaskStats(@Param("userId") String userId, @Param("today") LocalDate today);
 
     @Query("SELECT t FROM Task t " +
            "JOIN t.assignees a " +
            "JOIN BoardColumn bc ON bc.id = t.columnId " +
            "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
            "AND bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate < :today ORDER BY t.dueDate ASC")
-    List<Task> findOverdueTasksByUserId(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
+    List<Task> findOverdueTasksByUserId(@Param("userId") String userId, @Param("today") LocalDate today);
 
     @Query("SELECT t FROM Task t " +
            "JOIN t.assignees a " +
            "JOIN BoardColumn bc ON bc.id = t.columnId " +
            "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
            "AND bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate = :today ORDER BY t.priority DESC")
-    List<Task> findDueTodayTasksByUserId(@Param("userId") String userId, @Param("today") java.time.LocalDate today);
+    List<Task> findDueTodayTasksByUserId(@Param("userId") String userId, @Param("today") LocalDate today);
 }
-

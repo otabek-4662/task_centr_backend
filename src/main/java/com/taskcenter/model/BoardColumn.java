@@ -45,6 +45,9 @@ public class BoardColumn {
     @Builder.Default
     private Boolean isDone = false;
 
+    @Column(name = "wip_limit")
+    private Integer wipLimit;
+
     @CreatedBy
     @Column(name = "created_by")
     private String createdBy;

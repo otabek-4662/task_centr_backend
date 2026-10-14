@@ -4,12 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "workspaces", indexes = {
@@ -39,6 +40,10 @@ public class Workspace {
     @Column(name = "key_prefix", unique = true)
     private String keyPrefix;
 
+    @Column(name = "task_seq")
+    @Builder.Default
+    private Long taskSeq = 0L;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -67,7 +72,10 @@ public class Workspace {
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
-            this.id = java.util.UUID.randomUUID().toString();
+            this.id = UUID.randomUUID().toString();
+        }
+        if (this.taskSeq == null) {
+            this.taskSeq = 0L;
         }
     }
 }

@@ -1,32 +1,47 @@
 package com.taskcenter.service;
 
 import com.taskcenter.dto.AuthResponse;
+import com.taskcenter.dto.ForgotPasswordRequest;
 import com.taskcenter.dto.LoginRequest;
 import com.taskcenter.dto.RegisterRequest;
+import com.taskcenter.dto.ResetPasswordRequest;
+import com.taskcenter.dto.TokenRefreshRequest;
+import com.taskcenter.dto.TokenRefreshResponse;
 import com.taskcenter.exception.BadRequestException;
 import com.taskcenter.exception.ConflictException;
-import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.exception.RateLimitException;
-import com.taskcenter.model.User;
-import com.taskcenter.model.RefreshToken;
+import com.taskcenter.exception.ResourceNotFoundException;
+import com.taskcenter.model.InvitationStatus;
+import com.taskcenter.model.InvitationType;
 import com.taskcenter.model.PasswordResetToken;
-import com.taskcenter.repository.UserRepository;
-import com.taskcenter.repository.RefreshTokenRepository;
+import com.taskcenter.model.RefreshToken;
+import com.taskcenter.model.User;
+import com.taskcenter.model.WorkspaceInvitation;
+import com.taskcenter.model.WorkspaceMember;
 import com.taskcenter.repository.PasswordResetTokenRepository;
+import com.taskcenter.repository.RefreshTokenRepository;
+import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceInvitationRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
 import com.taskcenter.security.JwtTokenProvider;
 import com.taskcenter.security.RateLimitingService;
+import com.taskcenter.util.InvitationTokenUtil;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -43,8 +58,10 @@ public class AuthService {
     private final EmailService emailService;
     private final RateLimitingService rateLimitingService;
 
-    public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider,
+    public AuthService(AuthenticationManager authenticationManager,
+                       UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider tokenProvider,
                        RefreshTokenRepository refreshTokenRepository,
                        PasswordResetTokenRepository passwordResetTokenRepository,
                        WorkspaceInvitationRepository invitationRepository,
@@ -67,7 +84,7 @@ public class AuthService {
         RefreshToken refreshToken = RefreshToken.builder()
                 .userId(userId)
                 .token(UUID.randomUUID().toString())
-                .expiryDate(LocalDateTime.now().plusDays(30)) // 30 days
+                .expiryDate(LocalDateTime.now().plusDays(30))
                 .build();
         refreshTokenRepository.save(refreshToken);
         return refreshToken.getToken();
@@ -89,12 +106,12 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // Auto-link pending invitations
-        java.util.List<com.taskcenter.model.WorkspaceInvitation> pendingInvites = invitationRepository.findByReceiverEmailAndStatus(request.getName(), com.taskcenter.model.InvitationStatus.PENDING);
-                
-        for (com.taskcenter.model.WorkspaceInvitation inv : pendingInvites) {
+        List<WorkspaceInvitation> pendingInvites = invitationRepository.findByReceiverEmailAndStatus(
+                request.getName(), InvitationStatus.PENDING);
+
+        for (WorkspaceInvitation inv : pendingInvites) {
             if (!memberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), savedUser.getId())) {
-                com.taskcenter.model.WorkspaceMember member = com.taskcenter.model.WorkspaceMember.builder()
+                WorkspaceMember member = WorkspaceMember.builder()
                         .workspaceId(inv.getWorkspaceId())
                         .userId(savedUser.getId())
                         .role(inv.getRole())
@@ -102,28 +119,28 @@ public class AuthService {
                 memberRepository.save(member);
             }
             inv.setReceiverId(savedUser.getId());
-            inv.setStatus(com.taskcenter.model.InvitationStatus.ACCEPTED);
+            inv.setStatus(InvitationStatus.ACCEPTED);
             invitationRepository.save(inv);
         }
 
         if (request.getInviteToken() != null && !request.getInviteToken().isBlank()) {
             String cleanToken = request.getInviteToken().trim();
-            java.util.Optional<com.taskcenter.model.WorkspaceInvitation> invOpt;
+            Optional<WorkspaceInvitation> invOpt;
             try {
-                String hash = com.taskcenter.util.InvitationTokenUtil.hashToken(cleanToken);
+                String hash = InvitationTokenUtil.hashToken(cleanToken);
                 invOpt = invitationRepository.findByTokenHash(hash);
             } catch (Exception e) {
-                invOpt = java.util.Optional.empty();
+                invOpt = Optional.empty();
             }
             if (invOpt.isEmpty()) {
                 invOpt = invitationRepository.findById(cleanToken);
             }
             if (invOpt.isPresent()) {
-                com.taskcenter.model.WorkspaceInvitation inv = invOpt.get();
-                if (inv.getStatus() == com.taskcenter.model.InvitationStatus.PENDING &&
-                        (inv.getExpiresAt() == null || !inv.getExpiresAt().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC)))) {
+                WorkspaceInvitation inv = invOpt.get();
+                if (inv.getStatus() == InvitationStatus.PENDING &&
+                        (inv.getExpiresAt() == null || !inv.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))) {
                     if (!memberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), savedUser.getId())) {
-                        com.taskcenter.model.WorkspaceMember member = com.taskcenter.model.WorkspaceMember.builder()
+                        WorkspaceMember member = WorkspaceMember.builder()
                                 .workspaceId(inv.getWorkspaceId())
                                 .userId(savedUser.getId())
                                 .role(inv.getRole())
@@ -132,9 +149,9 @@ public class AuthService {
                     }
                     inv.setUseCount((inv.getUseCount() != null ? inv.getUseCount() : 0) + 1);
                     inv.setReceiverId(savedUser.getId());
-                    if (inv.getType() == com.taskcenter.model.InvitationType.EMAIL
+                    if (inv.getType() == InvitationType.EMAIL
                             || (inv.getMaxUses() != null && inv.getUseCount() >= inv.getMaxUses())) {
-                        inv.setStatus(com.taskcenter.model.InvitationStatus.ACCEPTED);
+                        inv.setStatus(InvitationStatus.ACCEPTED);
                     }
                     invitationRepository.save(inv);
                 }
@@ -161,7 +178,7 @@ public class AuthService {
         try {
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword()));
-        } catch (org.springframework.security.core.AuthenticationException e) {
+        } catch (AuthenticationException e) {
             rateLimitingService.recordFailedLogin(request.getName());
             throw e;
         }
@@ -183,29 +200,27 @@ public class AuthService {
     }
 
     @Transactional
-    public com.taskcenter.dto.TokenRefreshResponse refresh(com.taskcenter.dto.TokenRefreshRequest request) {
+    public TokenRefreshResponse refresh(TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
 
         RefreshToken token = refreshTokenRepository.findByToken(requestRefreshToken)
                 .orElseThrow(() -> new ResourceNotFoundException("Refresh token bazada topilmadi"));
 
         if (Boolean.TRUE.equals(token.getRevoked())) {
-            // Token Reuse Detection: bekor qilingan token qayta ishlatildi (token o'g'irlangan bo'lishi mumkin)
             refreshTokenRepository.deleteByUserId(token.getUserId());
-            throw new com.taskcenter.exception.ForbiddenException(
+            throw new ForbiddenException(
                     "Xavfsizlik ogohlantirishi: Ushbu refresh token allaqachon ishlatilgan! " +
                     "Sessiya o'g'irlanishining oldini olish maqsadida barcha sessiyalar bekor qilindi. Qaytadan kiring.");
         }
 
         if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(token);
-            throw new com.taskcenter.exception.ForbiddenException("Refresh token muddati tugagan. Iltimos, qaytadan tizimga kiring");
+            throw new ForbiddenException("Refresh token muddati tugagan. Iltimos, qaytadan tizimga kiring");
         }
 
         User user = userRepository.findById(token.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Foydalanuvchi topilmadi"));
 
-        // Refresh token rotation: eski tokenni bekor qilish va yangi refresh token berish
         String newRefreshTokenStr = UUID.randomUUID().toString();
         token.setRevoked(true);
         token.setReplacedByToken(newRefreshTokenStr);
@@ -221,7 +236,7 @@ public class AuthService {
         refreshTokenRepository.save(newRefreshToken);
 
         String newAccessToken = tokenProvider.generateTokenFromUser(user);
-        return new com.taskcenter.dto.TokenRefreshResponse(newAccessToken, newRefreshTokenStr);
+        return new TokenRefreshResponse(newAccessToken, newRefreshTokenStr);
     }
 
     @Transactional
@@ -244,9 +259,9 @@ public class AuthService {
     }
 
     @Transactional
-    public void forgotPassword(com.taskcenter.dto.ForgotPasswordRequest request) {
+    public void forgotPassword(ForgotPasswordRequest request) {
         String email = request.getEmail().trim().toLowerCase();
-        java.util.Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             return;
         }
@@ -264,7 +279,7 @@ public class AuthService {
 
     @Transactional
     @CacheEvict(value = "users", key = "#result != null ? #result.name : ''", allEntries = true)
-    public void resetPassword(com.taskcenter.dto.ResetPasswordRequest request) {
+    public void resetPassword(ResetPasswordRequest request) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken().trim())
                 .orElseThrow(() -> new BadRequestException("Parolni tiklash tokeni yaroqsiz yoki topilmadi"));
 

@@ -1,18 +1,29 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.ChangePasswordRequest;
+import com.taskcenter.dto.TaskDto;
+import com.taskcenter.dto.TaskFilterRequest;
 import com.taskcenter.dto.TelegramLinkDto;
+import com.taskcenter.dto.UpdateProfileRequest;
 import com.taskcenter.dto.UserDto;
-import com.taskcenter.model.User;
-import com.taskcenter.service.UserService;
-import com.taskcenter.security.RateLimitingService;
 import com.taskcenter.exception.RateLimitException;
-import io.swagger.v3.oas.annotations.Hidden;
+import com.taskcenter.model.User;
+import com.taskcenter.security.RateLimitingService;
+import com.taskcenter.service.TaskService;
+import com.taskcenter.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,14 +36,14 @@ public class UserController {
 
     private final UserService userService;
     private final RateLimitingService rateLimitingService;
-    private final com.taskcenter.service.TaskService taskService;
+    private final TaskService taskService;
 
-    @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.max:10}")
+    @Value("${ratelimit.telegram-link.user.max:10}")
     private int telegramLinkUserMax;
-    @org.springframework.beans.factory.annotation.Value("${ratelimit.telegram-link.user.window-minutes:1}")
+    @Value("${ratelimit.telegram-link.user.window-minutes:1}")
     private int telegramLinkUserWindow;
 
-    public UserController(UserService userService, RateLimitingService rateLimitingService, com.taskcenter.service.TaskService taskService) {
+    public UserController(UserService userService, RateLimitingService rateLimitingService, TaskService taskService) {
         this.userService = userService;
         this.rateLimitingService = rateLimitingService;
         this.taskService = taskService;
@@ -57,11 +68,11 @@ public class UserController {
     @Operation(operationId = "getMyAssignedTasks", summary = "Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha)",
             description = "Foydalanuvchining barcha ishchi maydonlardagi unga biriktirilgan faol vazifalarini filter va pagination bilan qaytaradi.")
     @GetMapping("/users/me/tasks")
-    public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasks(
+    public ApiResponse<Page<TaskDto>> getMyTasks(
             @AuthenticationPrincipal User currentUser,
-            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
-            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        Page<com.taskcenter.dto.TaskDto> tasks = taskService.getMyTasks(currentUser, filter, pageable);
+            @ParameterObject @ModelAttribute TaskFilterRequest filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<TaskDto> tasks = taskService.getMyTasks(currentUser, filter, pageable);
         return ApiResponse.success("ok", tasks);
     }
 
@@ -70,10 +81,10 @@ public class UserController {
             description = "Eski dublikat endpoint. Yangi loyihalar va frontend integratsiyasi uchun GET /api/users/me/tasks dan foydalaning.",
             deprecated = true)
     @GetMapping("/me/tasks")
-    public ApiResponse<Page<com.taskcenter.dto.TaskDto>> getMyTasksAlias(
+    public ApiResponse<Page<TaskDto>> getMyTasksAlias(
             @AuthenticationPrincipal User currentUser,
-            @org.springdoc.core.annotations.ParameterObject @ModelAttribute com.taskcenter.dto.TaskFilterRequest filter,
-            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @ModelAttribute TaskFilterRequest filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return getMyTasks(currentUser, filter, pageable);
     }
 
@@ -81,10 +92,10 @@ public class UserController {
             description = "Berilgan workspace ga a'zo barcha foydalanuvchilar ro'yxatini sahifalab qaytaradi.")
     @GetMapping("/users")
     public ApiResponse<Page<UserDto>> getUsers(
-            @io.swagger.v3.oas.annotations.Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
+            @Parameter(description = "Ishchi maydon identifikatori (UUID)", example = "ws-123", required = true)
             @RequestParam String workspaceId,
             @AuthenticationPrincipal User currentUser,
-            @org.springdoc.core.annotations.ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Page<UserDto> users = userService.getUsers(workspaceId, currentUser, pageable);
         return ApiResponse.success("ok", users);
     }
@@ -105,15 +116,15 @@ public class UserController {
     }
 
     public record TelegramLinkRequest(
-            @io.swagger.v3.oas.annotations.media.Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
-            @jakarta.validation.constraints.NotBlank String initData) {}
+            @Schema(description = "Telegram WebApp initData satri", example = "query_id=AAHd...&user=%7B%22id%22%3A123%7D&auth_date=1620000000&hash=...")
+            @NotBlank String initData) {}
 
     @Operation(operationId = "linkTelegram", summary = "Mini App orqali Telegram akkauntni ulash",
             description = "Telegram WebApp initData imzosini tekshirish orqali akkauntni joriy foydalanuvchiga ulaydi.")
     @PostMapping("/users/me/telegram")
     public ApiResponse<UserDto> linkTelegramViaMiniApp(
             @AuthenticationPrincipal User currentUser,
-            @jakarta.validation.Valid @RequestBody TelegramLinkRequest request) {
+            @Valid @RequestBody TelegramLinkRequest request) {
         long waitTime = rateLimitingService.tryConsumeUserLimit("telegram-link", currentUser.getId(), telegramLinkUserMax, telegramLinkUserWindow);
         if (waitTime > 0) {
             throw new RateLimitException(waitTime);
@@ -126,7 +137,7 @@ public class UserController {
     @PatchMapping("/users/me")
     public ApiResponse<UserDto> updateProfile(
             @AuthenticationPrincipal User currentUser,
-            @jakarta.validation.Valid @RequestBody com.taskcenter.dto.UpdateProfileRequest request) {
+            @Valid @RequestBody UpdateProfileRequest request) {
         UserDto updated = userService.updateProfile(currentUser, request);
         return ApiResponse.success("Profil muvaffaqiyatli yangilandi", updated);
     }
@@ -136,7 +147,7 @@ public class UserController {
     @PostMapping("/users/me/change-password")
     public ApiResponse<Void> changePassword(
             @AuthenticationPrincipal User currentUser,
-            @jakarta.validation.Valid @RequestBody com.taskcenter.dto.ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(currentUser, request);
         return ApiResponse.success("Quloqqa aytiladigan so'z muvaffaqiyatli o'zgartirildi", null);
     }

@@ -10,17 +10,11 @@ services:
     plan: free
     branch: master
     dockerfilePath: ./Dockerfile
-    # /actuator/health yengil (SELECT 1). /v3/api-docs esa butun OpenAPI hujjatini generatsiya qiladi
     healthCheckPath: /actuator/health
     autoDeploy: false
     envVars:
-      # Render avtomatik beradi: PORT=10000, Spring ${PORT:8080} bilan o'qiydi
-      # DIQQAT: SPRING_JPA_HIBERNATE_DDL_AUTO ni qo'shmang! "create" har ishga tushganda
-      # bazani o'chirib qayta yaratadi. Sxemani faqat Flyway boshqaradi (application.yml: validate)
       - key: JWT_SECRET
         generateValue: true
-      # GitHub webhook imzosi uchun. Qiymatni Render Dashboard da qo'lda kiriting
-      # (GitHub -> repo Settings -> Webhooks -> Secret bilan bir xil)
       - key: GITHUB_WEBHOOK_SECRET
         sync: false
       - key: CORS_ALLOWED_ORIGINS
@@ -32,21 +26,19 @@ services:
       - key: BREVO_SENDER_NAME
         sync: false
       - key: CLIENT_IP_HEADER
-        sync: false
+        value: "X-Forwarded-For"
       - key: TELEGRAM_BOT_ENABLED
         value: "true"
+      - key: TELEGRAM_BOT_WEBHOOK_URL
+        value: "https://task-centr-backend.onrender.com/api/webhooks/telegram"
+      - key: STORAGE_TYPE
+        value: "db"
       - key: JWT_EXPIRATION
         value: 604800000
-      # Database dan keladigan qiymatlar - quyidagi databases.taskcenter-db dan
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
           name: taskcenter-db
           property: connectionString
-        # Eslatma: Render connectionString = postgres://user:pass@host:5432/db
-        # Spring esa jdbc:postgresql:// kutadi. Agar /v3/api-docs 500 bersa,
-        # Render Dashboard -> task-center-backend -> Environment da
-        # SPRING_DATASOURCE_URL ni jdbc:postgresql://... ga qo'lda o'zgartir:
-        # postgres://postgres:xxx@dpg-xxx/taskcenter  -> jdbc:postgresql://dpg-xxx/taskcenter
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
           name: taskcenter-db
@@ -62,5 +54,3 @@ databases:
     region: ohio
     databaseName: taskcenter
     user: postgres
-    # Free plan 90 kun, keyin o'chadi - demo uchun yetarli
-    # Doimiy kerak bo'lsa Neon/Supabase ga ko'chirish mumkin

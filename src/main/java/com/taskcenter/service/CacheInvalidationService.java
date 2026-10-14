@@ -26,14 +26,9 @@ public class CacheInvalidationService {
         if (workspaceId == null || cacheManager == null) return;
         log.info("Workspace uchun keshlar ommaviy tozalanmoqda (bulk evict): {}", workspaceId);
 
-        // 1. Workspace asosiy keshidan o'chirish
         evictKey("workspaces", workspaceId);
-
-        // 2. Workspace a'zolari va rollarini tozalash
         evictPrefix("workspaceRoles", workspaceId + ":");
         evictKey("workspaceMembers", workspaceId);
-
-        // 3. Columns, Labels, Sprints, Stats keshlarini tozalash
         evictKey("columns", workspaceId);
         evictKey("labels", workspaceId);
         evictPrefix("sprints", workspaceId);
@@ -60,12 +55,17 @@ public class CacheInvalidationService {
     }
 
     /**
-     * Bitta foydalanuvchi ma'lumotlari keshdan tozalash.
+     * Bitta foydalanuvchi ma'lumotlarini keshdan tozalash (login va kichik harfli kalit bo'yicha).
      */
     public void evictUser(String username, String userId) {
         if (cacheManager == null) return;
-        if (username != null) evictKey("users", username);
-        if (userId != null) evictKey("users", userId);
+        if (username != null) {
+            evictKey("users", username);
+            evictKey("users", username.toLowerCase());
+        }
+        if (userId != null) {
+            evictKey("users", userId);
+        }
     }
 
     /**
@@ -91,7 +91,6 @@ public class CacheInvalidationService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void evictPrefix(String cacheName, String prefix) {
         if (cacheManager == null || cacheName == null || prefix == null) return;
         org.springframework.cache.Cache springCache = cacheManager.getCache(cacheName);

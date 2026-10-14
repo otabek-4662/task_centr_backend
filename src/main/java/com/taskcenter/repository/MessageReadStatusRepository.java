@@ -7,12 +7,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+
 @Repository
 public interface MessageReadStatusRepository extends JpaRepository<MessageReadStatus, String> {
 
     boolean existsByMessageIdAndUserId(String messageId, String userId);
 
     long countByMessageId(String messageId);
+
+    @Query("SELECT rs.messageId, COUNT(rs) FROM MessageReadStatus rs WHERE rs.messageId IN :messageIds GROUP BY rs.messageId")
+    List<Object[]> countByMessageIds(@Param("messageIds") Collection<String> messageIds);
 
     // Belgilangan foydalanuvchining barcha DM xabarlarini o'qilgan deb belgilash
     @Modifying

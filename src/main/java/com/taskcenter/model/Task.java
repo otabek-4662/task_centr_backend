@@ -9,7 +9,6 @@ import org.springframework.data.annotation.LastModifiedBy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -22,7 +21,8 @@ import java.util.Set;
     @Index(name = "idx_tasks_workspace_due_date", columnList = "workspace_id, due_date"),
     @Index(name = "idx_tasks_workspace_issue_type", columnList = "workspace_id, issue_type"),
     @Index(name = "idx_tasks_sprint_id", columnList = "sprint_id"),
-    @Index(name = "idx_tasks_workspace_sprint", columnList = "workspace_id, sprint_id")
+    @Index(name = "idx_tasks_workspace_sprint", columnList = "workspace_id, sprint_id"),
+    @Index(name = "idx_tasks_parent_id", columnList = "parent_id")
 })
 @SQLDelete(sql = "UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @Where(clause = "deleted_at IS NULL")
@@ -47,6 +47,9 @@ public class Task {
 
     @Column(nullable = false)
     private String columnId;
+
+    @Column(name = "parent_id", length = 36)
+    private String parentId;
 
     @Column(nullable = false)
     private String title;

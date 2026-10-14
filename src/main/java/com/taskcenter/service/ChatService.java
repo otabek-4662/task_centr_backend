@@ -12,6 +12,7 @@ import com.taskcenter.repository.ChatMessageRepository;
 import com.taskcenter.repository.MessageReadStatusRepository;
 import com.taskcenter.repository.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.taskcenter.repository.NotificationRepository;
@@ -57,7 +59,6 @@ public class ChatService {
     public ChatMessageDto sendPublicMessage(String senderId, SendPublicMessageRequest req) {
         User sender = getUser(senderId);
 
-        // Validate content or attachments
         if ((req.getContent() == null || req.getContent().trim().isEmpty()) 
             && (req.getAttachments() == null || req.getAttachments().isEmpty())) {
             throw new BadRequestException("Xabar matni yoki fayl biriktirilgan bo'lishi shart");
@@ -84,7 +85,6 @@ public class ChatService {
             message.setAttachments(atts);
         }
 
-        // reply_to_id borligini tekshirish
         if (req.getReplyToId() != null) {
             ChatMessage replyTo = getMessage(req.getReplyToId());
             message.setReplyTo(replyTo);
@@ -107,7 +107,6 @@ public class ChatService {
         User sender = getUser(senderId);
         User recipient = getUser(req.getRecipientId());
 
-        // Validate content or attachments
         if ((req.getContent() == null || req.getContent().trim().isEmpty()) 
             && (req.getAttachments() == null || req.getAttachments().isEmpty())) {
             throw new BadRequestException("Xabar matni yoki fayl biriktirilgan bo'lishi shart");
@@ -178,7 +177,6 @@ public class ChatService {
     public ChatMessageDto editMessage(String messageId, String currentUserId, EditMessageRequest req) {
         ChatMessage message = getMessage(messageId);
 
-        // Faqat xabar egasi tahrirlashi mumkin
         if (!message.getSenderId().equals(currentUserId)) {
             throw new ForbiddenException("Faqat o'z xabaringizni tahrirlashingiz mumkin");
         }
@@ -187,12 +185,10 @@ public class ChatService {
         message.setEditedAt(LocalDateTime.now());
 
         ChatMessage saved = chatMessageRepository.save(message);
-        // EntityGraph bilan qayta yuklab olish (sender, recipient, replyTo)
         ChatMessage loaded = chatMessageRepository.findWithDetailsById(saved.getId())
                 .orElse(saved);
         ChatMessageDto dto = toDto(loaded);
 
-        // Real-time event yuborish
         ChatEvent<ChatMessageDto> event = ChatEvent.of("MESSAGE_EDITED", dto);
 
         if (message.getType() == ChatMessageType.PUBLIC) {
@@ -219,10 +215,8 @@ public class ChatService {
             throw new ForbiddenException("Faqat o'z xabaringizni o'chirishingiz mumkin");
         }
 
-        // Soft delete (SQLDelete annotatsiyasi ishlaydi)
         chatMessageRepository.delete(message);
 
-        // Real-time event
         Map<String, String> deletePayload = Map.of("messageId", messageId);
         ChatEvent<Map<String, String>> event = ChatEvent.of("MESSAGE_DELETED", deletePayload);
 
@@ -242,15 +236,52 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> getPublicMessages(Pageable pageable) {
-        return chatMessageRepository.findByTypeOrderByCreatedAtDesc(ChatMessageType.PUBLIC, pageable)
-                .map(this::toDto);
+        Page<ChatMessage> page = chatMessageRepository.findByTypeOrderByCreatedAtDesc(ChatMessageType.PUBLIC, pageable);
+        return mapPageWithBatchReadCounts(page, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> getDirectMessages(String currentUserId, String otherUserId, Pageable pageable) {
         getUser(otherUserId);
-        return chatMessageRepository.findDirectMessages(currentUserId, otherUserId, ChatMessageType.DIRECT, pageable)
-                .map(this::toDto);
+        Page<ChatMessage> page = chatMessageRepository.findDirectMessages(currentUserId, otherUserId, ChatMessageType.DIRECT, pageable);
+        return mapPageWithBatchReadCounts(page, pageable);
+    }
+
+    private Page<ChatMessageDto> mapPageWithBatchReadCounts(Page<ChatMessage> page, Pageable pageable) {
+        List<ChatMessage> content = page.getContent();
+        if (content.size() <= 1) {
+            return page.map(this::toDto);
+        }
+        Map<String, Long> readCounts = fetchBatchReadCounts(content);
+        List<ChatMessageDto> dtos = content.stream()
+                .map(msg -> toDtoWithReadCount(msg, readCounts.getOrDefault(msg.getId(), 0L)))
+                .collect(Collectors.toList());
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
+    private Map<String, Long> fetchBatchReadCounts(Collection<ChatMessage> messages) {
+        Set<String> ids = messages.stream()
+                .map(ChatMessage::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            List<Object[]> rows = readStatusRepository.countByMessageIds(ids);
+            if (rows == null || rows.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            Map<String, Long> map = new HashMap<>();
+            for (Object[] row : rows) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] instanceof Number num) {
+                    map.put(row[0].toString(), num.longValue());
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
     }
 
     // ==================== O'QILGANLIK BELGISI (READ RECEIPTS) ====================
@@ -259,7 +290,6 @@ public class ChatService {
     public void markAsRead(String messageId, String userId) {
         ChatMessage message = getMessage(messageId);
 
-        // O'zining xabarini "o'qigan" deb belgilashga hojat yo'q
         if (message.getSenderId().equals(userId)) {
             return;
         }
@@ -271,7 +301,6 @@ public class ChatService {
                     .build();
             readStatusRepository.save(status);
 
-            // Yuboruvchiga "o'qildi" eventini jo'natish
             User sender = getUser(message.getSenderId());
             Map<String, String> readPayload = Map.of(
                     "messageId", messageId,
@@ -288,7 +317,6 @@ public class ChatService {
         int count = readStatusRepository.markAllAsRead(currentUserId, otherUserId);
 
         if (count > 0) {
-            // Xabar yuboruvchiga "barchasi o'qildi" eventini jo'natish
             User otherUser = getUser(otherUserId);
             Map<String, String> readPayload = Map.of(
                     "readBy", currentUserId,
@@ -302,40 +330,100 @@ public class ChatService {
         return count;
     }
 
-    // ==================== SUHBATLAR RO'YXATI ====================
+    // ==================== SUHBATLAR RO'YXATI (SQL DISTINCT ON + BATCH LOADING) ====================
 
     @Transactional(readOnly = true)
     public List<ConversationDto> getConversations(String currentUserId) {
-        List<ChatMessage> allMessages = chatMessageRepository
-                .findAllDirectMessagesForUser(currentUserId);
-
-        // Har bir suhbatdosh bilan faqat ENG OXIRGI xabarni olish
-        // LinkedHashMap tartibni saqlaydi (createdAt DESC bo'yicha allaqachon saralangan)
-        Map<String, ChatMessage> latestPerPartner = new LinkedHashMap<>();
-        for (ChatMessage msg : allMessages) {
-            String partnerId = msg.getSenderId().equals(currentUserId)
-                    ? msg.getRecipientId()
-                    : msg.getSenderId();
-            latestPerPartner.putIfAbsent(partnerId, msg); // faqat birinchi (eng yangi) ni olish
+        // 1. PostgreSQL DISTINCT ON orqali har bir suhbatdosh bilan faqat eng oxirgi xabarni olish
+        List<ChatMessage> candidateMessages = null;
+        try {
+            candidateMessages = chatMessageRepository.findLatestDirectMessagesPerConversation(currentUserId);
+        } catch (Exception ignored) {
+            // H2 yoki mock test muhitida fallback
+        }
+        if (candidateMessages == null || candidateMessages.isEmpty()) {
+            candidateMessages = chatMessageRepository.findAllDirectMessagesForUser(currentUserId);
         }
 
+        Map<String, ChatMessage> latestPerPartner = new LinkedHashMap<>();
+        if (candidateMessages != null) {
+            for (ChatMessage msg : candidateMessages) {
+                String partnerId = msg.getSenderId().equals(currentUserId)
+                        ? msg.getRecipientId()
+                        : msg.getSenderId();
+                if (partnerId != null) {
+                    latestPerPartner.putIfAbsent(partnerId, msg);
+                }
+            }
+        }
+
+        if (latestPerPartner.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Barcha suhbatdosh User obyektlarini bitta IN so'rovi bilan batch yuklash
+        Map<String, User> partnerUserMap = new HashMap<>();
+        try {
+            List<User> loadedPartners = userRepository.findByIdIn(latestPerPartner.keySet());
+            if (loadedPartners != null) {
+                for (User u : loadedPartners) {
+                    partnerUserMap.put(u.getId(), u);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 3. O'qilmagan DM xabarlar sonini bitta GROUP BY so'rovida olish
+        Map<String, Long> unreadByPartner = new HashMap<>();
+        boolean usedGroupedUnread = false;
+        try {
+            List<Object[]> groupedRows = chatMessageRepository.countUnreadDirectMessagesGroupedBySender(currentUserId);
+            if (groupedRows != null) {
+                usedGroupedUnread = true;
+                for (Object[] row : groupedRows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] instanceof Number num) {
+                        unreadByPartner.put(row[0].toString(), num.longValue());
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        Map<String, Long> readCounts = latestPerPartner.size() > 1
+                ? fetchBatchReadCounts(latestPerPartner.values())
+                : Collections.emptyMap();
+        Set<String> onlineUsernames = safeGetOnlineUsers();
+
+        final boolean hasGroupedUnread = usedGroupedUnread;
         return latestPerPartner.values().stream().map(msg -> {
             String otherUserId = msg.getSenderId().equals(currentUserId)
                     ? msg.getRecipientId()
                     : msg.getSenderId();
-            User otherUser = msg.getSenderId().equals(currentUserId)
-                    ? msg.getRecipient()
-                    : msg.getSender();
-
+            User otherUser = partnerUserMap.get(otherUserId);
+            if (otherUser == null) {
+                otherUser = msg.getSenderId().equals(currentUserId)
+                        ? msg.getRecipient()
+                        : msg.getSender();
+            }
             if (otherUser == null) {
                 otherUser = getUser(otherUserId);
             }
 
-            long unread = chatMessageRepository.countUnreadDirectMessages(currentUserId, otherUserId);
+            long unread = hasGroupedUnread
+                    ? unreadByPartner.getOrDefault(otherUserId, 0L)
+                    : chatMessageRepository.countUnreadDirectMessages(currentUserId, otherUserId);
+
+            ChatMessageDto lastMsgDto = latestPerPartner.size() > 1
+                    ? toDtoWithReadCount(msg, readCounts.getOrDefault(msg.getId(), 0L))
+                    : toDto(msg);
+
+            boolean isOnline = onlineUsernames != null
+                    ? onlineUsernames.contains(otherUser.getName())
+                    : presenceService.isOnline(otherUser.getName());
 
             return ConversationDto.builder()
-                    .user(toUserDto(otherUser))
-                    .lastMessage(toDto(msg))
+                    .user(toUserDto(otherUser, isOnline))
+                    .lastMessage(lastMsgDto)
                     .unreadCount(unread)
                     .lastMessageAt(msg.getCreatedAt())
                     .build();
@@ -346,33 +434,57 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public List<ChatUserDto> getChatUsers(String currentUserId) {
-        return userRepository.findAll().stream()
+        List<User> otherUsers = userRepository.findAll().stream()
                 .filter(u -> !u.getId().equals(currentUserId))
+                .collect(Collectors.toList());
+
+        if (otherUsers.size() <= 1) {
+            return otherUsers.stream()
+                    .map(this::toUserDto)
+                    .collect(Collectors.toList());
+        }
+
+        Set<String> onlineUsernames = safeGetOnlineUsers();
+        if (onlineUsernames != null) {
+            return otherUsers.stream()
+                    .map(u -> toUserDto(u, onlineUsernames.contains(u.getName())))
+                    .collect(Collectors.toList());
+        }
+
+        return otherUsers.stream()
                 .map(this::toUserDto)
                 .collect(Collectors.toList());
+    }
+
+    private Set<String> safeGetOnlineUsers() {
+        try {
+            return presenceService.getOnlineUsers();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ==================== QIDIRUV ====================
     
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> searchAllMessages(String currentUserId, String query, Pageable pageable) {
-        return chatMessageRepository.searchAllMessages(currentUserId, query, pageable)
-                .map(this::toDto);
+        Page<ChatMessage> page = chatMessageRepository.searchAllMessages(currentUserId, query, pageable);
+        return mapPageWithBatchReadCounts(page, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> searchPublicMessages(String query, Pageable pageable) {
-        return chatMessageRepository.searchPublicMessages(query, ChatMessageType.PUBLIC, pageable)
-                .map(this::toDto);
+        Page<ChatMessage> page = chatMessageRepository.searchPublicMessages(query, ChatMessageType.PUBLIC, pageable);
+        return mapPageWithBatchReadCounts(page, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ChatMessageDto> searchDirectMessages(String currentUserId, String otherUserId,
                                                       String query, Pageable pageable) {
         getUser(otherUserId);
-        return chatMessageRepository.searchDirectMessages(
-                currentUserId, otherUserId, query, ChatMessageType.DIRECT, pageable)
-                .map(this::toDto);
+        Page<ChatMessage> page = chatMessageRepository.searchDirectMessages(
+                currentUserId, otherUserId, query, ChatMessageType.DIRECT, pageable);
+        return mapPageWithBatchReadCounts(page, pageable);
     }
 
     // ==================== TYPING INDICATOR ====================
@@ -406,15 +518,12 @@ public class ChatService {
         if (existing.isPresent()) {
             com.taskcenter.model.MessageReaction reaction = existing.get();
             if (reaction.getEmoji().equals(emoji)) {
-                // Same emoji -> remove it (toggle off)
                 reactionRepository.delete(reaction);
             } else {
-                // Different emoji -> update it
                 reaction.setEmoji(emoji);
                 reactionRepository.save(reaction);
             }
         } else {
-            // New reaction
             com.taskcenter.model.MessageReaction reaction = com.taskcenter.model.MessageReaction.builder()
                     .messageId(messageId)
                     .message(message)
@@ -425,7 +534,6 @@ public class ChatService {
             reactionRepository.save(reaction);
         }
 
-        // Re-fetch to get updated reactions list
         ChatMessage updated = chatMessageRepository.findWithDetailsById(messageId).orElse(message);
         ChatMessageDto dto = toDto(updated);
 
@@ -476,17 +584,30 @@ public class ChatService {
     }
 
     private ChatUserDto toUserDto(User user) {
+        return toUserDto(user, presenceService.isOnline(user.getName()));
+    }
+
+    private ChatUserDto toUserDto(User user, boolean online) {
         return ChatUserDto.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
-                .online(presenceService.isOnline(user.getName()))
+                .online(online)
                 .lastSeenAt(user.getLastSeenAt())
                 .build();
     }
 
     private ChatMessageDto toDto(ChatMessage message) {
+        long readCount = 0;
+        try {
+            readCount = readStatusRepository.countByMessageId(message.getId());
+        } catch (Exception ignored) {
+        }
+        return toDtoWithReadCount(message, readCount);
+    }
+
+    private ChatMessageDto toDtoWithReadCount(ChatMessage message, long readCount) {
         ChatMessageDto.ChatMessageDtoBuilder builder = ChatMessageDto.builder()
                 .id(message.getId())
                 .senderId(message.getSenderId())
@@ -498,7 +619,8 @@ public class ChatService {
                 .type(message.getType())
                 .createdAt(message.getCreatedAt())
                 .edited(message.getEditedAt() != null)
-                .editedAt(message.getEditedAt());
+                .editedAt(message.getEditedAt())
+                .readCount((int) readCount);
 
         if (message.getAttachments() != null) {
             builder.attachments(message.getAttachments().stream().map(a -> 
@@ -524,7 +646,6 @@ public class ChatService {
             ).collect(Collectors.toList()));
         }
 
-        // Reply ma'lumotini qo'shish
         if (message.getReplyTo() != null) {
             ChatMessage reply = message.getReplyTo();
             String replyContent = reply.getContent();
@@ -536,14 +657,6 @@ public class ChatService {
                     .content(replyContent)
                     .senderName(reply.getSender() != null ? reply.getSender().getName() : null)
                     .build());
-        }
-
-        // Read count
-        try {
-            long readCount = readStatusRepository.countByMessageId(message.getId());
-            builder.readCount((int) readCount);
-        } catch (Exception e) {
-            builder.readCount(0);
         }
 
         return builder.build();

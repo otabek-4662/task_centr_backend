@@ -42,11 +42,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(User currentUser) {
-        notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(currentUser.getId())
-                .forEach(n -> {
-                    n.setRead(true);
-                    notificationRepository.save(n);
-                });
+        notificationRepository.markAllAsReadByUserId(currentUser.getId());
     }
 
     @Transactional

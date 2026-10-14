@@ -34,17 +34,17 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         temp:
           use_jdbc_metadata_defaults: false
-        # N+1 tekshiruvi uchun show_sql: true qiling va loglarni ko'ring
-        # generate_statistics: true qo'shsangiz har endpoint uchun SQL sonini ko'rasiz
         format_sql: false
         show_sql: false
         jdbc:
           batch_size: 20
         order_inserts: true
         order_updates: true
+        query:
+          in_clause_parameter_padding: true
+          plan_cache_max_size: 256
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -70,11 +70,6 @@ spring:
 
 logging:
   level:
-    # SQL so'rovlarni debug qilish uchun quyidagi ikki satrni yoqing:
-    # org.hibernate.SQL: DEBUG
-    # org.hibernate.orm.jdbc.bind: TRACE
-    # N+1 statistikasi uchun:
-    # org.hibernate.stat: DEBUG
     com.taskcenter: INFO
     org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
 
@@ -83,7 +78,6 @@ jwt:
   expiration: ${JWT_EXPIRATION:604800000} # 7 days in milliseconds
 
 github:
-  # GitHub -> Settings -> Webhooks -> Secret dagi qiymat bilan bir xil bo'lishi kerak
   webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
 
 brevo:
@@ -154,8 +148,19 @@ springdoc:
     persist-authorization: true
     display-request-duration: true
 
+# STORAGE_TYPE variantlari:
+# - local: lokal disk (./uploads, dev va test uchun)
+# - db: PostgreSQL stored_files jadvalida doimiy saqlash (Render Free uchun S3 kerak bo'lmasdan)
+# - s3: Cloudflare R2 / AWS S3 / Supabase S3 / MinIO
 storage:
   type: ${STORAGE_TYPE:local}
+  s3:
+    endpoint: ${S3_ENDPOINT:}
+    region: ${S3_REGION:auto}
+    bucket: ${S3_BUCKET:task-center-files}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    public-url: ${S3_PUBLIC_URL:}
 
 app:
   seed:

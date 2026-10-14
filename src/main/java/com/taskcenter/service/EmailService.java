@@ -340,13 +340,29 @@ public class EmailService {
     @SchedulerLock(name = "EmailService_processPendingJobs", lockAtLeastFor = "2s", lockAtMostFor = "1m")
     public void processPendingJobs() {
         try {
-            int recovered = emailJobRepository.recoverStuckProcessingJobs(
-                    EmailJobStatus.PROCESSING,
-                    EmailJobStatus.PENDING,
-                    EmailJobStatus.FAILED,
-                    LocalDateTime.now().minusMinutes(10),
-                    LocalDateTime.now()
-            );
+            LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+            LocalDateTime now = LocalDateTime.now();
+            int recovered;
+            if (transactionTemplate != null) {
+                Integer res = transactionTemplate.execute(status ->
+                        emailJobRepository.recoverStuckProcessingJobs(
+                                EmailJobStatus.PROCESSING,
+                                EmailJobStatus.PENDING,
+                                EmailJobStatus.FAILED,
+                                threshold,
+                                now
+                        )
+                );
+                recovered = res != null ? res : 0;
+            } else {
+                recovered = emailJobRepository.recoverStuckProcessingJobs(
+                        EmailJobStatus.PROCESSING,
+                        EmailJobStatus.PENDING,
+                        EmailJobStatus.FAILED,
+                        threshold,
+                        now
+                );
+            }
             if (recovered > 0) {
                 log.warn("{} ta PROCESSING da qolib ketgan (stuck) email job qayta tiklandi (PENDING yoki FAILED)", recovered);
             }
