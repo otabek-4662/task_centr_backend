@@ -1,4 +1,6 @@
 spring:
+  aop:
+    proxy-target-class: true
   jackson:
     serialization:
       write-dates-as-timestamps: false

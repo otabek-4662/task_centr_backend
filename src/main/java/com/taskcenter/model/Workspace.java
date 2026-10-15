@@ -50,6 +50,12 @@ public class Workspace {
     @Column(nullable = false)
     private String ownerId;
 
+    @Column(name = "telegram_group_chat_id")
+    private Long telegramGroupChatId;
+
+    @Column(name = "telegram_topic_id")
+    private Integer telegramTopicId;
+
     @CreatedBy
     @Column(name = "created_by")
     private String createdBy;

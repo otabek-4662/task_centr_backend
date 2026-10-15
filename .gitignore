@@ -1,45 +1,99 @@
-# Maven
+# ========================================================
+# Maven & Build Artifacts
+# ========================================================
 target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 *.jar
 *.war
 *.ear
+*.nar
 *.class
-*.log
+*.jsa
+cp.args
+hs_err_pid*
+replay_pid*
 
-# IDE
+# ========================================================
+# IDE & Editor Directories
+# ========================================================
 .idea/
+*.iws
 *.iml
+*.ipr
 .vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.springBeans
+.sts4-cache/
 *.swp
+*.swo
+*~
 
-# OS
+# ========================================================
+# OS & System Files
+# ========================================================
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Docker
-docker-compose.override.yml
-
-# Local config & secrets
-application-local.yml
-application-local.properties
+# ========================================================
+# Local Environment, Secrets & Docker Overrides
+# ========================================================
 .env
 .env.*
+!.env.example
+application-local.yml
+application-local.yaml
+application-local.properties
+docker-compose.override.yml
 
-# Local uploads & backups (Zahira)
+# ========================================================
+# Local Uploads, Backups & Runtime Data
+# ========================================================
 uploads/
 backup/
 zahira/
 *.bak
+*.sql.gz
+*.dump
 
-# Logs & temporary files
+# ========================================================
+# Logs & Temporary Scratch Files (Zero Repo Pollution)
+# ========================================================
 logs/
 *.log
 *.tmp
 *.temp
+.gemini/
+scratch/
+tmp/
 
-# Reports & local test scripts
-WORKSPACE_TASK_REPORT.md
-test_smtp.py
-test_invite.py
-send_invite_test.py
+# ========================================================
+# Agent Scratch Files, Commit Drafts & External Binaries
+# ========================================================
+commit_msg*.txt
 ci_job_log*.txt
+oasdiff
+oasdiff.exe
+oasdiff*.tar.gz
+oasdiff*.zip
+test_*.py
+*_test.py
+send_invite_test.py
+
+# ========================================================
+# Internal Audit / Triage Scratch Reports (Keep Repo Clean)
+# ========================================================
+WORKSPACE_TASK_REPORT.md
+FRONTEND_AUDIT_REPORT.md
+TELEGRAM_BOT_REPORT.md
+TELEGRAM_MINI_APP_FRONTEND_GUIDE.pdf
+docs/BUGS_*.md
+docs/TEST_RESULTS_*.md
+docs/TEST_TRIAGE.md
+docs/API_RESPONSE_CLEANUP.md
+docs/migrations/

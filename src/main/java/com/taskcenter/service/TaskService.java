@@ -138,9 +138,29 @@ public class TaskService {
         this.clock = clock;
     }
 
+    private com.taskcenter.repository.CommentRepository commentRepository;
+
     @Autowired(required = false)
     public void setTaskWorklogRepository(TaskWorklogRepository taskWorklogRepository) {
         this.taskWorklogRepository = taskWorklogRepository;
+    }
+
+    private TaskDependencyService taskDependencyService;
+    private RecurringTaskService recurringTaskService;
+
+    @Autowired(required = false)
+    public void setCommentRepository(com.taskcenter.repository.CommentRepository commentRepository) {
+        this.commentRepository = commentRepository;
+    }
+
+    @Autowired(required = false)
+    public void setTaskDependencyService(TaskDependencyService taskDependencyService) {
+        this.taskDependencyService = taskDependencyService;
+    }
+
+    @Autowired(required = false)
+    public void setRecurringTaskService(RecurringTaskService recurringTaskService) {
+        this.recurringTaskService = recurringTaskService;
     }
 
     @Transactional(readOnly = true)
@@ -199,23 +219,20 @@ public class TaskService {
         String effectiveSprintId = sprintId;
         if (effectiveSprintId == null) {
             Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE);
-            if (activeOpt.isEmpty()) {
-                List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-                return cols.stream()
-                        .map(c -> BoardInitColumnDto.fromEntity(c, Collections.emptyList()))
-                        .collect(Collectors.toList());
+            if (activeOpt.isPresent()) {
+                effectiveSprintId = activeOpt.get().getId();
             }
-            effectiveSprintId = activeOpt.get().getId();
         }
 
-        final String targetSprintId = effectiveSprintId;
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<Task> allSprintTasks = taskRepository.findBySprintId(targetSprintId);
+        List<Task> allTasks = (effectiveSprintId != null)
+                ? taskRepository.findBySprintId(effectiveSprintId)
+                : taskRepository.findByWorkspaceIdWithDetails(workspaceId);
 
         return cols.stream().map(c -> {
-            List<Task> columnTasks = allSprintTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()) && Boolean.FALSE.equals(t.getIsArchived()))
-                    .sorted(Comparator.comparing(Task::getLexoRank))
+            List<Task> columnTasks = allTasks.stream()
+                    .filter(t -> c.getId().equals(t.getColumnId()) && !Boolean.TRUE.equals(t.getIsArchived()))
+                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
                     .collect(Collectors.toList());
             return BoardInitColumnDto.fromEntity(c, columnTasks);
         }).collect(Collectors.toList());
@@ -348,10 +365,15 @@ public class TaskService {
                 ? task.getChecklistItems().stream().map(ChecklistItemDto::fromEntity).collect(Collectors.toList())
                 : List.of();
 
+        List<CommentDto> comments = (commentRepository != null)
+                ? commentRepository.findByTaskIdOrderByCreatedAtAsc(id, org.springframework.data.domain.PageRequest.of(0, 50))
+                        .getContent().stream().map(CommentDto::fromEntity).collect(Collectors.toList())
+                : List.of();
+
         return TaskDetailsDto.builder()
                 .task(taskDto)
                 .checklists(checklists)
-                .comments(List.of())
+                .comments(comments)
                 .build();
     }
 
@@ -639,6 +661,12 @@ public class TaskService {
                 .storyPoints(req.getStoryPoints())
                 .estimatedHours(req.getEstimatedHours())
                 .sprintId(sprintId)
+                .recurrenceRule(req.getRecurrenceRule() != null ? req.getRecurrenceRule() : com.taskcenter.model.RecurrenceRule.NONE)
+                .recurrenceInterval(req.getRecurrenceInterval() != null && req.getRecurrenceInterval() > 0 ? req.getRecurrenceInterval() : 1)
+                .nextOccurrenceDate(RecurringTaskService.computeNextOccurrence(
+                        req.getDueDate() != null ? req.getDueDate() : LocalDate.now(clock),
+                        req.getRecurrenceRule(),
+                        req.getRecurrenceInterval()))
                 .build();
 
         Set<User> assignees = resolveAssignees(req.getAssigneeIds(), req.getUsers());
@@ -764,10 +792,17 @@ public class TaskService {
         Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         boolean columnChanged = false;
+        boolean movedToDone = false;
         String oldColumnTitle = null;
         String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
             BoardColumn newColumn = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
+            if (Boolean.TRUE.equals(newColumn.getIsDone())) {
+                if (taskDependencyService != null) {
+                    taskDependencyService.assertCanMoveToDone(task);
+                }
+                movedToDone = true;
+            }
             String oldColId = task.getColumnId();
             BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
             oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
@@ -826,6 +861,19 @@ public class TaskService {
         }
         if (req.getEstimatedHours() != null) {
             task.setEstimatedHours(req.getEstimatedHours());
+        }
+        if (req.getRecurrenceRule() != null) {
+            task.setRecurrenceRule(req.getRecurrenceRule());
+            int interval = req.getRecurrenceInterval() != null && req.getRecurrenceInterval() > 0
+                    ? req.getRecurrenceInterval()
+                    : (task.getRecurrenceInterval() != null ? task.getRecurrenceInterval() : 1);
+            task.setRecurrenceInterval(interval);
+            task.setNextOccurrenceDate(RecurringTaskService.computeNextOccurrence(
+                    task.getDueDate() != null ? task.getDueDate() : LocalDate.now(clock),
+                    req.getRecurrenceRule(),
+                    interval));
+            activityService.logActivity(task.getId(), currentUser, TaskActivityType.RECURRENCE_UPDATED,
+                    "recurrenceRule", null, req.getRecurrenceRule().name());
         }
         if (req.getSprintId() != null) {
             String newSprintId = req.getSprintId().isBlank() ? null : req.getSprintId();
@@ -897,6 +945,14 @@ public class TaskService {
         Task saved = taskRepository.save(task);
         if (columnChanged) {
             telegramNotificationService.sendTaskMovedNotification(saved, currentUser, oldColumnTitle, newColumnTitle);
+            if (movedToDone) {
+                if (taskDependencyService != null) {
+                    taskDependencyService.notifyUnblockedTasksOnDone(saved, currentUser);
+                }
+                if (recurringTaskService != null) {
+                    recurringTaskService.spawnNextTaskWhenCompleted(saved);
+                }
+            }
         }
         notificationService.notifyWatchers(task.getWatchers(), currentUser.getId(), "Vazifa yangilandi", task.getTitle() + " vazifasi o'zgartirildi", task.getId());
         TaskDto taskDto = TaskDto.fromEntity(saved);
@@ -915,10 +971,17 @@ public class TaskService {
         Task task = getTaskAndValidateWorkspace(id, workspaceId);
 
         boolean columnChanged = false;
+        boolean movedToDone = false;
         String oldColumnTitle = null;
         String newColumnTitle = null;
         if (req.getColumnId() != null && !req.getColumnId().equals(task.getColumnId())) {
             BoardColumn column = getColumnAndValidateWorkspace(req.getColumnId(), workspaceId);
+            if (Boolean.TRUE.equals(column.getIsDone())) {
+                if (taskDependencyService != null) {
+                    taskDependencyService.assertCanMoveToDone(task);
+                }
+                movedToDone = true;
+            }
             String oldColId = task.getColumnId();
             BoardColumn oldColumn = columnRepository.findById(oldColId).orElse(null);
             oldColumnTitle = oldColumn != null ? oldColumn.getTitle() : oldColId;
@@ -941,6 +1004,14 @@ public class TaskService {
 
         if (columnChanged) {
             telegramNotificationService.sendTaskMovedNotification(saved, currentUser, oldColumnTitle, newColumnTitle);
+            if (movedToDone) {
+                if (taskDependencyService != null) {
+                    taskDependencyService.notifyUnblockedTasksOnDone(saved, currentUser);
+                }
+                if (recurringTaskService != null) {
+                    recurringTaskService.spawnNextTaskWhenCompleted(saved);
+                }
+            }
         }
         TaskDto taskDto = TaskDto.fromEntity(saved);
 

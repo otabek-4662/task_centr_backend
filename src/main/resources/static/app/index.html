@@ -292,6 +292,18 @@
         </div>
       </section>
 
+      <!-- Live Pomodoro / Focus Timer Sticky Banner -->
+      <div id="active-timer-banner" style="display:none;margin:10px 16px 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(239,68,68,0.14));border:1px solid var(--gold, #D4AF37);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <span style="font-size:18px;">🍅</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="active-timer-title">Fokus sessiyasi</div>
+            <div class="hint" style="font-size:11.5px;" id="active-timer-clock">⏱ 00:00 / 25:00</div>
+          </div>
+        </div>
+        <button type="button" class="btn-chip-action primary" data-action="stop-focus-timer" style="background:var(--danger);color:#fff;border:none;">⏹ To‘xtatish va yozish</button>
+      </div>
+
       <!-- Board Search & Filter Bar -->
       <div class="filters" id="main-filters">
         <div class="filters-top-row">
@@ -398,6 +410,7 @@
         <div class="header-actions">
           <div class="ws-switcher"><select id="stats-ws" aria-label="Ish maydonini tanlash"></select></div>
           <button type="button" class="btn-action btn-soft" data-action="export-csv">📥 CSV yuklab olish</button>
+          <button type="button" class="btn-action btn-primary" data-action="export-pdf">📄 Kunlik PDF Hisobot</button>
         </div>
       </div>
       <div id="stats-container" class="page-scroll-body"></div>
@@ -526,6 +539,17 @@
     </div>
 
     <div class="form-group">
+      <label for="f-recurrence">🔁 Takrorlanish qoidasi (Avto-vazifa)</label>
+      <select id="f-recurrence">
+        <option value="NONE" selected>Takrorlanmaydi (Bir martalik)</option>
+        <option value="DAILY">🔁 Har kuni (DAILY)</option>
+        <option value="WEEKDAYS">💼 Ish kunlari — Du–Ju (WEEKDAYS)</option>
+        <option value="WEEKLY">📅 Har hafta (WEEKLY)</option>
+        <option value="MONTHLY">🗓 Har oy (MONTHLY)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label>Mas’ul ijrochilar (Bir nechta tanlash mumkin)</label>
       <div class="assignee-picker" id="f-assignee-picker"></div>
     </div>
@@ -551,6 +575,7 @@
     <div class="detail-header-meta">
       <span id="d-public-id" class="task-key-badge">LOY-1</span>
       <div class="detail-quick-pills">
+        <button type="button" id="btn-focus-timer" class="btn-chip-action primary" data-action="start-focus-timer">🍅 Fokus (25m)</button>
         <button type="button" id="btn-watch-task" class="btn-chip-action" data-action="toggle-watch">👁 Kuzatish</button>
         <button type="button" id="btn-archive-task" class="btn-chip-action" data-action="toggle-archive">📦 Arxivlash</button>
       </div>
@@ -601,12 +626,20 @@
       </div>
     </div>
 
-    <!-- Subtab 2: Subtasks -->
+    <!-- Subtab 2: Subtasks & Task Dependencies -->
     <div id="subtab-subtasks" class="subtab-panel" style="display:none">
       <div id="subtasks-list" style="margin-bottom:10px"></div>
-      <div class="comment-input-wrap">
+      <div class="comment-input-wrap" style="margin-bottom:14px">
         <input type="text" id="subtask-input" placeholder="Yangi ostki vazifa (Sub-task) sarlavhasi...">
         <button type="button" data-action="add-subtask" aria-label="Ostki vazifa qo‘shish">+</button>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:10px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🔗 Vazifalararo Bog‘liqlik (Bloklovchi vazifalar)</div>
+        <div id="dependencies-list" style="margin-bottom:8px"></div>
+        <div class="comment-input-wrap">
+          <input type="text" id="dependency-input" placeholder="Bloklovchi vazifa kodi (masalan: LOY-5)...">
+          <button type="button" data-action="add-dependency" aria-label="Bog‘liqlik qo‘shish">🔗</button>
+        </div>
       </div>
     </div>
 
@@ -661,6 +694,6 @@
 </div>
 
 <script src="app.js?v=25"></script>
-<script src="ui-bind.js?v=25"></script>
+<script src="ui-bind.js?v=35"></script>
 </body>
 </html>

@@ -85,6 +85,18 @@ public class Task {
     @Column(name = "sprint_id")
     private String sprintId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recurrence_rule", length = 32)
+    @Builder.Default
+    private RecurrenceRule recurrenceRule = RecurrenceRule.NONE;
+
+    @Column(name = "recurrence_interval")
+    @Builder.Default
+    private Integer recurrenceInterval = 1;
+
+    @Column(name = "next_occurrence_date")
+    private LocalDate nextOccurrenceDate;
+
     @Column(name = "is_archived")
     @Builder.Default
     private Boolean isArchived = false;
@@ -161,6 +173,12 @@ public class Task {
         }
         if (this.publicId == null) {
             this.publicId = "WFM-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        }
+        if (this.recurrenceRule == null) {
+            this.recurrenceRule = RecurrenceRule.NONE;
+        }
+        if (this.recurrenceInterval == null || this.recurrenceInterval <= 0) {
+            this.recurrenceInterval = 1;
         }
     }
 

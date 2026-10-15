@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.taskcenter.model.IssueType;
 import com.taskcenter.model.Priority;
+import com.taskcenter.model.RecurrenceRule;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -51,6 +52,12 @@ public class TaskCreateRequest {
 
     @Schema(description = "Taxmin qilingan soatlar", example = "4.0", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Double estimatedHours;
+
+    @Schema(description = "Takrorlanish qoidasi (NONE, DAILY, WEEKDAYS, WEEKLY, MONTHLY)", example = "NONE", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private RecurrenceRule recurrenceRule;
+
+    @Schema(description = "Takrorlanish intervali", example = "1", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Integer recurrenceInterval;
 
     @Schema(hidden = true)
     @com.fasterxml.jackson.annotation.JsonIgnore

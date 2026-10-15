@@ -28,6 +28,12 @@ public class WorkspaceDto {
     @Schema(description = "Vazifalar prefiksi", example = "FE")
     private String keyPrefix;
 
+    @Schema(description = "Bog'langan Telegram guruh chat ID si", example = "-1001234567890")
+    private Long telegramGroupChatId;
+
+    @Schema(description = "Bog'langan Telegram Supergroup Topic (mavzu) ID si", example = "42")
+    private Integer telegramTopicId;
+
     @Schema(description = "Yaratilgan vaqti", example = "2026-01-01T10:00:00")
     private LocalDateTime createdAt;
 
@@ -42,6 +48,8 @@ public class WorkspaceDto {
                 .description(w.getDescription())
                 .ownerId(w.getOwnerId())
                 .keyPrefix(w.getKeyPrefix())
+                .telegramGroupChatId(w.getTelegramGroupChatId())
+                .telegramTopicId(w.getTelegramTopicId())
                 .createdAt(w.getCreatedAt())
                 .updatedAt(w.getUpdatedAt())
                 .build();

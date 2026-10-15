@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -49,22 +50,47 @@ public class FileController {
     public ResponseEntity<Resource> downloadFile(
             @io.swagger.v3.oas.annotations.Parameter(description = "Yuklab olinadigan fayl nomi (kengaytmasi bilan)", example = "image123.png")
             @PathVariable String fileName, HttpServletRequest request) {
-        Resource resource = fileStorageService.loadFileAsResource("chat-attachments/" + fileName);
+        return serveChatAttachment(fileName, request);
+    }
+
+    @GetMapping("/chat-attachments/{fileName:.+}")
+    @Operation(
+            operationId = "downloadChatAttachmentFile",
+            summary = "Chat biriktirmasini yuklab olish yoki ko'rish",
+            description = "Chat-attachments katalogidagi faylni local, db yoki s3 xotiradan qaytaradi."
+    )
+    public ResponseEntity<Resource> downloadChatAttachment(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Yuklab olinadigan fayl nomi", example = "image123.png")
+            @PathVariable String fileName, HttpServletRequest request) {
+        return serveChatAttachment(fileName, request);
+    }
+
+    private ResponseEntity<Resource> serveChatAttachment(String fileName, HttpServletRequest request) {
+        String normalizedPath = fileName.startsWith("chat-attachments/")
+                ? fileName
+                : "chat-attachments/" + fileName;
+        Resource resource = fileStorageService.loadFileAsResource(normalizedPath);
 
         String contentType = null;
         try {
-            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
-        } catch (IOException ex) {
-            // Ignored
+            if (request != null && request.getServletContext() != null) {
+                contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+            }
+        } catch (IOException | UnsupportedOperationException ex) {
+            // ByteArrayResource / DB storage holatida MediaTypeFactory orqali aniqlanadi
         }
 
         if (contentType == null) {
-            contentType = "application/octet-stream";
+            contentType = MediaTypeFactory.getMediaType(resource)
+                    .or(() -> MediaTypeFactory.getMediaType(fileName))
+                    .map(MediaType::toString)
+                    .orElse("application/octet-stream");
         }
 
+        String dispFileName = resource.getFilename() != null ? resource.getFilename() : fileName;
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + dispFileName + "\"")
                 .body(resource);
     }
 }

@@ -50,8 +50,6 @@ jobs:
               echo "::error file=src/test,title=$(basename "$f")::$ERR_MSG"
             fi
           done
-          PASTE_URL=$(for f in target/surefire-reports/*.txt; do if grep -q -E "(FAILURE!|ERROR!)" "$f" 2>/dev/null; then echo "=== $f ==="; cat "$f"; fi; done | curl -s -F "content=<-" https://dpaste.org/api/)
-          echo "::error file=.github,title=SurefireFailures::Failures link: $PASTE_URL"
           if [ $found -eq 0 ]; then
             echo "No test failures found in surefire-reports. Showing build log tail:" >> $GITHUB_STEP_SUMMARY
             for f in target/surefire-reports/*.dump*; do
@@ -81,4 +79,3 @@ jobs:
       - name: Check OpenAPI backward compatibility (oasdiff)
         run: |
           oasdiff breaking swagger-v1.json docs/openapi.json --config .oasdiff.yaml --fail-on ERR
-

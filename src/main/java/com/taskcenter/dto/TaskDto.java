@@ -4,6 +4,7 @@ import com.taskcenter.model.Direction;
 import com.taskcenter.model.IssueType;
 import com.taskcenter.model.Label;
 import com.taskcenter.model.Priority;
+import com.taskcenter.model.RecurrenceRule;
 import com.taskcenter.model.Task;
 import com.taskcenter.model.TaskChecklistItem;
 import com.taskcenter.model.User;
@@ -84,6 +85,15 @@ public class TaskDto {
 
     @Schema(description = "Biriktirilgan sprint ID si", example = "sprint-67890")
     private String sprintId;
+
+    @Schema(description = "Takrorlanish qoidasi (NONE, DAILY, WEEKDAYS, WEEKLY, MONTHLY)", example = "NONE")
+    private RecurrenceRule recurrenceRule;
+
+    @Schema(description = "Takrorlanish intervali (masalan, har 1 hafta)", example = "1")
+    private Integer recurrenceInterval;
+
+    @Schema(description = "Keyingi avtomatik yaratilish sanasi", example = "2026-10-22")
+    private LocalDate nextOccurrenceDate;
 
     @Schema(description = "Vazifaga biriktirilgan teglar")
     private List<LabelDto> labels;
@@ -230,6 +240,9 @@ public class TaskDto {
                 .totalChecklistItems(t.getChecklistItems() != null ? t.getChecklistItems().size() : 0)
                 .completedChecklistItems(t.getChecklistItems() != null ? (int) t.getChecklistItems().stream().filter(TaskChecklistItem::getIsCompleted).count() : 0)
                 .sprintId(t.getSprintId())
+                .recurrenceRule(t.getRecurrenceRule() != null ? t.getRecurrenceRule() : RecurrenceRule.NONE)
+                .recurrenceInterval(t.getRecurrenceInterval() != null ? t.getRecurrenceInterval() : 1)
+                .nextOccurrenceDate(t.getNextOccurrenceDate())
                 .labels(t.getLabels() != null ? t.getLabels().stream().map(LabelDto::fromEntity).collect(Collectors.toList()) : List.of())
                 .labelNames(combinedLabelNames)
                 .directions(t.getDirections() != null ? t.getDirections().stream().map(DirectionDto::fromEntity).collect(Collectors.toList()) : List.of())

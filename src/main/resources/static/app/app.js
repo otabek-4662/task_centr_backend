@@ -175,7 +175,7 @@ async function refreshAuthToken() {
   refreshPromise = (async () => {
     if (refreshToken) {
       try {
-        const res = await fetch(API + '/api/v1/auth/refresh', {
+        const res = await fetch(API + '/api/auth/refresh', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken })
@@ -201,7 +201,7 @@ async function refreshAuthToken() {
 
     if (isTma) {
       try {
-        const authRes = await fetch(API + '/api/v1/auth/telegram', {
+        const authRes = await fetch(API + '/api/auth/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ initData: tg.initData })
@@ -313,7 +313,7 @@ async function initCore() {
   // 1. Try Telegram WebApp auth if inside Telegram Mini App and no valid session yet
   if (isTma && !token) {
     try {
-      const r = await api('/api/v1/auth/telegram', {
+      const r = await api('/api/auth/telegram', {
         method: 'POST',
         body: JSON.stringify({ initData: tg.initData })
       }, false);
@@ -516,7 +516,7 @@ window.handleLogin = async function () {
   if (isTma && tg.MainButton) tg.MainButton.showProgress();
 
   try {
-    const endpoint = authMode === 'register' ? '/api/v1/auth/register' : '/api/v1/auth/login';
+    const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
     const payload = authMode === 'register'
       ? { name: username, password, ...(inviteToken ? { inviteToken } : {}) }
       : { name: username, password };
@@ -798,6 +798,10 @@ window.toggleHeroShowcase = function () {
 
 function renderBoard() {
   updateHeroLiveStats();
+  if (!focusTimerLoadedOnce) {
+    focusTimerLoadedOnce = true;
+    loadActiveFocusTimer();
+  }
   const container = document.getElementById('board-container');
   if (!container) return;
   container.innerHTML = '';
@@ -998,6 +1002,13 @@ function createCard(t) {
     bTime.className = 'badge date';
     bTime.textContent = `⏱ ${t.loggedHours || 0}${t.estimatedHours ? '/' + t.estimatedHours : ''}s`;
     badgesEl.appendChild(bTime);
+  }
+
+  if (t.recurrenceRule && t.recurrenceRule !== 'NONE') {
+    const bRec = document.createElement('span');
+    bRec.className = 'badge date';
+    bRec.textContent = `🔁 ${t.recurrenceRule}`;
+    badgesEl.appendChild(bRec);
   }
 
   if (t.parentId) {
@@ -1337,6 +1348,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
     document.getElementById('f-story-points').value = '';
     if (document.getElementById('f-est-hours')) document.getElementById('f-est-hours').value = '';
     if (document.getElementById('f-parent-task')) document.getElementById('f-parent-task').value = '';
+    if (document.getElementById('f-recurrence')) document.getElementById('f-recurrence').value = 'NONE';
     document.getElementById('f-sprint').value = selectedSprintFilter || '';
     if (defaultColId) document.getElementById('f-col').value = defaultColId;
 
@@ -1364,6 +1376,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
     document.getElementById('f-story-points').value = task.storyPoints != null ? task.storyPoints : '';
     if (document.getElementById('f-est-hours')) document.getElementById('f-est-hours').value = task.estimatedHours != null ? task.estimatedHours : '';
     if (document.getElementById('f-parent-task')) document.getElementById('f-parent-task').value = task.parentId || '';
+    if (document.getElementById('f-recurrence')) document.getElementById('f-recurrence').value = task.recurrenceRule || 'NONE';
     document.getElementById('f-sprint').value = task.sprintId || '';
     document.getElementById('f-col').value = task.columnId;
 
@@ -1466,9 +1479,16 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
     });
 
     if (isTma && tg.MainButton) tg.MainButton.hide();
+    if (task.recurrenceRule && task.recurrenceRule !== 'NONE') {
+      const rb = document.createElement('span');
+      rb.className = 'badge date';
+      rb.textContent = '🔁 ' + task.recurrenceRule;
+      dBadges.appendChild(rb);
+    }
     switchDetailSubtab('checklists');
     loadChecklists(task.id);
     loadSubtasks(task.id);
+    loadDependencies(task.id);
     loadWorklogs(task.id);
     loadComments(task.id);
     loadAttachments(task.id);
@@ -1540,6 +1560,7 @@ window.saveTask = async function () {
     const estRaw = document.getElementById('f-est-hours')?.value || '';
     const estimatedHours = estRaw !== '' ? parseFloat(estRaw) : null;
     const parentId = document.getElementById('f-parent-task')?.value || null;
+    const recurrenceRule = document.getElementById('f-recurrence')?.value || 'NONE';
     const payload = {
       title,
       description: desc,
@@ -1548,6 +1569,7 @@ window.saveTask = async function () {
       dueDate,
       storyPoints,
       estimatedHours,
+      recurrenceRule,
       parentId,
       sprintId: sprintId || '',
       columnId: colId,
@@ -1899,7 +1921,7 @@ async function loadAttachments(taskId) {
         <button type="button" class="icon-btn sm del-btn" style="color:var(--danger);border:none;">×</button>
       `;
       row.querySelector('.f-name').textContent = f.fileName || 'fayl';
-      row.querySelector('.dl-btn').onclick = () => window.open(`${API}/api/attachments/${f.id}/download`, '_blank');
+      row.querySelector('.dl-btn').onclick = () => downloadTaskAttachment(f.id, f.fileName || 'fayl');
       row.querySelector('.del-btn').onclick = async () => {
         await api(`/api/attachments/${f.id}`, { method: 'DELETE' });
         loadAttachments(taskId);
@@ -1908,6 +1930,29 @@ async function loadAttachments(taskId) {
     });
   } catch (e) {
     list.innerHTML = '<div class="hint">Fayllarni yuklashda xatolik</div>';
+  }
+}
+
+async function downloadTaskAttachment(attachmentId, fileName) {
+  try {
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    else if (tgInitData) headers['X-Telegram-Init-Data'] = tgInitData;
+    const res = await fetch(`${API}/api/attachments/${attachmentId}/download`, { headers });
+    if (!res.ok) throw new Error('Yuklab olishda xatolik: ' + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'attachment';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 300);
+  } catch (e) {
+    tgAlert(e.message || 'Faylni yuklab olishda xatolik');
   }
 }
 
@@ -2682,6 +2727,174 @@ window.loadStats = async function () {
   }
 };
 
+// ===== Live Pomodoro / Focus Timer & Task Dependencies & PDF Export =====
+let activeFocusTimer = null;
+let focusTimerInterval = null;
+let focusTimerLoadedOnce = false;
+
+async function loadActiveFocusTimer() {
+  try {
+    const res = await api('/api/timers/active');
+    activeFocusTimer = res?.data || null;
+    renderActiveFocusTimerBanner();
+  } catch (e) {}
+}
+
+function renderActiveFocusTimerBanner() {
+  const banner = document.getElementById('active-timer-banner');
+  const titleEl = document.getElementById('active-timer-title');
+  const clockEl = document.getElementById('active-timer-clock');
+  if (!banner) return;
+
+  if (focusTimerInterval) {
+    clearInterval(focusTimerInterval);
+    focusTimerInterval = null;
+  }
+
+  if (!activeFocusTimer || !activeFocusTimer.taskId) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'flex';
+  const code = activeFocusTimer.taskPublicId ? `[${activeFocusTimer.taskPublicId}] ` : '';
+  if (titleEl) titleEl.textContent = `🍅 Fokus: ${code}${activeFocusTimer.taskTitle || 'Vazifa'}`;
+
+  let elapsed = Number(activeFocusTimer.elapsedSeconds || 0);
+  const targetMin = Number(activeFocusTimer.targetMinutes || 25);
+
+  const updateTick = () => {
+    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const ss = String(elapsed % 60).padStart(2, '0');
+    if (clockEl) clockEl.textContent = `⏱ ${mm}:${ss} / ${targetMin}:00 daq`;
+    elapsed += 1;
+  };
+  updateTick();
+  focusTimerInterval = setInterval(updateTick, 1000);
+}
+
+window.startFocusTimerForCurrentTask = async function () {
+  if (!currentTaskId) return;
+  try {
+    const res = await api('/api/timers/start', {
+      method: 'POST',
+      body: JSON.stringify({ taskId: currentTaskId, targetMinutes: 25 })
+    });
+    activeFocusTimer = res?.data || null;
+    renderActiveFocusTimerBanner();
+    haptic('notification', 'success');
+    showToast("🍅 25 daqiqalik Fokus taymeri boshlandi!");
+  } catch (e) {}
+};
+
+window.stopActiveFocusTimer = async function () {
+  try {
+    const res = await api('/api/timers/stop', { method: 'POST' });
+    const dto = res?.data;
+    activeFocusTimer = null;
+    renderActiveFocusTimerBanner();
+    haptic('notification', 'success');
+    showToast(`⏱ Taymer to'xtatildi (+${dto?.loggedHoursAdded || 0} soat yozildi)`);
+    if (currentWsId) loadBoard(currentWsId);
+    if (currentTaskId) loadWorklogs(currentTaskId);
+  } catch (e) {}
+};
+
+async function loadDependencies(taskId) {
+  const list = document.getElementById('dependencies-list');
+  if (!list) return;
+  list.innerHTML = '<div class="hint">Yuklanmoqda...</div>';
+  try {
+    const res = await api(`/api/tasks/${taskId}/dependencies`);
+    const data = res?.data || { blocked: false, blockedBy: [], blocking: [] };
+    list.innerHTML = '';
+
+    const blockedBy = data.blockedBy || [];
+    const blocking = data.blocking || [];
+
+    if (!blockedBy.length && !blocking.length) {
+      list.innerHTML = '<div class="hint" style="margin-bottom:6px;">Bog‘liqliklar (Blocker) biriktirilmagan</div>';
+      return;
+    }
+
+    blockedBy.forEach(dep => {
+      const row = document.createElement('div');
+      row.className = 'checklist-item';
+      const statusIcon = dep.blockerCompleted ? '✅' : '⛔';
+      row.innerHTML = `
+        <span class="task-key-badge">${statusIcon} ${escapeHtmlText(dep.blockerPublicId || 'TASK')}</span>
+        <span style="flex:1;font-size:12.5px;font-weight:600;">Kutmoqda: ${escapeHtmlText(dep.blockerTitle || '')}</span>
+        <button type="button" class="icon-btn sm del-dep" style="color:var(--danger);border:none;">×</button>
+      `;
+      row.querySelector('.del-dep').onclick = async () => {
+        await api(`/api/tasks/${taskId}/dependencies/${dep.id}`, { method: 'DELETE' });
+        loadDependencies(taskId);
+      };
+      list.appendChild(row);
+    });
+
+    blocking.forEach(dep => {
+      const row = document.createElement('div');
+      row.className = 'checklist-item';
+      row.innerHTML = `
+        <span class="task-key-badge">🔗 ${escapeHtmlText(dep.blockedPublicId || 'TASK')}</span>
+        <span style="flex:1;font-size:12.5px;">Bloklayapti: ${escapeHtmlText(dep.blockedTitle || '')}</span>
+        <button type="button" class="icon-btn sm del-dep" style="color:var(--danger);border:none;">×</button>
+      `;
+      row.querySelector('.del-dep').onclick = async () => {
+        await api(`/api/tasks/${taskId}/dependencies/${dep.id}`, { method: 'DELETE' });
+        loadDependencies(taskId);
+      };
+      list.appendChild(row);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="hint">Bog‘liqliklarni yuklashda xatolik</div>';
+  }
+}
+
+window.addTaskDependency = async function () {
+  const inp = document.getElementById('dependency-input');
+  const code = inp?.value.trim();
+  if (!code || !currentTaskId) return;
+  inp.disabled = true;
+  try {
+    await api(`/api/tasks/${currentTaskId}/dependencies`, {
+      method: 'POST',
+      body: JSON.stringify({ blockerTaskIdOrCode: code })
+    });
+    inp.value = '';
+    showToast("Bog'liqlik qo'shildi 🔗");
+    loadDependencies(currentTaskId);
+  } catch (e) {}
+  inp.disabled = false;
+};
+
+window.exportWorkspacePdf = async function () {
+  const wsId = document.getElementById('stats-ws')?.value || currentWsId;
+  if (!wsId) return;
+  try {
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    else if (tgInitData) headers['X-Telegram-Init-Data'] = tgInitData;
+    const res = await fetch(`${API}/api/workspaces/${wsId}/export/daily-report.pdf`, { headers });
+    if (!res.ok) throw new Error('PDF hisobotni yuklab olishda xatolik');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily_report_${wsId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 300);
+    showToast("📄 PDF hisobot yuklab olindi!");
+  } catch (e) {
+    tgAlert(e.message || 'PDF yuklab olishda xatolik');
+  }
+};
+
 window.exportWorkspaceCsv = async function () {
   const wsId = document.getElementById('stats-ws')?.value || currentWsId;
   if (!wsId) return;
@@ -3005,6 +3218,46 @@ window.loadWorkspaceSettingsTab = async function () {
     }
 
     container.appendChild(profCard);
+
+    // 5. Calendar Sync (iCal / Google Calendar) & Telegram Group Integration Card
+    const calGroupCard = document.createElement('div');
+    calGroupCard.className = 'section-card';
+    const currentWsObj = workspacesList.find(w => w.id === currentWsId);
+    const wsPrefix = currentWsObj?.keyPrefix || currentWsId || 'LOY';
+    calGroupCard.innerHTML = `
+      <div class="section-card-title" style="margin-bottom:10px;">📆 Kalendar Sinxronizatsiyasi va 👥 Telegram Guruh</div>
+      <div class="hint" style="margin-bottom:10px;">Barcha muddatli vazifalaringizni Google Calendar, Apple Calendar yoki Outlook bilan jonli sinxronlang:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button type="button" class="btn-chip-action primary" id="btn-get-ical">🔗 iCal (.ics) havolani nusxalash</button>
+        <button type="button" class="btn-chip-action" id="btn-open-gcal">📅 Google Calendar'ga qo'shish</button>
+      </div>
+      <div id="ical-url-box" style="display:none;margin-bottom:12px;padding:10px;border-radius:10px;background:var(--sec-bg-color);font-size:12px;word-break:break-all;"></div>
+      <div style="padding-top:12px;border-top:1px solid var(--line);">
+        <strong>👥 Telegram Guruh (Supergroup Topics) ulash:</strong>
+        <div class="hint" style="margin-top:4px;">Botni jamoa Telegram guruhiga qo'shing va guruh ichida <code>/link_group ${escapeHtmlText(wsPrefix)}</code> buyrug'ini yuboring. Shundan so'ng guruhda <code>/task</code>, <code>#task</code> va <code>/leaderboard</code> ishlaydi!</div>
+      </div>
+    `;
+    calGroupCard.querySelector('#btn-get-ical').onclick = async () => {
+      try {
+        const res = await api('/api/users/me/calendar-link');
+        const link = res?.data?.icsUrl;
+        if (link) {
+          const box = calGroupCard.querySelector('#ical-url-box');
+          box.style.display = 'block';
+          box.textContent = link;
+          fallbackCopy(link);
+          showToast("iCal (.ics) havola nusxalandi!");
+        }
+      } catch (e) {}
+    };
+    calGroupCard.querySelector('#btn-open-gcal').onclick = async () => {
+      try {
+        const res = await api('/api/users/me/calendar-link');
+        const gurl = res?.data?.googleCalendarUrl;
+        if (gurl) window.open(gurl, '_blank');
+      } catch (e) {}
+    };
+    container.appendChild(calGroupCard);
   } catch (e) {
     container.innerHTML = `<div class="empty-placeholder">Yuklashda xatolik: ${e.message}</div>`;
   }

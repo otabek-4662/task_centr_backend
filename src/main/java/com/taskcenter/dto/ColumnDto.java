@@ -43,6 +43,7 @@ public class ColumnDto {
     public static ColumnDto fromEntity(BoardColumn c) {
         List<TaskDto> taskList = c.getTasks() != null
                 ? c.getTasks().stream()
+                    .filter(t -> !Boolean.TRUE.equals(t.getIsArchived()))
                     .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
                     .map(TaskDto::fromEntity)
                     .collect(Collectors.toList())

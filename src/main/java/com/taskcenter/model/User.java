@@ -1,5 +1,6 @@
 package com.taskcenter.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
@@ -38,17 +39,24 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
     @Column(name = "telegram_chat_id")
     private Long telegramChatId;
 
+    @JsonIgnore
     @Column(name = "telegram_link_token")
     private String telegramLinkToken;
 
+    @JsonIgnore
     @Column(name = "telegram_link_token_expires_at")
     private LocalDateTime telegramLinkTokenExpiresAt;
+
+    @JsonIgnore
+    @Column(name = "calendar_token", unique = true)
+    private String calendarToken;
 
     @Column(name = "telegram_notify_assigned", nullable = false)
     @Builder.Default

@@ -232,4 +232,10 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
            "AND bc.isDone = false AND t.dueDate IS NOT NULL AND t.dueDate = :today ORDER BY t.priority DESC")
     List<Task> findDueTodayTasksByUserId(@Param("userId") String userId, @Param("today") LocalDate today);
+
+    @Query("SELECT DISTINCT t FROM Task t LEFT JOIN FETCH t.assignees LEFT JOIN FETCH t.labels LEFT JOIN FETCH t.directions " +
+           "WHERE t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) " +
+           "AND t.recurrenceRule IS NOT NULL AND t.recurrenceRule <> com.taskcenter.model.RecurrenceRule.NONE " +
+           "AND t.nextOccurrenceDate IS NOT NULL AND t.nextOccurrenceDate <= :today")
+    List<Task> findDueRecurringTasks(@Param("today") LocalDate today);
 }

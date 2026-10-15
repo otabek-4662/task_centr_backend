@@ -1,4 +1,6 @@
 spring:
+  aop:
+    proxy-target-class: true
   jmx:
     enabled: false
   jackson:
@@ -99,6 +101,8 @@ telegram:
     max-age-sec: ${TELEGRAM_MINIAPP_MAX_AGE_SEC:86400}
     base-url: ${TELEGRAM_MINIAPP_BASE_URL:https://task-centr-backend.onrender.com}
     short-name: ${TELEGRAM_MINIAPP_SHORT_NAME:app}
+  reminders:
+    deadline-enabled: ${TELEGRAM_DEADLINE_REMINDERS_ENABLED:true}
   scheduler:
     reminder-cron: ${TELEGRAM_REMINDER_CRON:0 0 18 * * *}
     digest-cron: ${TELEGRAM_DIGEST_CRON:0 0 8 * * *}

@@ -1,6 +1,9 @@
 package com.taskcenter.service;
 
+import com.taskcenter.dto.CommentDto;
 import com.taskcenter.dto.GitHubPushEventDto;
+import com.taskcenter.dto.TaskDto;
+import com.taskcenter.dto.WebSocketEvent;
 import com.taskcenter.exception.ForbiddenException;
 import com.taskcenter.model.BoardColumn;
 import com.taskcenter.model.Comment;
@@ -58,11 +61,11 @@ public class WebhookService {
 
     /**
      * GitHub har bir so'rovni X-Hub-Signature-256 = "sha256=" + HMAC-SHA256(secret, body) bilan imzolaydi.
-     * Imzo mos kelmasa, so'rov GitHub dan emas вЂ” uni rad etamiz.
+     * Imzo mos kelmasa, so'rov GitHub dan emas — uni rad etamiz.
      */
     public void verifySignature(byte[] rawBody, String signatureHeader) {
         if (webhookSecret == null || webhookSecret.isBlank()) {
-            log.warn("GITHUB_WEBHOOK_SECRET sozlanmagan вЂ” webhook so'rovi rad etildi");
+            log.warn("GITHUB_WEBHOOK_SECRET sozlanmagan — webhook so'rovi rad etildi");
             throw new ForbiddenException("Webhook sozlanmagan");
         }
         if (signatureHeader == null || !signatureHeader.startsWith("sha256=")) {
@@ -72,7 +75,6 @@ public class WebhookService {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             String expected = "sha256=" + HexFormat.of().formatHex(mac.doFinal(rawBody));
-            // MessageDigest.isEqual вЂ” vaqt bo'yicha xavfsiz taqqoslash (timing attack dan himoya)
             if (!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
                     signatureHeader.getBytes(StandardCharsets.UTF_8))) {
                 throw new ForbiddenException("Webhook imzosi noto'g'ri");
@@ -84,7 +86,7 @@ public class WebhookService {
 
     @Transactional
     public void processGitHubPushEvent(GitHubPushEventDto payload) {
-        log.info("GitHub Webhook qabul qilindi. Repository: {}", 
+        log.info("GitHub Webhook qabul qilindi. Repository: {}",
             payload.getRepository() != null ? payload.getRepository().getFull_name() : "Noma'lum");
 
         if (payload.getCommits() == null || payload.getCommits().isEmpty()) {
@@ -128,32 +130,32 @@ public class WebhookService {
 
         if (doneColumn != null && !task.getColumnId().equals(doneColumn.getId())) {
             task.setColumnId(doneColumn.getId());
-            taskRepository.save(task);
+            Task savedTask = taskRepository.save(task);
             log.info("Task {} 'Done' ustuniga o'tkazildi", publicId);
-            
-            // WebSocket orqali frontendga xabar berish
-            com.taskcenter.dto.WebSocketEvent<Task> event = new com.taskcenter.dto.WebSocketEvent<>("TASK_UPDATED", workspace.getId(), task);
+
+            // WebSocket orqali frontendga DTO ko'rinishida xabar berish
+            WebSocketEvent<TaskDto> event = new WebSocketEvent<>("TASK_UPDATED", workspace.getId(), TaskDto.fromEntity(savedTask));
             webSocketNotifier.notifyWorkspace(workspace.getId(), event);
         }
 
         // 2. Taskga izoh (Comment) qo'shish
-        String authorName = (commit.getAuthor() != null && commit.getAuthor().getName() != null) 
-                            ? commit.getAuthor().getName() 
+        String authorName = (commit.getAuthor() != null && commit.getAuthor().getName() != null)
+                            ? commit.getAuthor().getName()
                             : (sender != null ? sender.getLogin() : "GitHub User");
-                            
-        String commentText = String.format("рџ¤– **GitHub Avtomatizatsiyasi:**\nUshbu vazifa `%s` tomonidan hal qilindi.\n\n**Commit:** [%s](%s)",
+
+        String commentText = String.format("🤖 **GitHub Avtomatizatsiyasi:**\nUshbu vazifa `%s` tomonidan hal qilindi.\n\n**Commit:** [%s](%s)",
                 authorName,
                 commit.getMessage(),
                 commit.getUrl());
 
         Comment comment = Comment.builder()
                 .taskId(task.getId())
-                .authorId(workspace.getOwnerId()) // Tizim yuboruvchisi o'rniga loyiha egasi
+                .authorId(workspace.getOwnerId())
                 .content(commentText)
                 .build();
-        commentRepository.save(comment);
-        
-        com.taskcenter.dto.WebSocketEvent<Comment> commentEvent = new com.taskcenter.dto.WebSocketEvent<>("COMMENT_ADDED", workspace.getId(), comment);
+        Comment savedComment = commentRepository.save(comment);
+
+        WebSocketEvent<CommentDto> commentEvent = new WebSocketEvent<>("COMMENT_ADDED", workspace.getId(), CommentDto.fromEntity(savedComment));
         webSocketNotifier.notifyWorkspace(workspace.getId(), commentEvent);
     }
 }

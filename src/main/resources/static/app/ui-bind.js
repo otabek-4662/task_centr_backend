@@ -60,6 +60,18 @@
       case 'export-csv':
         call('exportWorkspaceCsv');
         break;
+      case 'export-pdf':
+        call('exportWorkspacePdf');
+        break;
+      case 'start-focus-timer':
+        call('startFocusTimerForCurrentTask');
+        break;
+      case 'stop-focus-timer':
+        call('stopActiveFocusTimer');
+        break;
+      case 'add-dependency':
+        call('addTaskDependency');
+        break;
       case 'refresh-workspace-tab':
         call('loadWorkspaceSettingsTab');
         break;
@@ -147,6 +159,9 @@
       } else if (e.target.id === 'subtask-input') {
         e.preventDefault();
         call('addSubtask');
+      } else if (e.target.id === 'dependency-input') {
+        e.preventDefault();
+        call('addTaskDependency');
       } else if (e.target.id === 'worklog-desc-input' || e.target.id === 'worklog-hours-input') {
         e.preventDefault();
         call('addWorklog');

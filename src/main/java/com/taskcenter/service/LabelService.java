@@ -5,6 +5,8 @@ import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.Label;
 import com.taskcenter.model.User;
 import com.taskcenter.repository.LabelRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ public class LabelService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "labels", key = "#workspaceId")
     public List<LabelDto> getLabels(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
         return labelRepository.findByWorkspaceId(workspaceId)
@@ -34,6 +37,7 @@ public class LabelService {
     }
 
     @Transactional
+    @CacheEvict(value = "labels", key = "#workspaceId")
     public LabelDto createLabel(String workspaceId, LabelDto req, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -48,6 +52,7 @@ public class LabelService {
     }
 
     @Transactional
+    @CacheEvict(value = "labels", key = "#workspaceId")
     public LabelDto updateLabel(String workspaceId, String id, LabelDto req, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -67,6 +72,7 @@ public class LabelService {
     }
 
     @Transactional
+    @CacheEvict(value = "labels", key = "#workspaceId")
     public void deleteLabel(String workspaceId, String id, User currentUser) {
         authorizationService.checkAdmin(workspaceId, currentUser);
 
@@ -76,4 +82,3 @@ public class LabelService {
         labelRepository.deleteById(id);
     }
 }
-

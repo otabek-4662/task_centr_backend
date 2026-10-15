@@ -17,6 +17,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     boolean existsByName(String name);
     Optional<User> findByTelegramLinkToken(String token);
     Optional<User> findByTelegramChatId(Long chatId);
+    Optional<User> findByCalendarToken(String calendarToken);
 
     @Query("SELECT u FROM User u WHERE LOWER(u.name) = LOWER(:query) OR LOWER(u.email) = LOWER(:query)")
     Optional<User> findByNameOrEmail(@Param("query") String query);

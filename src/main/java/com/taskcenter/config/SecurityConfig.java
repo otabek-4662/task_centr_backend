@@ -133,7 +133,7 @@ public class SecurityConfig {
                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "font-src 'self' https://fonts.gstatic.com data:; " +
                     "img-src 'self' data:; " +
-                    "connect-src 'self'; " +
+                    "connect-src 'self' ws: wss:; " +
                     "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"
                 ))
                 .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
@@ -168,7 +168,7 @@ public class SecurityConfig {
                 authz
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/v1/auth/**", "/api/auth/**", "/api/webhooks/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*", "/api/calendar/feed/**").permitAll()
                     .requestMatchers("/favicon.ico", "/ws/**").permitAll();
 
                 // Swagger UI va OpenAPI hujjatlari faqat dev / non-prod profilida ochiq bo'ladi
@@ -202,8 +202,8 @@ public class SecurityConfig {
             });
 
         http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(telegramWebAppAuthFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(telegramWebAppAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -25,9 +25,11 @@ import java.nio.charset.StandardCharsets;
 public class ExportController {
 
     private final ExportService exportService;
+    private final com.taskcenter.service.CalendarAndReportService calendarAndReportService;
 
-    public ExportController(ExportService exportService) {
+    public ExportController(ExportService exportService, com.taskcenter.service.CalendarAndReportService calendarAndReportService) {
         this.exportService = exportService;
+        this.calendarAndReportService = calendarAndReportService;
     }
 
     @Operation(
@@ -49,6 +51,25 @@ public class ExportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"workspace-" + workspaceId + "-tasks.csv\"")
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .contentLength(data.length)
+                .body(resource);
+    }
+
+    @Operation(
+            operationId = "exportWorkspaceDailyReportPdf",
+            summary = "Workspace ning kunlik hisobotini PDF formatida yuklash",
+            description = "Ishchi maydondagi vazifalar holati va umumiy statistikasini PDF formatida yuklab olish."
+    )
+    @GetMapping(value = "/daily-report.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<Resource> exportDailyReportPdf(
+            @PathVariable String workspaceId,
+            @AuthenticationPrincipal User currentUser) {
+        byte[] pdfBytes = calendarAndReportService.generateDailyWorkspacePdfReport(workspaceId, currentUser);
+        ByteArrayResource resource = new ByteArrayResource(pdfBytes);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"daily_report_" + workspaceId + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(pdfBytes.length)
                 .body(resource);
     }
 }

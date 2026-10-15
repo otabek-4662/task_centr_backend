@@ -19,8 +19,17 @@ public class DataSeeder {
                                LabelRepository labelRepository,
                                TaskRepository taskRepository,
                                WorkspaceMemberRepository memberRepository,
-                               PasswordEncoder passwordEncoder) {
+                               PasswordEncoder passwordEncoder,
+                               org.springframework.beans.factory.ObjectProvider<org.springframework.cache.CacheManager> cacheManagerProvider) {
         return args -> {
+            org.springframework.cache.CacheManager cm = cacheManagerProvider.getIfAvailable();
+            if (cm != null) {
+                cm.getCacheNames().forEach(c -> {
+                    org.springframework.cache.Cache cache = cm.getCache(c);
+                    if (cache != null) cache.clear();
+                });
+            }
+
             String wsId = "6a45163133ff7819b28ef909";
             if (workspaceRepository.existsById(wsId)) {
                 System.out.println("Seed data already exists, skip");
@@ -28,18 +37,21 @@ public class DataSeeder {
             }
 
             User elshod = User.builder()
+                    .id("6a45163133ff7819b28ef901")
                     .name("elshod")
                     .fullName("Elshod T")
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
             User mirxon = User.builder()
+                    .id("6a45163133ff7819b28ef902")
                     .name("mirxon")
                     .fullName("Mirxonjon Ismanov")
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
             User xusan = User.builder()
+                    .id("6a45163133ff7819b28ef903")
                     .name("xusan")
                     .fullName("Xusan Yusupov")
                     .password(passwordEncoder.encode("password123"))
