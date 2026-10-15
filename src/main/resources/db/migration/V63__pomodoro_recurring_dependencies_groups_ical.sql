@@ -12,14 +12,14 @@ ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS telegram_topic_id INTEGER;
 CREATE INDEX IF NOT EXISTS idx_workspaces_tg_group ON workspaces (telegram_group_chat_id) WHERE telegram_group_chat_id IS NOT NULL AND deleted_at IS NULL;
 
 -- 3. iCal Calendar Token on users
-ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_token VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_token VARCHAR(255);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_calendar_token ON users (calendar_token) WHERE calendar_token IS NOT NULL;
 
 -- 4. Task Dependencies (Blockers)
 CREATE TABLE IF NOT EXISTS task_dependencies (
-    id VARCHAR(36) PRIMARY KEY,
-    task_id VARCHAR(36) NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    depends_on_task_id VARCHAR(36) NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    id VARCHAR(255) PRIMARY KEY,
+    task_id VARCHAR(255) NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    depends_on_task_id VARCHAR(255) NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_task_dependencies_pair UNIQUE (task_id, depends_on_task_id),
     CONSTRAINT chk_task_dependencies_no_self CHECK (task_id <> depends_on_task_id)
@@ -29,9 +29,9 @@ CREATE INDEX IF NOT EXISTS idx_task_dependencies_depends_on ON task_dependencies
 
 -- 5. Focus Timers (Pomodoro)
 CREATE TABLE IF NOT EXISTS focus_timers (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    task_id VARCHAR(36) REFERENCES tasks(id) ON DELETE SET NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id VARCHAR(255) REFERENCES tasks(id) ON DELETE SET NULL,
     target_minutes INTEGER NOT NULL DEFAULT 25,
     started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP,
