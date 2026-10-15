@@ -50,14 +50,14 @@ class WorkspaceControllerTest {
 
     @Test
     void list_memberSeesSeedWorkspace() throws Exception {
-        mvc.perform(get("/api/workspaces").header("Authorization", bearer("elshod")))
+        mvc.perform(get("/api/workspaces?size=100").header("Authorization", bearer("elshod")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[?(@.id=='" + SEED_WS + "')]").isArray());
     }
 
     @Test
     void list_ownerSeesSeedWorkspace() throws Exception {
-        mvc.perform(get("/api/workspaces").header("Authorization", bearer("xusan")))
+        mvc.perform(get("/api/workspaces?size=100").header("Authorization", bearer("xusan")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[?(@.id=='" + SEED_WS + "')]").isArray());
     }

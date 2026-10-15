@@ -1320,7 +1320,7 @@ class TelegramBotServiceTest {
 
         assertThat(text).contains("Shaxsiy unumdorlik statistikasi");
         assertThat(text).contains("Bekmurod");
-        assertThat(text).contains("O'zimizdan");
+        assertThat(text).contains("O'zimizning bola");
         assertThat(text).contains("Jami biriktirilgan: <b>20 ta</b>");
         assertThat(text).contains("Faol (jarayonda): <b>5 ta</b>");
         assertThat(text).contains("Bajarilgan: <b>15 ta</b> (Samaradorlik: <b>75%</b>)");

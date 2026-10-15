@@ -33,6 +33,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     Optional<Task> findByPublicId(String publicId);
 
+    boolean existsByPublicId(String publicId);
+
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") String id);

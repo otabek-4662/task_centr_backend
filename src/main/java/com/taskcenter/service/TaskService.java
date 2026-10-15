@@ -579,8 +579,14 @@ public class TaskService {
         long baseCount = taskRepository.countAllByWorkspaceId(workspaceId);
         long currentSeq = workspace.getTaskSeq() != null ? workspace.getTaskSeq() : 0L;
         long nextSeq = Math.max(baseCount, currentSeq) + 1L;
+
+        String candidate = cleanPrefix + "-" + nextSeq;
+        while (taskRepository.existsByPublicId(candidate)) {
+            nextSeq++;
+            candidate = cleanPrefix + "-" + nextSeq;
+        }
         workspace.setTaskSeq(nextSeq);
-        return cleanPrefix + "-" + nextSeq;
+        return candidate;
     }
 
     @Transactional

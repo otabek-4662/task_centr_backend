@@ -83,57 +83,62 @@
 | 79 | Sprints | `POST` | `/api/workspaces/{workspaceId}/sprints/{id}/tasks` | `addTasksToSprint` | Vazifalarni sprintga biriktirish | ✅ Faol |
 | 80 | Sprints | `DELETE` | `/api/workspaces/{workspaceId}/sprints/{id}/tasks/{taskId}` | `removeTaskFromSprint` | Vazifani sprintdan chiqarib backlogga qaytarish | ✅ Faol |
 | 81 | Task Activities | `GET` | `/api/tasks/{taskId}/activities` | `getTaskActivities` | Task o'zgarishlar tarixini sahifalab olish (History) | ✅ Faol |
-| 82 | Tasks | `POST` | `/api/v2/workspaces/{workspaceId}/tasks` | `createTaskV2` | Yangi vazifa yaratish (v2) | ✅ Faol |
-| 83 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks` | `listWorkspaceTasks` | Workspace ga tegishli vazifalar ro'yxatini olish (qidiruv, filter va pagination bilan) | ✅ Faol |
-| 84 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks` | `createWorkspaceTask` | Yangi vazifa yaratish | ✅ Faol |
-| 85 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks/{id}` | `getWorkspaceTaskById` | Bitta vazifani ID orqali olish (batafsil ma'lumotlari bilan) | ✅ Faol |
-| 86 | Tasks | `PUT` | `/api/workspaces/{workspaceId}/tasks/{id}` | `updateWorkspaceTask` | Vazifani to'liq yangilash | ✅ Faol |
-| 87 | Tasks | `DELETE` | `/api/workspaces/{workspaceId}/tasks/{id}` | `deleteWorkspaceTask` | Vazifani o'chirish | ✅ Faol |
-| 88 | Tasks | `PATCH` | `/api/workspaces/{workspaceId}/tasks/{id}` | `patchWorkspaceTask` | Vazifani qisman yangilash | ✅ Faol |
-| 89 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/archive` | `archiveWorkspaceTask` | Vazifani arxivga olish | ✅ Faol |
-| 90 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/assign` | `toggleTaskAssignee` | Vazifaga foydalanuvchini biriktirish / olib tashlash | ✅ Faol |
-| 91 | Tasks | `PATCH` | `/api/workspaces/{workspaceId}/tasks/{id}/reorder` | `reorderWorkspaceTask` | Vazifaning o'rnini (rank) va ustunini yangilash (Lexorank) | ✅ Faol |
-| 92 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/unarchive` | `unarchiveWorkspaceTask` | Vazifani arxivdan chiqarish | ✅ Faol |
-| 93 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/watch` | `toggleTaskWatch` | Vazifani kuzatish / kuzatishni to'xtatish (Watch) | ✅ Faol |
-| 94 | Tasks Direct | `GET` | `/api/tasks/{id}` | `getTaskDirectById` | Vazifani bevosita ID orqali olish (eski/dublikat endpoint) | ⚠️ Deprecated |
-| 95 | Tasks Direct | `GET` | `/api/tasks/{id}/details` | `getTaskDetails` | Vazifa to'liq ma'lumotlarini olish | ⚠️ Deprecated |
-| 96 | Telegram Auth | `POST` | `/api/auth/telegram` | `loginWithTelegram` | Telegram Mini App orqali login (Tavsiya etilgan usul) | ✅ Faol |
-| 97 | Telegram Auth | `POST` | `/api/auth/telegram/pending-invite` | `createPendingTelegramInvite_1` | Mini App ulanmagan foydalanuvchi uchun kutilayotgan taklif yaratish | ✅ Faol |
-| 98 | Telegram Auth | `POST` | `/api/v1/auth/telegram` | `loginWithTelegram_1` | Telegram Mini App orqali login (Tavsiya etilgan usul) | ✅ Faol |
-| 99 | Telegram Auth | `POST` | `/api/v1/auth/telegram/pending-invite` | `createPendingTelegramInvite` | Mini App ulanmagan foydalanuvchi uchun kutilayotgan taklif yaratish | ✅ Faol |
-| 100 | Users | `GET` | `/api/auth/me` | `getCurrentUserLegacy` | Joriy foydalanuvchi profilini olish (eski alias) | ⚠️ Deprecated |
-| 101 | Users | `GET` | `/api/me` | `getCurrentUser` | Joriy foydalanuvchi profilini olish | ✅ Faol |
-| 102 | Users | `GET` | `/api/me/tasks` | `getMyAssignedTasksLegacy` | Joriy foydalanuvchiga biriktirilgan vazifalar (eski alias) | ⚠️ Deprecated |
-| 103 | Users | `GET` | `/api/users` | `getWorkspaceUsers` | Workspace dagi foydalanuvchilar ro'yxatini olish | ✅ Faol |
-| 104 | Users | `PATCH` | `/api/users/me` | `updateCurrentUserProfile` | Profil ma'lumotlarini tahrirlash | ✅ Faol |
-| 105 | Users | `POST` | `/api/users/me/change-password` | `changePassword` | Parolni o'zgartirish | ✅ Faol |
-| 106 | Users | `GET` | `/api/users/me/tasks` | `getMyAssignedTasks` | Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha) | ✅ Faol |
-| 107 | Users | `POST` | `/api/users/me/telegram` | `linkTelegram` | Mini App orqali Telegram akkauntni ulash | ✅ Faol |
-| 108 | Users | `DELETE` | `/api/users/me/telegram` | `unlinkTelegram` | Telegram akkauntni uzish (faqat joriy foydalanuvchi uchun) | ✅ Faol |
-| 109 | Users | `GET` | `/api/users/me/telegram-link-token` | `getTelegramLinkToken` | Telegram bilan ulash uchun vaqtinchalik token, tayyor havola va amal qilish muddatini olish | ✅ Faol |
-| 110 | Workspace | `GET` | `/api/workspaces` | `getMyWorkspaces` | Foydalanuvchining workspace lari ro'yxatini olish | ✅ Faol |
-| 111 | Workspace | `POST` | `/api/workspaces` | `createWorkspace` | Yangi workspace yaratish | ✅ Faol |
-| 112 | Workspace | `GET` | `/api/workspaces/{id}` | `getWorkspaceById` | Bitta workspace ma'lumotlarini ID orqali olish | ✅ Faol |
-| 113 | Workspace | `PUT` | `/api/workspaces/{id}` | `updateWorkspace` | Mavjud workspace ni tahrirlash | ✅ Faol |
-| 114 | Workspace | `DELETE` | `/api/workspaces/{id}` | `deleteWorkspace` | Workspace ni o'chirish | ✅ Faol |
-| 115 | Workspace Invitations | `POST` | `/api/invitations/by-id/{id}/accept` | `acceptWorkspaceInvitationById` | Taklifni ID bo'yicha qabul qilish (/me ro'yxatidan) | ✅ Faol |
-| 116 | Workspace Invitations | `POST` | `/api/invitations/by-id/{id}/reject` | `rejectWorkspaceInvitationById` | Taklifni ID bo'yicha rad etish (/me ro'yxatidan) | ✅ Faol |
-| 117 | Workspace Invitations | `GET` | `/api/invitations/me` | `getMyPendingInvitations` | Menga kelgan faol takliflarni ko'rish | ✅ Faol |
-| 118 | Workspace Invitations | `PATCH` | `/api/invitations/{id}/accept` | `acceptWorkspaceInvitationLegacy` | Taklifni qabul qilish (Legacy PATCH) | ✅ Faol |
-| 119 | Workspace Invitations | `GET` | `/api/invitations/{id}/details` | `getInvitationDetails` | Taklifnoma to'liq ma'lumotlarini olish (Ichki/Batafsil) | ✅ Faol |
-| 120 | Workspace Invitations | `PATCH` | `/api/invitations/{id}/reject` | `rejectWorkspaceInvitationLegacy` | Taklifni rad etish (Legacy PATCH) | ✅ Faol |
-| 121 | Workspace Invitations | `GET` | `/api/invitations/{token}` | `getPublicInvitationPreview` | Ommaviy taklifnoma ma'lumotlarini olish (Minimal/Xavfsiz) | ✅ Faol |
-| 122 | Workspace Invitations | `POST` | `/api/invitations/{token}/accept` | `acceptWorkspaceInvitationByToken` | Taklifni qabul qilish | ✅ Faol |
-| 123 | Workspace Invitations | `POST` | `/api/invitations/{token}/reject` | `rejectWorkspaceInvitationByToken` | Taklifni rad etish | ✅ Faol |
-| 124 | Workspace Invitations | `GET` | `/api/workspaces/{workspaceId}/invites` | `getWorkspaceInvitations` | Workspace takliflarini ko'rish (Admin/Owner) | ✅ Faol |
-| 125 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites` | `createWorkspaceEmailInvitation` | Email orqali taklif yuborish (Admin/Owner) | ✅ Faol |
-| 126 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/link` | `createWorkspaceLinkInvitation` | Havola orqali taklif yaratish (Admin/Owner) | ✅ Faol |
-| 127 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/link/regenerate` | `regenerateWorkspaceLinkInvitation` | Taklif havolasini yangilash (Admin/Owner) | ✅ Faol |
-| 128 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/telegram-link` | `createTelegramInviteLink` | Telegram taklif havolasini yaratish (Admin/Owner) | ✅ Faol |
-| 129 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/test-email` | `testBrevoEmailSending` | Brevo email yuborilishini tekshirish (Admin/Owner) | ✅ Faol |
-| 130 | Workspace Invitations | `DELETE` | `/api/workspaces/{workspaceId}/invites/{id}` | `cancelWorkspaceInvitation` | Taklifni bekor qilish (Admin/Owner) | ✅ Faol |
-| 131 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/{id}/resend` | `resendWorkspaceEmailInvitation` | Email taklifnomani qayta yuborish (Admin/Owner) | ✅ Faol |
-| 132 | Workspace Members | `GET` | `/api/workspaces/{workspaceId}/members` | `getWorkspaceMembers` | Workspace a'zolari ro'yxatini rollari bilan olish | ✅ Faol |
-| 133 | Workspace Members | `POST` | `/api/workspaces/{workspaceId}/members` | `inviteWorkspaceMember` | Workspace ga yangi a'zo taklif qilish / qo'shish | ✅ Faol |
-| 134 | Workspace Members | `DELETE` | `/api/workspaces/{workspaceId}/members/{userId}` | `removeWorkspaceMember` | Workspace a'zosini chiqarib yuborish yoki jamoani tark etish | ✅ Faol |
-| 135 | Workspace Members | `PATCH` | `/api/workspaces/{workspaceId}/members/{userId}` | `updateWorkspaceMemberRole` | Workspace a'zosining rolini o'zgartirish | ✅ Faol |
+| 82 | Task Activities | `GET` | `/api/workspaces/{workspaceId}/activities` | `getWorkspaceActivities` | Workspace bo'yicha barcha vazifalar o'zgarishlar tarixini (Activity Feed) sahifalab olish | ✅ Faol |
+| 83 | Tasks | `POST` | `/api/v2/workspaces/{workspaceId}/tasks` | `createTaskV2` | Yangi vazifa yaratish (v2) | ✅ Faol |
+| 84 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks` | `listWorkspaceTasks` | Workspace ga tegishli vazifalar ro'yxatini olish (qidiruv, filter va pagination bilan) | ✅ Faol |
+| 85 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks` | `createWorkspaceTask` | Yangi vazifa yaratish | ✅ Faol |
+| 86 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/columns/{columnId}/rebalance` | `rebalanceColumnLexoRanks` | Ustundagi barcha vazifalar LexoRank tartibini qayta muvozanatlash (Rebalance) | ✅ Faol |
+| 87 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks/{id}` | `getWorkspaceTaskById` | Bitta vazifani ID orqali olish (batafsil ma'lumotlari bilan) | ✅ Faol |
+| 88 | Tasks | `PUT` | `/api/workspaces/{workspaceId}/tasks/{id}` | `updateWorkspaceTask` | Vazifani to'liq yangilash | ✅ Faol |
+| 89 | Tasks | `DELETE` | `/api/workspaces/{workspaceId}/tasks/{id}` | `deleteWorkspaceTask` | Vazifani o'chirish | ✅ Faol |
+| 90 | Tasks | `PATCH` | `/api/workspaces/{workspaceId}/tasks/{id}` | `patchWorkspaceTask` | Vazifani qisman yangilash | ✅ Faol |
+| 91 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/archive` | `archiveWorkspaceTask` | Vazifani arxivga olish | ✅ Faol |
+| 92 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/assign` | `toggleTaskAssignee` | Vazifaga foydalanuvchini biriktirish / olib tashlash | ✅ Faol |
+| 93 | Tasks | `PATCH` | `/api/workspaces/{workspaceId}/tasks/{id}/reorder` | `reorderWorkspaceTask` | Vazifaning o'rnini (rank) va ustunini yangilash (Lexorank) | ✅ Faol |
+| 94 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks/{id}/subtasks` | `getTaskSubtasks` | Ota vazifaga biriktirilgan ostki vazifalar (Subtasks) ro'yxatini olish | ✅ Faol |
+| 95 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/unarchive` | `unarchiveWorkspaceTask` | Vazifani arxivdan chiqarish | ✅ Faol |
+| 96 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/watch` | `toggleTaskWatch` | Vazifani kuzatish / kuzatishni to'xtatish (Watch) | ✅ Faol |
+| 97 | Tasks | `GET` | `/api/workspaces/{workspaceId}/tasks/{id}/worklogs` | `getTaskWorklogs` | Vazifa bo'yicha sarflangan ish vaqti (Worklogs) tarixini olish | ✅ Faol |
+| 98 | Tasks | `POST` | `/api/workspaces/{workspaceId}/tasks/{id}/worklogs` | `addTaskWorklog` | Vazifaga sarflangan ish vaqtini (Worklog) qo'shish | ✅ Faol |
+| 99 | Tasks Direct | `GET` | `/api/tasks/{id}` | `getTaskDirectById` | Vazifani bevosita ID orqali olish (eski/dublikat endpoint) | ⚠️ Deprecated |
+| 100 | Tasks Direct | `GET` | `/api/tasks/{id}/details` | `getTaskDetails` | Vazifa to'liq ma'lumotlarini olish | ⚠️ Deprecated |
+| 101 | Telegram Auth | `POST` | `/api/auth/telegram` | `loginWithTelegram` | Telegram Mini App orqali login (Tavsiya etilgan usul) | ✅ Faol |
+| 102 | Telegram Auth | `POST` | `/api/auth/telegram/pending-invite` | `createPendingTelegramInvite_1` | Mini App ulanmagan foydalanuvchi uchun kutilayotgan taklif yaratish | ✅ Faol |
+| 103 | Telegram Auth | `POST` | `/api/v1/auth/telegram` | `loginWithTelegram_1` | Telegram Mini App orqali login (Tavsiya etilgan usul) | ✅ Faol |
+| 104 | Telegram Auth | `POST` | `/api/v1/auth/telegram/pending-invite` | `createPendingTelegramInvite` | Mini App ulanmagan foydalanuvchi uchun kutilayotgan taklif yaratish | ✅ Faol |
+| 105 | Users | `GET` | `/api/auth/me` | `getCurrentUserLegacy` | Joriy foydalanuvchi profilini olish (eski alias) | ⚠️ Deprecated |
+| 106 | Users | `GET` | `/api/me` | `getCurrentUser` | Joriy foydalanuvchi profilini olish | ✅ Faol |
+| 107 | Users | `GET` | `/api/me/tasks` | `getMyAssignedTasksLegacy` | Joriy foydalanuvchiga biriktirilgan vazifalar (eski alias) | ⚠️ Deprecated |
+| 108 | Users | `GET` | `/api/users` | `getWorkspaceUsers` | Workspace dagi foydalanuvchilar ro'yxatini olish | ✅ Faol |
+| 109 | Users | `PATCH` | `/api/users/me` | `updateCurrentUserProfile` | Profil ma'lumotlarini tahrirlash | ✅ Faol |
+| 110 | Users | `POST` | `/api/users/me/change-password` | `changePassword` | Parolni o'zgartirish | ✅ Faol |
+| 111 | Users | `GET` | `/api/users/me/tasks` | `getMyAssignedTasks` | Joriy foydalanuvchiga biriktirilgan barcha vazifalar ro'yxatini olish (barcha workspacelar bo'yicha) | ✅ Faol |
+| 112 | Users | `POST` | `/api/users/me/telegram` | `linkTelegram` | Mini App orqali Telegram akkauntni ulash | ✅ Faol |
+| 113 | Users | `DELETE` | `/api/users/me/telegram` | `unlinkTelegram` | Telegram akkauntni uzish (faqat joriy foydalanuvchi uchun) | ✅ Faol |
+| 114 | Users | `GET` | `/api/users/me/telegram-link-token` | `getTelegramLinkToken` | Telegram bilan ulash uchun vaqtinchalik token, tayyor havola va amal qilish muddatini olish | ✅ Faol |
+| 115 | Workspace | `GET` | `/api/workspaces` | `getMyWorkspaces` | Foydalanuvchining workspace lari ro'yxatini olish | ✅ Faol |
+| 116 | Workspace | `POST` | `/api/workspaces` | `createWorkspace` | Yangi workspace yaratish | ✅ Faol |
+| 117 | Workspace | `GET` | `/api/workspaces/{id}` | `getWorkspaceById` | Bitta workspace ma'lumotlarini ID orqali olish | ✅ Faol |
+| 118 | Workspace | `PUT` | `/api/workspaces/{id}` | `updateWorkspace` | Mavjud workspace ni tahrirlash | ✅ Faol |
+| 119 | Workspace | `DELETE` | `/api/workspaces/{id}` | `deleteWorkspace` | Workspace ni o'chirish | ✅ Faol |
+| 120 | Workspace Invitations | `POST` | `/api/invitations/by-id/{id}/accept` | `acceptWorkspaceInvitationById` | Taklifni ID bo'yicha qabul qilish (/me ro'yxatidan) | ✅ Faol |
+| 121 | Workspace Invitations | `POST` | `/api/invitations/by-id/{id}/reject` | `rejectWorkspaceInvitationById` | Taklifni ID bo'yicha rad etish (/me ro'yxatidan) | ✅ Faol |
+| 122 | Workspace Invitations | `GET` | `/api/invitations/me` | `getMyPendingInvitations` | Menga kelgan faol takliflarni ko'rish | ✅ Faol |
+| 123 | Workspace Invitations | `PATCH` | `/api/invitations/{id}/accept` | `acceptWorkspaceInvitationLegacy` | Taklifni qabul qilish (Legacy PATCH) | ✅ Faol |
+| 124 | Workspace Invitations | `GET` | `/api/invitations/{id}/details` | `getInvitationDetails` | Taklifnoma to'liq ma'lumotlarini olish (Ichki/Batafsil) | ✅ Faol |
+| 125 | Workspace Invitations | `PATCH` | `/api/invitations/{id}/reject` | `rejectWorkspaceInvitationLegacy` | Taklifni rad etish (Legacy PATCH) | ✅ Faol |
+| 126 | Workspace Invitations | `GET` | `/api/invitations/{token}` | `getPublicInvitationPreview` | Ommaviy taklifnoma ma'lumotlarini olish (Minimal/Xavfsiz) | ✅ Faol |
+| 127 | Workspace Invitations | `POST` | `/api/invitations/{token}/accept` | `acceptWorkspaceInvitationByToken` | Taklifni qabul qilish | ✅ Faol |
+| 128 | Workspace Invitations | `POST` | `/api/invitations/{token}/reject` | `rejectWorkspaceInvitationByToken` | Taklifni rad etish | ✅ Faol |
+| 129 | Workspace Invitations | `GET` | `/api/workspaces/{workspaceId}/invites` | `getWorkspaceInvitations` | Workspace takliflarini ko'rish (Admin/Owner) | ✅ Faol |
+| 130 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites` | `createWorkspaceEmailInvitation` | Email orqali taklif yuborish (Admin/Owner) | ✅ Faol |
+| 131 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/link` | `createWorkspaceLinkInvitation` | Havola orqali taklif yaratish (Admin/Owner) | ✅ Faol |
+| 132 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/link/regenerate` | `regenerateWorkspaceLinkInvitation` | Taklif havolasini yangilash (Admin/Owner) | ✅ Faol |
+| 133 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/telegram-link` | `createTelegramInviteLink` | Telegram taklif havolasini yaratish (Admin/Owner) | ✅ Faol |
+| 134 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/test-email` | `testBrevoEmailSending` | Brevo email yuborilishini tekshirish (Admin/Owner) | ✅ Faol |
+| 135 | Workspace Invitations | `DELETE` | `/api/workspaces/{workspaceId}/invites/{id}` | `cancelWorkspaceInvitation` | Taklifni bekor qilish (Admin/Owner) | ✅ Faol |
+| 136 | Workspace Invitations | `POST` | `/api/workspaces/{workspaceId}/invites/{id}/resend` | `resendWorkspaceEmailInvitation` | Email taklifnomani qayta yuborish (Admin/Owner) | ✅ Faol |
+| 137 | Workspace Members | `GET` | `/api/workspaces/{workspaceId}/members` | `getWorkspaceMembers` | Workspace a'zolari ro'yxatini rollari bilan olish | ✅ Faol |
+| 138 | Workspace Members | `POST` | `/api/workspaces/{workspaceId}/members` | `inviteWorkspaceMember` | Workspace ga yangi a'zo taklif qilish / qo'shish | ✅ Faol |
+| 139 | Workspace Members | `DELETE` | `/api/workspaces/{workspaceId}/members/{userId}` | `removeWorkspaceMember` | Workspace a'zosini chiqarib yuborish yoki jamoani tark etish | ✅ Faol |
+| 140 | Workspace Members | `PATCH` | `/api/workspaces/{workspaceId}/members/{userId}` | `updateWorkspaceMemberRole` | Workspace a'zosining rolini o'zgartirish | ✅ Faol |
