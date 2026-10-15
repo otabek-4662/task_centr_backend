@@ -28,21 +28,37 @@ jobs:
         run: chmod +x mvnw
 
       - name: Build and run tests with Testcontainers
-        run: |
-          ./mvnw -B clean verify || {
-            echo "================ SUREFIRE TEST FAILURES ================"
-            for f in target/surefire-reports/*.txt; do
-              if grep -q -E "(FAILURE!|ERROR!)" "$f" 2>/dev/null; then
-                echo "--- $f ---"
-                cat "$f"
-              fi
-            done
-            exit 1
-          }
+        run: ./mvnw -B clean verify
         env:
           JWT_SECRET: "ci-pipeline-super-secret-key-that-is-at-least-256-bits-long-hs256"
           TELEGRAM_BOT_TOKEN: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
           TELEGRAM_BOT_USERNAME: "TaskCenterTestBot"
+
+      - name: Publish Test Failures to Step Summary
+        if: failure()
+        run: |
+          echo "## ❌ Test Failures Report" >> $GITHUB_STEP_SUMMARY
+          found=0
+          for f in target/surefire-reports/*.txt; do
+            if grep -q -E "(FAILURE!|ERROR!)" "$f" 2>/dev/null; then
+              found=1
+              echo "### 📄 $(basename "$f")" >> $GITHUB_STEP_SUMMARY
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              cat "$f" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          if [ $found -eq 0 ]; then
+            echo "No test failures found in surefire-reports. Showing build log tail:" >> $GITHUB_STEP_SUMMARY
+            for f in target/surefire-reports/*.dump*; do
+              if [ -f "$f" ]; then
+                echo "### 📄 $(basename "$f")" >> $GITHUB_STEP_SUMMARY
+                echo '```text' >> $GITHUB_STEP_SUMMARY
+                cat "$f" >> $GITHUB_STEP_SUMMARY
+                echo '```' >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
 
       - name: Upload Surefire Test Reports on failure
         if: failure()

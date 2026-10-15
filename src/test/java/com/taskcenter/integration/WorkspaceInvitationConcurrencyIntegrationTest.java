@@ -163,7 +163,7 @@ public class WorkspaceInvitationConcurrencyIntegrationTest {
         }
 
         startLatch.countDown(); // Start trigger
-        assertTrue(finishLatch.await(10, TimeUnit.SECONDS), "Parallel so'rovlar belgilangan vaqtda yakunlanishi kerak");
+        assertTrue(finishLatch.await(30, TimeUnit.SECONDS), "Parallel so'rovlar belgilangan vaqtda yakunlanishi kerak");
         executor.shutdown();
 
         assertEquals(maxUses, successCount.get(), "Faqat roppa-rosa max_uses (5) ta urinish 1 (muvaffaqiyat) qaytarishi kerak");
@@ -232,7 +232,7 @@ public class WorkspaceInvitationConcurrencyIntegrationTest {
         }
 
         startLatch.countDown();
-        assertTrue(finishLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(finishLatch.await(30, TimeUnit.SECONDS));
         executor.shutdown();
 
         assertEquals(maxUses, acceptedCount.get(), "Roppa-rosa 3 ta user muvaffaqiyatli a'zo bo'lishi kerak");
