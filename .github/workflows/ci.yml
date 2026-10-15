@@ -28,7 +28,17 @@ jobs:
         run: chmod +x mvnw
 
       - name: Build and run tests with Testcontainers
-        run: ./mvnw -B clean verify
+        run: |
+          ./mvnw -B clean verify || {
+            echo "================ SUREFIRE TEST FAILURES ================"
+            for f in target/surefire-reports/*.txt; do
+              if grep -q -E "(FAILURE!|ERROR!)" "$f" 2>/dev/null; then
+                echo "--- $f ---"
+                cat "$f"
+              fi
+            done
+            exit 1
+          }
         env:
           JWT_SECRET: "ci-pipeline-super-secret-key-that-is-at-least-256-bits-long-hs256"
           TELEGRAM_BOT_TOKEN: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"

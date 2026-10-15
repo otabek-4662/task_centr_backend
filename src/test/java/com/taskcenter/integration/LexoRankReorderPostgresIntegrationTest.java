@@ -81,6 +81,7 @@ class LexoRankReorderPostgresIntegrationTest {
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.flyway.locations", () -> "classpath:db/migration");
         registry.add("spring.flyway.baseline-on-migrate", () -> "false");
+        registry.add("spring.autoconfigure.exclude", () -> "");
     }
 
     @Autowired
@@ -120,7 +121,7 @@ class LexoRankReorderPostgresIntegrationTest {
         testWorkspace = workspaceRepository.save(Workspace.builder()
                 .title("LexoRank Workspace " + uid)
                 .ownerId(testUser.getId())
-                .keyPrefix("LX" + uid.substring(0, 2).toUpperCase())
+                .keyPrefix("LX" + uid.substring(0, 6).toUpperCase())
                 .build());
 
         colTodo = columnRepository.save(BoardColumn.builder()
@@ -136,6 +137,14 @@ class LexoRankReorderPostgresIntegrationTest {
                 .order(1)
                 .isDone(true)
                 .build());
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        taskRepository.deleteAll();
+        columnRepository.deleteAll();
+        workspaceRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     private Task createTask(String title, String publicId, String lexoRank, String columnId) {
