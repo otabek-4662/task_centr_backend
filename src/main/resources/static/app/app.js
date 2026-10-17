@@ -501,7 +501,6 @@ async function loadWorkspacesList(preferredWsId = null) {
 }
 
 function selectWorkspace(wsId) {
-window.selectWorkspace = selectWorkspace;
   if (!wsId) return;
   const selMobile = document.getElementById('ws');
   const selDesktop = document.getElementById('ws-desktop');
@@ -515,6 +514,10 @@ window.selectWorkspace = selectWorkspace;
   if (currentTab === 'stats') loadStats();
   if (currentTab === 'workspace') loadWorkspaceSettingsTab();
 }
+window.selectWorkspace = selectWorkspace;
+window.loadBoard = loadBoard;
+window.refreshCurrentBoard = function () { if (currentWsId) loadBoard(currentWsId); };
+window.editCurrentTask = function () { if (currentTaskId) openSheet('edit', currentTaskId); };
 
 function hideLoader() {
   const loader = document.getElementById('loader');
@@ -1445,7 +1448,8 @@ function hideAllSheetViews() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-window._tcSheetOpen = false;
+  window._tcSheetOpen = false;
+}
 
 function pushSheetState() {
   if (!window._tcSheetOpen) {

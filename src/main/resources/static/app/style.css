@@ -1232,6 +1232,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
   font-size: 11.5px;
 }
 .badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
@@ -1679,9 +1680,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
-.detail-quick-pills { display: flex; gap: 6px; }
+.detail-quick-pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .detail-title { font-size: 18.5px; font-weight: 800; margin-bottom: 10px; line-height: 1.32; }
 .detail-desc {
   font-size: 14px;
@@ -1697,6 +1700,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .d-assignees-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 38px; }
 
 .detail-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.detail-actions .btn-action { flex: 1 1 auto; }
 .btn-action {
   min-height: 40px;
   padding: 8px 15px;

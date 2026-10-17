@@ -40,7 +40,7 @@
         call('openNotificationsModal');
         break;
       case 'refresh-board':
-        if (typeof currentWsId !== 'undefined' && currentWsId) call('loadBoard', currentWsId);
+        call('refreshCurrentBoard');
         break;
       case 'refresh-sprints':
         call('loadSprintsTab');
@@ -136,7 +136,7 @@
         call('shareTask');
         break;
       case 'edit-task':
-        if (typeof currentTaskId !== 'undefined') call('openSheet', 'edit', currentTaskId);
+        call('editCurrentTask');
         break;
       case 'delete-task':
         call('deleteTask');
@@ -165,7 +165,7 @@
       case 'qa-edit':
         call('closeSheet');
         setTimeout(function () {
-          if (typeof currentTaskId !== 'undefined') call('openSheet', 'edit', currentTaskId);
+          call('editCurrentTask');
         }, 300);
         break;
     }
