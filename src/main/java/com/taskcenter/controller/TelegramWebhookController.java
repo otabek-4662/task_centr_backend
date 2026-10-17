@@ -26,12 +26,22 @@ public class TelegramWebhookController {
 
     private final TelegramBotService telegramBotService;
     private final String expectedSecret;
+    private final org.springframework.core.task.TaskExecutor taskExecutor;
 
     public TelegramWebhookController(
             TelegramBotService telegramBotService,
             @Value("${telegram.bot.webhook-secret:}") String expectedSecret) {
+        this(telegramBotService, expectedSecret, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TelegramWebhookController(
+            TelegramBotService telegramBotService,
+            @Value("${telegram.bot.webhook-secret:}") String expectedSecret,
+            org.springframework.core.task.TaskExecutor taskExecutor) {
         this.telegramBotService = telegramBotService;
         this.expectedSecret = expectedSecret;
+        this.taskExecutor = taskExecutor;
     }
 
     @Operation(
@@ -51,12 +61,22 @@ public class TelegramWebhookController {
             }
         }
 
-        try {
-            if (update != null) {
-                telegramBotService.onUpdateReceived(update);
+        if (update != null) {
+            if (taskExecutor != null) {
+                taskExecutor.execute(() -> {
+                    try {
+                        telegramBotService.onUpdateReceived(update);
+                    } catch (Exception e) {
+                        log.error("Telegram Webhook async update qayta ishlashda xatolik: {}", e.getMessage(), e);
+                    }
+                });
+            } else {
+                try {
+                    telegramBotService.onUpdateReceived(update);
+                } catch (Exception e) {
+                    log.error("Telegram Webhook update qayta ishlashda xatolik: {}", e.getMessage(), e);
+                }
             }
-        } catch (Exception e) {
-            log.error("Telegram Webhook update qayta ishlashda xatolik: {}", e.getMessage(), e);
         }
 
         return ResponseEntity.ok().build();

@@ -80,20 +80,38 @@ function tgConfirm(msg, callback) {
 }
 
 function storageGet(key, callback) {
-  try {
-    if (isTma && tg.CloudStorage && tg.CloudStorage.getItem) {
-      tg.CloudStorage.getItem(key, (err, val) => {
-        if (!err && val) return callback(null, val);
-        let localVal = null;
-        try { localVal = localStorage.getItem('tc_' + key); } catch (e) {}
-        callback(null, localVal);
-      });
-      return;
-    }
-  } catch (e) {}
   let localVal = null;
   try { localVal = localStorage.getItem('tc_' + key); } catch (e) {}
-  callback(null, localVal);
+
+  if (!isTma || !tg.CloudStorage || !tg.CloudStorage.getItem) {
+    return callback(null, localVal);
+  }
+
+  let called = false;
+  const timeoutId = setTimeout(() => {
+    if (!called) {
+      called = true;
+      callback(null, localVal);
+    }
+  }, 350);
+
+  try {
+    tg.CloudStorage.getItem(key, (err, val) => {
+      if (called) return;
+      called = true;
+      clearTimeout(timeoutId);
+      if (!err && val !== undefined && val !== null && val !== '') {
+        return callback(null, val);
+      }
+      callback(null, localVal);
+    });
+  } catch (e) {
+    if (!called) {
+      called = true;
+      clearTimeout(timeoutId);
+      callback(null, localVal);
+    }
+  }
 }
 
 function storageSet(key, val) {
@@ -112,6 +130,17 @@ try {
   token = localStorage.getItem('tc_token') || null;
   refreshToken = localStorage.getItem('tc_refresh_token') || null;
 } catch (e) {}
+
+function isTokenExpiredOrNear(tokenStr) {
+  if (!tokenStr) return true;
+  try {
+    const payload = JSON.parse(atob(tokenStr.split('.')[1]));
+    if (!payload.exp) return false;
+    return (payload.exp * 1000 - Date.now()) < 60000;
+  } catch (e) {
+    return true;
+  }
+}
 
 let authMode = 'login'; // 'login' | 'register'
 let currentUser = null;
@@ -285,7 +314,7 @@ async function refreshAuthToken() {
 
 async function api(path, opts = {}, retry = true) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 20000);
+  const id = setTimeout(() => controller.abort(), 50000);
   try {
     const isFormData = opts.body instanceof FormData;
     const headers = {
@@ -368,8 +397,8 @@ const endpoints = {
 
 // ===== Startup & Authentication (Works on Desktop + Mobile + Telegram Mini App) =====
 async function initCore() {
-  // 1. Try Telegram WebApp auth if inside Telegram Mini App and no valid session yet
-  if (isTma && !token) {
+  // 1. Try Telegram WebApp auth if inside Telegram Mini App and (no valid session or token is expired/near-expiry)
+  if (isTma && (!token || isTokenExpiredOrNear(token))) {
     try {
       const r = await api('/api/auth/telegram', {
         method: 'POST',
@@ -377,10 +406,12 @@ async function initCore() {
       }, false);
       token = r?.data?.token || r?.token;
       refreshToken = r?.data?.refreshToken || r?.refreshToken || refreshToken;
-      if (token) localStorage.setItem('tc_token', token);
-      if (refreshToken) localStorage.setItem('tc_refresh_token', refreshToken);
+      try {
+        if (token) localStorage.setItem('tc_token', token);
+        if (refreshToken) localStorage.setItem('tc_refresh_token', refreshToken);
+      } catch (e) {}
     } catch (e) {
-      throw new Error('AUTH');
+      if (!token) throw new Error('AUTH');
     }
   }
 
@@ -519,7 +550,16 @@ window.loadBoard = loadBoard;
 window.refreshCurrentBoard = function () { if (currentWsId) loadBoard(currentWsId); };
 window.editCurrentTask = function () { if (currentTaskId) openSheet('edit', currentTaskId); };
 
+let coldStartTimer1 = null;
+let coldStartTimer2 = null;
+
+function clearColdStartTimers() {
+  if (coldStartTimer1) { clearTimeout(coldStartTimer1); coldStartTimer1 = null; }
+  if (coldStartTimer2) { clearTimeout(coldStartTimer2); coldStartTimer2 = null; }
+}
+
 function hideLoader() {
+  clearColdStartTimers();
   const loader = document.getElementById('loader');
   if (loader) {
     loader.style.opacity = '0';
@@ -528,6 +568,17 @@ function hideLoader() {
 }
 
 async function init() {
+  clearColdStartTimers();
+  coldStartTimer1 = setTimeout(() => {
+    const msg = document.getElementById('loader-msg');
+    if (msg) msg.textContent = "Server uyg'onmoqda, iltimos kuting... ☕";
+  }, 3500);
+
+  coldStartTimer2 = setTimeout(() => {
+    const msg = document.getElementById('loader-msg');
+    if (msg) msg.textContent = "Ulanish davom etmoqda, ozgina qoldi...";
+  }, 12000);
+
   try {
     await initCore();
     document.getElementById('login-view').style.display = 'none';
@@ -3410,7 +3461,8 @@ window.loadWorkspaceSettingsTab = async function () {
     }
 
     // 4. User Profile, Password & Telegram Bot Link Card
-    const isAnimDisabled = localStorage.getItem('tc_anim_disabled') === '1';
+    let isAnimDisabled = false;
+    try { isAnimDisabled = localStorage.getItem('tc_anim_disabled') === '1'; } catch (e) {}
     const profCard = document.createElement('div');
     profCard.className = 'section-card';
     profCard.innerHTML = `
@@ -3462,11 +3514,11 @@ window.loadWorkspaceSettingsTab = async function () {
     if (animToggle) {
       animToggle.onchange = (e) => {
         if (e.target.checked) {
-          localStorage.removeItem('tc_anim_disabled');
+          try { localStorage.removeItem('tc_anim_disabled'); } catch (e) {}
           document.documentElement.classList.remove('no-animations');
           showToast("🍵 Animatsiyalar yoqildi");
         } else {
-          localStorage.setItem('tc_anim_disabled', '1');
+          try { localStorage.setItem('tc_anim_disabled', '1'); } catch (e) {}
           document.documentElement.classList.add('no-animations');
           showToast("🍵 Animatsiyalar o'chirildi");
         }
@@ -3721,16 +3773,6 @@ let wsReconnectAttempts = 0;
 let wsIntentionallyClosed = false;
 let wsAuthFailed = false;
 
-function isTokenExpiredOrNear(tokenStr) {
-  if (!tokenStr) return true;
-  try {
-    const payload = JSON.parse(atob(tokenStr.split('.')[1]));
-    if (!payload.exp) return false;
-    return (payload.exp * 1000 - Date.now()) < 60000;
-  } catch (e) {
-    return true;
-  }
-}
 
 function disconnectWebSocket() {
   wsIntentionallyClosed = true;
