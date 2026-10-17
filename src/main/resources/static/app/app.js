@@ -7,11 +7,35 @@ try {
 
 // Theme initialization (Telegram theme or saved preference)
 (function initTheme() {
-  let savedTheme = null;
-  try { savedTheme = localStorage.getItem('tc_theme'); } catch (e) {}
-  if (savedTheme === 'dark' || (!savedTheme && tg.colorScheme === 'dark')) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+  function applyTheme() {
+    let savedTheme = null;
+    try { savedTheme = localStorage.getItem('tc_theme'); } catch (e) {}
+    if (savedTheme === 'dark' || (!savedTheme && tg.colorScheme === 'dark')) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else if (savedTheme === 'light') {
+      document.documentElement.removeAttribute('data-theme');
+    }
   }
+  applyTheme();
+
+  try {
+    if (tg.onEvent) {
+      tg.onEvent('themeChanged', () => {
+        if (!localStorage.getItem('tc_theme')) {
+          applyTheme();
+        }
+      });
+    }
+  } catch (e) {}
+})();
+
+// Animation preference initialization (Piyola and background animations toggle)
+(function initAnimationPreference() {
+  try {
+    if (localStorage.getItem('tc_anim_disabled') === '1') {
+      document.documentElement.classList.add('no-animations');
+    }
+  } catch (e) {}
 })();
 
 window.toggleTheme = function () {
@@ -30,6 +54,7 @@ function haptic(type, style) {
     if (!tg.HapticFeedback) return;
     if (type === 'impact') tg.HapticFeedback.impactOccurred(style);
     if (type === 'notification') tg.HapticFeedback.notificationOccurred(style);
+    if (type === 'selection') tg.HapticFeedback.selectionChanged();
   } catch (e) {}
 }
 
@@ -121,6 +146,18 @@ if (!initialTaskId && tg.initDataUnsafe?.start_param?.startsWith('task_')) {
   initialTaskId = tg.initDataUnsafe.start_param.substring(5);
 }
 
+const urlToken = urlParams.get('token') || urlParams.get('jwt');
+if (urlToken) {
+  token = urlToken;
+  try { localStorage.setItem('tc_token', token); } catch (e) {}
+  try {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('token');
+    cleanUrl.searchParams.delete('jwt');
+    window.history.replaceState({}, document.title, cleanUrl.toString());
+  } catch (e) {}
+}
+
 function showToast(msg) {
   let t = document.getElementById('toast');
   if (!t) {
@@ -165,6 +202,27 @@ function getInitials(name) {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
   return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+
+function formatLastSeen(isoStr) {
+  if (!isoStr) return 'Yaqinda';
+  try {
+    const d = new Date(isoStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 2) return 'Hozirgina';
+    if (diffMins < 60) return `${diffMins} daqiqa oldin`;
+    const isToday = d.toDateString() === now.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Bugun ${timeStr}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return `Kecha ${timeStr}`;
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + timeStr;
+  } catch (e) {
+    return 'Yaqinda';
+  }
 }
 
 // ===== Token Refresh & API Client =====
@@ -361,6 +419,12 @@ function updateSidebarUser() {
   if (greetEl) greetEl.textContent = `Assalomu alaykum, ${displayName}!`;
   const rankEl = document.getElementById('hero-rank-pill');
   if (rankEl) rankEl.textContent = '🏆 ' + (currentUser.statusNickname || "O'zimizdan");
+
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const adminNav = document.getElementById('nav-item-admin');
+  const adminMobileNav = document.getElementById('mobile-tab-admin');
+  if (adminNav) adminNav.style.display = isAdmin ? 'flex' : 'none';
+  if (adminMobileNav) adminMobileNav.style.display = isAdmin ? 'flex' : 'none';
 }
 
 async function loadWorkspacesList(preferredWsId = null) {
@@ -437,6 +501,7 @@ async function loadWorkspacesList(preferredWsId = null) {
 }
 
 function selectWorkspace(wsId) {
+window.selectWorkspace = selectWorkspace;
   if (!wsId) return;
   const selMobile = document.getElementById('ws');
   const selDesktop = document.getElementById('ws-desktop');
@@ -573,23 +638,79 @@ window.handleLogin = async function () {
   }
 };
 
+window.handleDemoLogin = async function () {
+  const usernameInput = document.getElementById('login-username');
+  const passwordInput = document.getElementById('login-password');
+  if (usernameInput) usernameInput.value = 'elshod';
+  if (passwordInput) passwordInput.value = 'password123';
+  if (authMode !== 'login') window.switchAuthMode('login');
+  await window.handleLogin();
+};
+
+window.handleAdminLogin = async function () {
+  const usernameInput = document.getElementById('login-username');
+  const passwordInput = document.getElementById('login-password');
+  if (usernameInput) usernameInput.value = 'admin';
+  if (passwordInput) passwordInput.value = 'password123';
+  if (authMode !== 'login') window.switchAuthMode('login');
+  await window.handleLogin();
+};
+
 // ===== Board & Workspace Data Loading =====
+function updateBoardCache() {
+  if (!currentWsId) return;
+  try {
+    localStorage.setItem('tc_cache_board_' + currentWsId, JSON.stringify({
+      colsData,
+      workspaceMembers,
+      workspaceLabels,
+      workspaceDirections,
+      workspaceSprints,
+      tasksData
+    }));
+  } catch (e) {}
+}
+
 async function loadBoard(wsId) {
   if (!wsId) return;
   currentWsId = wsId;
   storageSet('last_ws_id', wsId);
   subscribeWsWorkspace(wsId);
 
-  const container = document.getElementById('board-container');
-  container.innerHTML = Array(3).fill(0).map(() => `
-    <div class="col">
-      <div class="col-header"><div class="skeleton" style="width:120px;height:20px;"></div></div>
-      <div class="list" style="padding:12px;">
-        <div class="skeleton card" style="height:85px;margin-bottom:10px;"></div>
-        <div class="skeleton card" style="height:65px;"></div>
-      </div>
-    </div>
-  `).join('');
+  let hasCache = false;
+  try {
+    const raw = localStorage.getItem('tc_cache_board_' + wsId);
+    if (raw) {
+      const cached = JSON.parse(raw);
+      if (cached && Array.isArray(cached.colsData) && cached.colsData.length > 0) {
+        colsData = cached.colsData || [];
+        workspaceMembers = cached.workspaceMembers || [];
+        workspaceLabels = cached.workspaceLabels || [];
+        workspaceDirections = cached.workspaceDirections || [];
+        workspaceSprints = cached.workspaceSprints || [];
+        tasksData = cached.tasksData || [];
+        populateBoardToolbarSelects();
+        renderFormPickers();
+        renderBoard();
+        hasCache = true;
+      }
+    }
+  } catch (err) {}
+
+  if (!hasCache) {
+    const container = document.getElementById('board-container');
+    if (container) {
+      container.innerHTML = Array(3).fill(0).map(() => `
+        <div class="col">
+          <div class="col-header"><div class="skeleton" style="width:120px;height:20px;"></div></div>
+          <div class="list" style="padding:12px;">
+            <div class="skeleton card" style="height:85px;margin-bottom:10px;"></div>
+            <div class="skeleton card" style="height:65px;"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
 
   try {
     const [colsRes, membersRes, labelsRes, dirsRes, sprintsRes] = await Promise.all([
@@ -611,12 +732,17 @@ async function loadBoard(wsId) {
       if (c.tasks) tasksData.push(...c.tasks);
     });
 
+    updateBoardCache();
+
     populateBoardToolbarSelects();
     renderFormPickers();
     renderBoard();
     hideLoader();
   } catch (e) {
-    container.innerHTML = `<div class="empty-placeholder">Doskani yuklashda xatolik: ${e.message}</div>`;
+    if (!hasCache) {
+      const container = document.getElementById('board-container');
+      if (container) container.innerHTML = `<div class="empty-placeholder">Doskani yuklashda xatolik: ${e.message}</div>`;
+    }
     hideLoader();
   }
 }
@@ -787,6 +913,9 @@ function updateHeroLiveStats() {
 function escapeHtmlText(str) {
   return String(str || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
+const escapeHtml = escapeHtmlText;
+window.escapeHtml = escapeHtmlText;
+window.escapeHtmlText = escapeHtmlText;
 
 window.toggleHeroShowcase = function () {
   const hero = document.getElementById('hero-showcase');
@@ -895,7 +1024,7 @@ function renderBoard() {
         delayOnTouchOnly: true,
         ghostClass: 'sortable-ghost',
         dragClass: 'sortable-drag',
-        onStart: () => haptic('impact', 'light'),
+        onStart: () => haptic('impact', 'medium'),
         onEnd: (ev) => {
           const taskId = ev.item.dataset.id;
           const newColId = ev.to.dataset.col;
@@ -904,7 +1033,12 @@ function renderBoard() {
             const idx = cards.indexOf(ev.item);
             const prevTask = idx > 0 ? tasksData.find(t => t.id === cards[idx - 1].dataset.id) : null;
             const nextTask = idx < cards.length - 1 ? tasksData.find(t => t.id === cards[idx + 1].dataset.id) : null;
-            haptic('impact', 'medium');
+            const targetCol = colsData.find(c => c.id === newColId);
+            if (targetCol && (targetCol.isDone || /bajaril|done|tugadi/i.test(targetCol.title))) {
+              haptic('notification', 'success');
+            } else {
+              haptic('impact', 'medium');
+            }
             moveTask(taskId, newColId, prevTask?.lexoRank || null, nextTask?.lexoRank || null);
           }
         }
@@ -1057,7 +1191,7 @@ window.setFilter = function (el) {
   document.querySelectorAll('#main-filters .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   currentFilter = el.dataset.filter;
-  haptic('impact', 'light');
+  haptic('selection');
   applyFilters();
 };
 
@@ -1101,6 +1235,11 @@ window.applyFilters = function () {
     if (match) {
       if (currentFilter === 'mine') {
         if (!currentUserId || !task.assignees || !task.assignees.some(a => a.id === currentUserId)) match = false;
+      } else if (currentFilter === 'today') {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const taskDate = task.dueDate ? task.dueDate.slice(0, 10) : '';
+        if (taskDate !== todayStr) match = false;
       } else if (currentFilter === 'overdue') {
         if (!task.isOverdue) match = false;
       } else if (currentFilter === 'high') {
@@ -1254,6 +1393,7 @@ async function moveTask(taskId, targetColId, prevRank = null, nextRank = null) {
       body: JSON.stringify({ columnId: targetColId, prevRank, nextRank })
     });
     if (res?.data) Object.assign(task, res.data);
+    updateBoardCache();
     const col = colsData.find(c => c.id === targetColId);
     if (col && (col.isDone || /bajarildi|tugadi|done|ko'z tegmasin/i.test(col.title))) {
       celebrate();
@@ -1286,7 +1426,10 @@ async function quickAddTask(inputEl, colId) {
         sprintId: selectedSprintFilter || null
       })
     });
-    if (res?.data) tasksData.push(res.data);
+    if (res?.data) {
+      tasksData.push(res.data);
+      updateBoardCache();
+    }
     inputEl.value = '';
     renderBoard();
     haptic('notification', 'success');
@@ -1302,6 +1445,15 @@ function hideAllSheetViews() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+window._tcSheetOpen = false;
+
+function pushSheetState() {
+  if (!window._tcSheetOpen) {
+    window._tcSheetOpen = true;
+    try {
+      history.pushState({ tcSheet: true }, '');
+    } catch (e) {}
+  }
 }
 
 function openCustomModal(titleText, renderFn) {
@@ -1314,6 +1466,7 @@ function openCustomModal(titleText, renderFn) {
   renderFn(customView);
   document.getElementById('sheet-overlay').classList.add('active');
   document.getElementById('bottom-sheet').classList.add('active');
+  pushSheetState();
   if (isTma && tg.BackButton) {
     tg.BackButton.show();
     tg.BackButton.onClick(closeSheet);
@@ -1325,6 +1478,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
   hideAllSheetViews();
   document.getElementById('sheet-overlay').classList.add('active');
   document.getElementById('bottom-sheet').classList.add('active');
+  pushSheetState();
 
   const formView = document.getElementById('task-form-view');
   const detailView = document.getElementById('task-detail-view');
@@ -1337,6 +1491,9 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
   }
 
   if (mode === 'create') {
+    if (isTma && tg.enableClosingConfirmation) {
+      try { tg.enableClosingConfirmation(); } catch (e) {}
+    }
     formView.style.display = 'block';
     document.getElementById('sheet-title').textContent = "Yangi vazifa yaratish";
     document.getElementById('f-id').value = '';
@@ -1365,6 +1522,9 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
   } else if (mode === 'edit') {
     const task = tasksData.find(t => t.id === taskId);
     if (!task) return closeSheet();
+    if (isTma && tg.enableClosingConfirmation) {
+      try { tg.enableClosingConfirmation(); } catch (e) {}
+    }
     formView.style.display = 'block';
     document.getElementById('sheet-title').textContent = "Vazifani tahrirlash";
     document.getElementById('f-id').value = task.id;
@@ -1522,7 +1682,7 @@ window.switchDetailSubtab = function (subtab) {
   });
 };
 
-window.closeSheet = function () {
+window.closeSheet = function (fromPopState = false) {
   document.getElementById('sheet-overlay').classList.remove('active');
   document.getElementById('bottom-sheet').classList.remove('active');
   if (isTma && tg.BackButton) {
@@ -1533,7 +1693,27 @@ window.closeSheet = function () {
     tg.MainButton.hide();
     tg.MainButton.offClick(saveTask);
   }
+  if (isTma && tg.disableClosingConfirmation) {
+    try { tg.disableClosingConfirmation(); } catch (e) {}
+  }
+  if (window._tcSheetOpen && !fromPopState) {
+    window._tcSheetOpen = false;
+    try {
+      if (history.state && history.state.tcSheet) {
+        history.back();
+      }
+    } catch (e) {}
+  } else {
+    window._tcSheetOpen = false;
+  }
 };
+
+window.addEventListener('popstate', () => {
+  const sheet = document.getElementById('bottom-sheet');
+  if (sheet && sheet.classList.contains('active')) {
+    closeSheet(true);
+  }
+});
 
 window.saveTask = async function () {
   const id = document.getElementById('f-id').value;
@@ -1597,6 +1777,7 @@ window.saveTask = async function () {
     showToast("Muvaffaqiyatli saqlandi");
     closeSheet();
     renderBoard();
+    updateBoardCache();
     if (currentTab === 'sprints') loadSprintsTab();
     if (currentTab === 'mytasks') loadMyTasks();
   } catch (e) {
@@ -1616,6 +1797,7 @@ window.deleteTask = async function () {
       showToast("Vazifa o'chirildi");
       closeSheet();
       renderBoard();
+      updateBoardCache();
     } catch (e) {}
   });
 };
@@ -2008,13 +2190,14 @@ window.switchTab = function (tabId) {
   const target = document.getElementById('tab-' + tabId);
   if (target) target.style.display = 'flex';
   currentTab = tabId;
-  haptic('impact', 'light');
+  haptic('selection');
 
   if (tabId === 'sprints') loadSprintsTab();
   if (tabId === 'mytasks') loadMyTasks();
   if (tabId === 'chat') loadChatTab();
   if (tabId === 'stats') loadStats();
   if (tabId === 'workspace') loadWorkspaceSettingsTab();
+  if (tabId === 'admin') loadAdminDashboard();
 };
 
 // ===== TAB 2: SPRINTS & BACKLOG =====
@@ -2315,17 +2498,63 @@ window.switchChatChannel = function (channel) {
   loadChatTab();
 };
 
+window.openAddContactModal = function () {
+  openCustomModal("Yangi kontakt qo'shish", (body) => {
+    body.innerHTML = `
+      <div class="form-group">
+        <label>Foydalanuvchi logini (@username) yoki emaili *</label>
+        <input type="text" id="contact-username-input" placeholder="Masalan: elshod yoki elshod@mail.com">
+      </div>
+      <div class="detail-actions">
+        <button type="button" class="btn-action btn-soft" data-action="close-sheet">Bekor qilish</button>
+        <button type="button" class="btn-action btn-primary" id="btn-save-contact">Qo'shish</button>
+      </div>
+    `;
+    body.querySelector('#btn-save-contact').onclick = async () => {
+      const usernameOrEmail = body.querySelector('#contact-username-input').value.trim();
+      if (!usernameOrEmail) return tgAlert("Login yoki emailni kiriting");
+      try {
+        await api('/api/contacts', {
+          method: 'POST',
+          body: JSON.stringify({ usernameOrEmail })
+        });
+        closeSheet();
+        showToast("Kontakt muvaffaqiyatli qo'shildi!");
+        loadChatTab();
+      } catch (e) {}
+    };
+  });
+};
+
 window.loadChatTab = async function () {
   const usersListEl = document.getElementById('chat-users-list');
   const msgBox = document.getElementById('chat-messages-box');
+  const addContactBtn = document.getElementById('btn-add-contact');
   if (!usersListEl || !msgBox) return;
 
+  if (chatChannel === 'public') {
+    if (addContactBtn) addContactBtn.style.display = 'none';
+    usersListEl.innerHTML = `
+      <div style="padding:16px 12px;color:var(--hint-color);font-size:12px;line-height:1.5;text-align:center;">
+        <span style="font-size:24px;display:block;margin-bottom:6px;">💬</span>
+        <strong>Umumiy jamoa xonasi</strong><br><br>
+        Ushbu xonadagi barcha xabarlar barcha jamoa a’zolari uchun ochiq.<br><br>
+        Shaxsiy yozishmalar uchun yuqoridagi <b>Shaxsiy xabar</b> tugmasini bosing.
+      </div>
+    `;
+    await loadChatMessages();
+    return;
+  }
+
+  // Direct channel (Contacts list)
+  if (addContactBtn) addContactBtn.style.display = 'inline-flex';
+
   try {
-    const [usersRes, convsRes] = await Promise.all([
-      api('/api/chat/users').catch(() => ({ data: [] })),
+    const [contactsRes, convsRes] = await Promise.all([
+      api('/api/contacts').catch(() => ({ data: [] })),
       api('/api/chat/conversations').catch(() => ({ data: [] }))
     ]);
-    chatUsers = usersRes?.data || [];
+    const contacts = contactsRes?.data || [];
     const convs = convsRes?.data || [];
     const unreadMap = {};
     convs.forEach(c => {
@@ -2333,22 +2562,54 @@ window.loadChatTab = async function () {
     });
 
     usersListEl.innerHTML = '';
-    chatUsers.forEach(u => {
+    if (!contacts.length) {
+      usersListEl.innerHTML = `
+        <div style="padding:16px 12px;text-align:center;color:var(--hint-color);font-size:12px;line-height:1.4;">
+          <span style="font-size:24px;display:block;margin-bottom:6px;">👥</span>
+          Hozircha kontaktlar yo'q.<br><br>
+          Yuqoridagi <b>+ Kontakt</b> tugmasi orqali do'stlaringizni login nomi bo'yicha qo'shing!
+        </div>
+      `;
+      if (!activeChatPartner) {
+        msgBox.innerHTML = '<div class="empty-placeholder">+ Kontakt orqali do\'stingizni qo\'shing va suhbatni boshlang</div>';
+        return;
+      }
+    }
+
+    contacts.forEach(u => {
       const item = document.createElement('div');
       item.className = 'chat-user-item' + (activeChatPartner && activeChatPartner.id === u.id ? ' active' : '');
       const unread = unreadMap[u.id] || 0;
+      const statusText = u.online ? 'Online' : formatLastSeen(u.lastSeenAt);
       item.innerHTML = `
         <div class="assignee-avatar" style="margin-left:0;">${getInitials(u.fullName || u.name)}</div>
         <div style="min-width:0;flex:1;">
-          <div class="u-name" style="font-size:13px;"></div>
+          <div class="u-name" style="font-size:13px;display:flex;align-items:center;justify-content:space-between;">
+            <span class="uname-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+            <button type="button" class="del-contact-btn" title="Kontaktni o'chirish" style="background:none;border:none;color:var(--hint-color);font-size:14px;cursor:pointer;padding:0 4px;">×</button>
+          </div>
           <div class="hint" style="font-size:11px;display:flex;align-items:center;gap:4px;">
             <span class="online-dot ${u.online ? 'online' : ''}"></span>
-            <span>${u.online ? 'Online' : 'Offline'}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${statusText}</span>
           </div>
         </div>
         ${unread > 0 ? `<span class="badge-pill">${unread}</span>` : ''}
       `;
-      item.querySelector('.u-name').textContent = u.fullName || u.name;
+      item.querySelector('.uname-text').textContent = u.fullName || u.name;
+
+      item.querySelector('.del-contact-btn').onclick = (e) => {
+        e.stopPropagation();
+        tgConfirm("Ushbu kontaktni ro'yxatdan o'chirmoqchimisiz?", async (ok) => {
+          if (!ok) return;
+          try {
+            await api('/api/contacts/' + u.id, { method: 'DELETE' });
+            showToast("Kontakt o'chirildi");
+            if (activeChatPartner && activeChatPartner.id === u.id) activeChatPartner = null;
+            loadChatTab();
+          } catch (err) {}
+        });
+      };
+
       item.onclick = () => {
         activeChatPartner = u;
         chatChannel = 'direct';
@@ -2356,7 +2617,7 @@ window.loadChatTab = async function () {
           btn.classList.toggle('active', btn.dataset.channel === 'direct');
         });
         document.getElementById('chat-room-title').textContent = u.fullName || u.name;
-        document.getElementById('chat-room-subtitle').textContent = '@' + u.name + (u.online ? ' • Online' : '');
+        document.getElementById('chat-room-subtitle').textContent = '@' + u.name + (u.online ? ' • Online' : (' • ' + formatLastSeen(u.lastSeenAt)));
         api(`/api/chat/direct/${u.id}/read-all`, { method: 'POST' }).catch(() => {});
         loadChatMessages();
         loadChatTab();
@@ -3145,12 +3406,16 @@ window.loadWorkspaceSettingsTab = async function () {
     }
 
     // 4. User Profile, Password & Telegram Bot Link Card
+    const isAnimDisabled = localStorage.getItem('tc_anim_disabled') === '1';
     const profCard = document.createElement('div');
     profCard.className = 'section-card';
     profCard.innerHTML = `
       <div class="section-card-header">
         <div class="section-card-title">👤 Shaxsiy profil va Xavfsizlik</div>
-        <button type="button" class="btn-chip-action" style="color:var(--danger);" id="btn-logout-user">Chiqish (Logout)</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button type="button" class="btn-chip-action" id="btn-open-change-pass">🔒 Parolni o'zgartirish</button>
+          <button type="button" class="btn-chip-action" style="color:var(--danger);" id="btn-logout-user">Chiqish (Logout)</button>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -3164,6 +3429,18 @@ window.loadWorkspaceSettingsTab = async function () {
       </div>
       <button type="button" class="btn-action btn-primary" id="btn-save-profile" style="margin-bottom:16px;">Profilni saqlash</button>
 
+      <!-- Animation Settings Toggle -->
+      <div class="setting-toggle-row">
+        <div>
+          <strong style="font-size:13.5px;">🍵 Piyola va fon animatsiyalari</strong>
+          <div class="hint" style="font-size:11.5px;margin-top:2px;">3D sahna, choy bug'i va vitrina animatsiyalarini yoqish yoki to'xtatish</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-tea-animation" ${isAnimDisabled ? '' : 'checked'}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <div style="padding-top:14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div>
           <strong>✈️ Telegram Bot ulanishi:</strong>
@@ -3174,7 +3451,23 @@ window.loadWorkspaceSettingsTab = async function () {
     `;
     profCard.querySelector('#prof-fullname').value = currentUser?.fullName || '';
     profCard.querySelector('#prof-name').value = currentUser?.name || '';
-    profCard.querySelector('#btn-logout-user').onclick = () => window.logout();
+    profCard.querySelector('#btn-logout-user').onclick = () => window.promptLogout();
+    profCard.querySelector('#btn-open-change-pass').onclick = () => window.openChangePasswordModal();
+
+    const animToggle = profCard.querySelector('#toggle-tea-animation');
+    if (animToggle) {
+      animToggle.onchange = (e) => {
+        if (e.target.checked) {
+          localStorage.removeItem('tc_anim_disabled');
+          document.documentElement.classList.remove('no-animations');
+          showToast("🍵 Animatsiyalar yoqildi");
+        } else {
+          localStorage.setItem('tc_anim_disabled', '1');
+          document.documentElement.classList.add('no-animations');
+          showToast("🍵 Animatsiyalar o'chirildi");
+        }
+      };
+    }
 
     profCard.querySelector('#btn-save-profile').onclick = async () => {
       const fullName = profCard.querySelector('#prof-fullname').value.trim();
@@ -3222,7 +3515,7 @@ window.loadWorkspaceSettingsTab = async function () {
     // 5. Calendar Sync (iCal / Google Calendar) & Telegram Group Integration Card
     const calGroupCard = document.createElement('div');
     calGroupCard.className = 'section-card';
-    const currentWsObj = workspacesList.find(w => w.id === currentWsId);
+    const currentWsObj = (allWorkspaces || []).find(w => w.id === currentWsId);
     const wsPrefix = currentWsObj?.keyPrefix || currentWsId || 'LOY';
     calGroupCard.innerHTML = `
       <div class="section-card-title" style="margin-bottom:10px;">📆 Kalendar Sinxronizatsiyasi va 👥 Telegram Guruh</div>
@@ -3364,19 +3657,39 @@ window.openNotificationsModal = async function () {
 // ===== Share & Clipboard =====
 window.shareTask = function () {
   if (!currentTaskId) return;
+  const currentTask = tasksData.find(t => t.id === currentTaskId);
+  const taskTitle = currentTask ? currentTask.title : 'Vazifa';
   const url = botUsername
     ? `https://t.me/${botUsername}?start=task_${currentTaskId}`
     : `${location.origin}/app/?task=${currentTaskId}`;
-  try {
-    if (isTma && tg.openTelegramLink && botUsername) {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=Vazifa`;
-      tg.openTelegramLink(shareUrl);
-    } else {
-      fallbackCopy(url);
-    }
-  } catch (e) {
-    fallbackCopy(url);
+
+  haptic('selection');
+
+  if (isTma && tg.switchInlineQuery) {
+    try {
+      tg.switchInlineQuery(`task_${currentTaskId}`, ['users', 'groups', 'channels']);
+      return;
+    } catch (e) {}
   }
+
+  if (isTma && tg.openTelegramLink) {
+    try {
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(taskTitle)}`;
+      tg.openTelegramLink(shareUrl);
+      return;
+    } catch (e) {}
+  }
+
+  if (navigator.share) {
+    navigator.share({
+      title: taskTitle,
+      text: `Vazifa: ${taskTitle}`,
+      url: url
+    }).catch(() => fallbackCopy(url));
+    return;
+  }
+
+  fallbackCopy(url);
 };
 
 function fallbackCopy(text) {
@@ -3427,6 +3740,56 @@ function disconnectWebSocket() {
     ws = null;
   }
 }
+
+window.promptLogout = function () {
+  tgConfirm("Haqiqatan ham hisobingizdan chiqmoqchimisiz?", (ok) => {
+    if (ok) window.logout();
+  });
+};
+
+window.openChangePasswordModal = function () {
+  openCustomModal("Parolni o'zgartirish", (body) => {
+    body.innerHTML = `
+      <div class="form-group">
+        <label>Eski maxfiy parol (mavjud bo'lsa)</label>
+        <input type="password" id="cp-old-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label>Yangi maxfiy parol (kamida 6 ta belgi) *</label>
+        <input type="password" id="cp-new-pass" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Yangi parolni takrorlang *</label>
+        <input type="password" id="cp-confirm-pass" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="detail-actions">
+        <button type="button" class="btn-action btn-soft" data-action="close-sheet">Bekor qilish</button>
+        <button type="button" class="btn-action btn-primary" id="btn-submit-change-pass">Parolni saqlash</button>
+      </div>
+    `;
+    body.querySelector('#btn-submit-change-pass').onclick = async () => {
+      const oldPassword = body.querySelector('#cp-old-pass').value.trim();
+      const newPassword = body.querySelector('#cp-new-pass').value.trim();
+      const confirmPassword = body.querySelector('#cp-confirm-pass').value.trim();
+
+      if (!newPassword || newPassword.length < 6) {
+        return tgAlert("Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak");
+      }
+      if (newPassword !== confirmPassword) {
+        return tgAlert("Yangi parollar bir-biriga mos kelmadi");
+      }
+
+      try {
+        await api('/api/users/me/change-password', {
+          method: 'POST',
+          body: JSON.stringify({ oldPassword: oldPassword || 'nopass', newPassword })
+        });
+        closeSheet();
+        showToast("Maxfiy parol muvaffaqiyatli yangilandi!");
+      } catch (e) {}
+    };
+  });
+};
 
 window.logout = function () {
   disconnectWebSocket();
@@ -3660,5 +4023,291 @@ function handleRealTimeEvent(ev, rawFrame = '') {
   bindStageParallax('hero-3d-viewport', 'hero-3d-scene');
   bindStageParallax('auth-3d-stage', 'auth-3d-stage');
 })();
+
+// ===== SuperAdmin Platform Dashboard & Operations =====
+let currentAdminSubtab = 'users';
+
+window.loadAdminDashboard = async function () {
+  const kpiWrap = document.getElementById('admin-kpi-container');
+  if (!kpiWrap) return;
+
+  try {
+    const res = await api('/api/admin/dashboard');
+    const d = res?.data || {};
+
+    kpiWrap.innerHTML = `
+      <div class="admin-kpi-card">
+        <div class="kpi-label">Foydalanuvchilar</div>
+        <div class="kpi-val">${d.totalUsers || 0}</div>
+        <div class="kpi-sub">🤖 Telegram: ${d.telegramLinkedUsers || 0} ta</div>
+      </div>
+      <div class="admin-kpi-card">
+        <div class="kpi-label">Ish maydonlari</div>
+        <div class="kpi-val">${d.totalWorkspaces || 0}</div>
+        <div class="kpi-sub">Faol loyihalar</div>
+      </div>
+      <div class="admin-kpi-card">
+        <div class="kpi-label">Jami vazifalar</div>
+        <div class="kpi-val">${d.totalTasks || 0}</div>
+        <div class="kpi-sub">✅ ${d.completedTasks || 0} / ⏳ ${d.openTasks || 0}</div>
+      </div>
+      <div class="admin-kpi-card">
+        <div class="kpi-label">Tizim & Xotira</div>
+        <div class="kpi-val">${d.jvmUsedMemoryMb || 0} MB</div>
+        <div class="kpi-sub">Max: ${d.jvmMaxMemoryMb || 0} MB • ${d.botStatus || 'BOT'}</div>
+      </div>
+    `;
+  } catch (e) {
+    kpiWrap.innerHTML = `<div class="hint">Ko'rsatkichlarni yuklashda xatolik: ${e.message}</div>`;
+  }
+
+  switchAdminSubtab(currentAdminSubtab);
+};
+
+window.switchAdminSubtab = function (subtab) {
+  currentAdminSubtab = subtab;
+  document.querySelectorAll('.admin-subtab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.subtab === subtab);
+  });
+  document.querySelectorAll('.admin-subpanel').forEach(panel => {
+    panel.style.display = panel.id === ('admin-panel-' + subtab) ? 'block' : 'none';
+  });
+
+  if (subtab === 'users') loadAdminUsers();
+  if (subtab === 'workspaces') loadAdminWorkspaces();
+  if (subtab === 'jobs') loadAdminJobs();
+};
+
+window.searchAdminUsers = function () {
+  const query = document.getElementById('admin-user-search')?.value || '';
+  loadAdminUsers(query);
+};
+
+window.loadAdminUsers = async function (search = '') {
+  const listEl = document.getElementById('admin-users-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="skeleton card" style="height:80px;margin-bottom:8px;"></div>';
+
+  try {
+    const res = await api('/api/admin/users?size=50&search=' + encodeURIComponent(search));
+    const users = res?.data?.content || [];
+    if (!users.length) {
+      listEl.innerHTML = '<div class="hint" style="text-align:center;padding:20px;">Foydalanuvchilar topilmadi</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    users.forEach(u => {
+      const item = document.createElement('div');
+      item.className = 'admin-row-item';
+      item.innerHTML = `
+        <div class="admin-row-info">
+          <div class="admin-row-title">
+            <span>${escapeHtml(u.fullName || u.name)}</span>
+            <span class="admin-badge ${u.role === 'ADMIN' ? 'admin' : ''}">${u.role}</span>
+            ${u.telegramLinked ? '<span class="admin-badge tg">🤖 TG</span>' : ''}
+          </div>
+          <div class="admin-row-meta">
+            @${escapeHtml(u.name)} • ${escapeHtml(u.email)} • 🏢 ${u.workspaceCount} ta workspace
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn-action btn-soft sm role-btn" title="Rolni almashtirish">
+            ${u.role === 'ADMIN' ? 'Oddiy a\'zo qilish' : 'Admin qilish'}
+          </button>
+          <button type="button" class="icon-btn sm del-user-btn" style="color:var(--danger);" title="O'chirish">🗑</button>
+        </div>
+      `;
+
+      item.querySelector('.role-btn').onclick = () => {
+        const nextRole = u.role === 'ADMIN' ? 'USER' : 'ADMIN';
+        toggleAdminUserRole(u.id, nextRole);
+      };
+
+      item.querySelector('.del-user-btn').onclick = () => {
+        deleteAdminUser(u.id, u.fullName || u.name);
+      };
+
+      listEl.appendChild(item);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="hint">Foydalanuvchilarni yuklashda xatolik: ${e.message}</div>`;
+  }
+};
+
+window.toggleAdminUserRole = async function (userId, newRole) {
+  try {
+    await api('/api/admin/users/' + userId + '/role', {
+      method: 'PUT',
+      body: JSON.stringify({ role: newRole })
+    });
+    showToast("Foydalanuvchi roli yangilandi");
+    haptic('notification', 'success');
+    loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
+    loadAdminDashboard();
+  } catch (e) {
+    showToast("Rolni yangilashda xatolik: " + e.message);
+  }
+};
+
+window.deleteAdminUser = function (userId, userName) {
+  tgConfirm(`${userName} foydalanuvchisini tizimdan o'chirishni tasdiqlaysizmi?`, async (ok) => {
+    if (!ok) return;
+    try {
+      await api('/api/admin/users/' + userId, { method: 'DELETE' });
+      showToast("Foydalanuvchi o'chirildi");
+      haptic('notification', 'success');
+      loadAdminUsers(document.getElementById('admin-user-search')?.value || '');
+      loadAdminDashboard();
+    } catch (e) {
+      showToast("O'chirishda xatolik: " + e.message);
+    }
+  });
+};
+
+window.searchAdminWorkspaces = function () {
+  const query = document.getElementById('admin-ws-search')?.value || '';
+  loadAdminWorkspaces(query);
+};
+
+window.loadAdminWorkspaces = async function (search = '') {
+  const listEl = document.getElementById('admin-workspaces-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="skeleton card" style="height:80px;margin-bottom:8px;"></div>';
+
+  try {
+    const res = await api('/api/admin/workspaces?size=50&search=' + encodeURIComponent(search));
+    const wss = res?.data?.content || [];
+    if (!wss.length) {
+      listEl.innerHTML = '<div class="hint" style="text-align:center;padding:20px;">Ish maydonlari topilmadi</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    wss.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'admin-row-item';
+      item.innerHTML = `
+        <div class="admin-row-info">
+          <div class="admin-row-title">${escapeHtml(w.name || 'Loyiha')}</div>
+          <div class="admin-row-meta">
+            Egasi: <strong>${escapeHtml(w.ownerName || 'Noma\'lum')}</strong> • 👥 ${w.memberCount} a'zo • 📋 ${w.taskCount} vazifa
+          </div>
+        </div>
+        <div>
+          <button type="button" class="icon-btn sm del-ws-btn" style="color:var(--danger);" title="O'chirish">🗑</button>
+        </div>
+      `;
+
+      item.querySelector('.del-ws-btn').onclick = () => {
+        deleteAdminWorkspace(w.id, w.name);
+      };
+
+      listEl.appendChild(item);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="hint">Ish maydonlarini yuklashda xatolik: ${e.message}</div>`;
+  }
+};
+
+window.deleteAdminWorkspace = function (wsId, wsTitle) {
+  tgConfirm(`${wsTitle} ish maydonini tizimdan o'chirishni tasdiqlaysizmi?`, async (ok) => {
+    if (!ok) return;
+    try {
+      await api('/api/admin/workspaces/' + wsId, { method: 'DELETE' });
+      showToast("Ish maydoni o'chirildi");
+      haptic('notification', 'success');
+      loadAdminWorkspaces(document.getElementById('admin-ws-search')?.value || '');
+      loadAdminDashboard();
+    } catch (e) {
+      showToast("O'chirishda xatolik: " + e.message);
+    }
+  });
+};
+
+window.sendAdminBroadcast = async function () {
+  const textEl = document.getElementById('admin-broadcast-text');
+  const silentEl = document.getElementById('admin-broadcast-silent');
+  const statusEl = document.getElementById('admin-broadcast-status');
+  const text = (textEl?.value || '').trim();
+
+  if (!text) {
+    return tgAlert("Iltimos, e'lon matnini kiriting!");
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<div class="hint">Xabarnoma yuborilmoqda...</div>';
+
+  try {
+    const res = await api('/api/admin/telegram/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: text,
+        silent: silentEl?.checked || false
+      })
+    });
+    const d = res?.data || {};
+    statusEl.innerHTML = `
+      <div style="padding:10px 14px;background:rgba(34,197,94,0.12);border:1px solid #22c55e;border-radius:8px;font-size:13px;color:#16a34a;">
+        ✅ <strong>Xabarnoma yuborildi!</strong><br>
+        Jami qabul qiluvchilar: ${d.totalRecipients || 0} ta • Muvaffaqiyatli: ${d.successfulDeliveries || 0} ta • Yetkazilmadi: ${d.failedDeliveries || 0} ta (Vaqt: ${d.durationMs || 0} ms)
+      </div>
+    `;
+    haptic('notification', 'success');
+    textEl.value = '';
+  } catch (e) {
+    statusEl.innerHTML = `<div style="color:var(--danger);font-size:13px;">❌ Yuborishda xatolik: ${e.message}</div>`;
+  }
+};
+
+window.loadAdminJobs = async function () {
+  const listEl = document.getElementById('admin-jobs-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="skeleton card" style="height:80px;"></div>';
+
+  try {
+    const res = await api('/api/admin/jobs');
+    const jobs = res?.data || [];
+    listEl.innerHTML = '';
+    jobs.forEach(j => {
+      const item = document.createElement('div');
+      item.className = 'admin-row-item';
+      item.innerHTML = `
+        <div class="admin-row-info">
+          <div class="admin-row-title">${escapeHtml(j.name)}</div>
+          <div class="admin-row-meta">${escapeHtml(j.description)}</div>
+        </div>
+        <div>
+          <button type="button" class="btn-action btn-soft sm trigger-job-btn">▶️ Ishga tushirish</button>
+        </div>
+      `;
+      item.querySelector('.trigger-job-btn').onclick = () => triggerAdminJob(j.jobKey);
+      listEl.appendChild(item);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="hint">Xizmatlarni yuklashda xatolik: ${e.message}</div>`;
+  }
+};
+
+window.triggerAdminJob = async function (jobKey) {
+  try {
+    await api('/api/admin/jobs/' + jobKey + '/trigger', { method: 'POST' });
+    showToast("Fon xizmati ishga tushirildi");
+    haptic('notification', 'success');
+  } catch (e) {
+    showToast("Xatolik: " + e.message);
+  }
+};
+
+window.evictAdminCache = async function () {
+  try {
+    await api('/api/admin/cache/evict', { method: 'POST' });
+    showToast("Barcha keshlar tozalandi 🧹");
+    haptic('notification', 'success');
+    loadAdminDashboard();
+  } catch (e) {
+    showToast("Keshni tozalashda xatolik: " + e.message);
+  }
+};
 
 init();

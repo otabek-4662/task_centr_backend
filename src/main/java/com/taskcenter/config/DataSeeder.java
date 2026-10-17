@@ -36,6 +36,13 @@ public class DataSeeder {
                 return;
             }
 
+            User admin = User.builder()
+                    .id("6a45163133ff7819b28ef900")
+                    .name("admin")
+                    .fullName("Tizim Admini")
+                    .password(passwordEncoder.encode("password123"))
+                    .role(User.Role.ADMIN)
+                    .build();
             User elshod = User.builder()
                     .id("6a45163133ff7819b28ef901")
                     .name("elshod")
@@ -57,6 +64,7 @@ public class DataSeeder {
                     .password(passwordEncoder.encode("password123"))
                     .role(User.Role.USER)
                     .build();
+            userRepository.save(admin);
             userRepository.save(elshod);
             userRepository.save(mirxon);
             userRepository.save(xusan);
@@ -70,6 +78,7 @@ public class DataSeeder {
                     .build();
             workspaceRepository.save(ws);
 
+            memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(admin.getId()).role(WorkspaceRole.ADMIN).build());
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(elshod.getId()).role(WorkspaceRole.MEMBER).build());
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(mirxon.getId()).role(WorkspaceRole.MEMBER).build());
             memberRepository.save(WorkspaceMember.builder().workspaceId(wsId).userId(xusan.getId()).role(WorkspaceRole.OWNER).build());

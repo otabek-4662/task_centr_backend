@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,21 +78,22 @@ class TelegramAuthControllerTest {
     }
 
     @Test
-    @DisplayName("Foydalanuvchi bazada topilmasa 401 'Avval botda akkauntingizni ulang' qaytadi")
-    void telegramLogin_userNotFound_throws401WithBotMessage() {
+    @DisplayName("Foydalanuvchi bazada topilmasa avtomatik ro'yxatdan o'tadi va token qaytadi")
+    void telegramLogin_userNotFound_autoRegistersAndReturnsToken() throws Exception {
         String initData = "valid_init_data";
         when(validator.validate(initData)).thenReturn(Optional.of(Map.of(
                 "user", "{\"id\":99999,\"first_name\":\"Stranger\"}"
         )));
         when(userRepository.findByTelegramChatId(99999L)).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(tokenProvider.generateTokenFromUser(any(User.class))).thenReturn("jwt-token-new");
+        when(authService.createRefreshToken(any())).thenReturn("refresh-token-new");
 
-        assertThatThrownBy(() -> controller.telegramLogin(new TelegramAuthController.TelegramAuthRequest(initData)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> {
-                    ResponseStatusException rse = (ResponseStatusException) e;
-                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                    assertThat(rse.getReason()).isEqualTo("Avval botda akkauntingizni ulang");
-                });
+        ResponseEntity<ApiResponse<AuthResponse>> response = controller.telegramLogin(new TelegramAuthController.TelegramAuthRequest(initData));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getToken()).isEqualTo("jwt-token-new");
     }
 
     @Test
@@ -247,8 +249,8 @@ class TelegramAuthControllerTest {
     }
 
     @Test
-    @DisplayName("Qabul mezoni: foydalanuvchi bazada yo'q bo'lsa 401 'Avval botda akkauntingizni ulang' beradi")
-    void telegramLogin_realValidator_userNotLinked_throws401() {
+    @DisplayName("Qabul mezoni: foydalanuvchi bazada yo'q bo'lsa avtomatik ro'yxatdan o'tib token beradi")
+    void telegramLogin_realValidator_userNotLinked_autoRegisters() throws Exception {
         TelegramInitDataValidator realValidator = new TelegramInitDataValidator(TEST_BOT_TOKEN, 86400L);
         TelegramAuthController realController = new TelegramAuthController(
                 realValidator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService
@@ -261,13 +263,14 @@ class TelegramAuthControllerTest {
         String validInitData = generateInitData(params, TEST_BOT_TOKEN);
 
         when(userRepository.findByTelegramChatId(88888L)).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(tokenProvider.generateTokenFromUser(any(User.class))).thenReturn("jwt-token-real");
+        when(authService.createRefreshToken(any())).thenReturn("refresh-token-real");
 
-        assertThatThrownBy(() -> realController.telegramLogin(new TelegramAuthController.TelegramAuthRequest(validInitData)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> {
-                    ResponseStatusException rse = (ResponseStatusException) e;
-                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                    assertThat(rse.getReason()).isEqualTo("Avval botda akkauntingizni ulang");
-                });
+        ResponseEntity<ApiResponse<AuthResponse>> response = realController.telegramLogin(new TelegramAuthController.TelegramAuthRequest(validInitData));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getToken()).isEqualTo("jwt-token-real");
     }
 }

@@ -27,6 +27,16 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     List<User> findByNameIn(java.util.Collection<String> names);
 
+    long countByTelegramChatIdIsNotNull();
+
+    List<User> findAllByTelegramChatIdIsNotNull();
+
+    @Query("SELECT u FROM User u WHERE :search IS NULL OR :search = '' OR " +
+           "LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<User> searchUsers(@Param("search") String search, Pageable pageable);
+
     @Query("SELECT DISTINCT u FROM User u WHERE u.id = (" +
            "SELECT w.ownerId FROM Workspace w WHERE w.id = :workspaceId" +
            ") OR u.id IN (" +

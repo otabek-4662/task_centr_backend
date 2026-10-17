@@ -144,8 +144,8 @@ class TelegramAuthControllerEndpointTest {
     }
 
     @Test
-    @DisplayName("POST /api/auth/telegram: foydalanuvchi bazada yo'q bo'lsa 401 'Avval botda akkauntingizni ulang' beradi")
-    void testTelegramLogin_unlinkedUser_returns401() throws Exception {
+    @DisplayName("POST /api/auth/telegram: foydalanuvchi bazada yo'q bo'lsa avtomatik ro'yxatdan o'tib 200 va token beradi")
+    void testTelegramLogin_unlinkedUser_autoRegisters() throws Exception {
         long unlinkedTelegramId = 999888777L;
         Map<String, String> params = new LinkedHashMap<>();
         params.put("auth_date", String.valueOf(Instant.now().getEpochSecond() - 30));
@@ -156,10 +156,10 @@ class TelegramAuthControllerEndpointTest {
         mvc.perform(post("/api/auth/telegram")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"initData\":\"" + validInitData + "\"}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.message").value("Avval botda akkauntingizni ulang"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.token").isNotEmpty())
+                .andExpect(jsonPath("$.data.user.telegramLinked").value(true));
     }
 
     @Test

@@ -30,6 +30,12 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT COUNT(t) FROM Task t WHERE t.workspaceId = :workspaceId")
     long countAllByWorkspaceId(@Param("workspaceId") String workspaceId);
 
+    @Query("SELECT COUNT(t) FROM Task t JOIN BoardColumn c ON t.columnId = c.id WHERE c.isDone = true")
+    long countCompletedTasks();
+
+    @Query("SELECT COUNT(t) FROM Task t JOIN BoardColumn c ON t.columnId = c.id WHERE c.isDone = false OR c.isDone IS NULL")
+    long countOpenTasks();
+
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems", "watchers"})
     Optional<Task> findByPublicId(String publicId);
 

@@ -23,4 +23,9 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, String> {
 
     @Query("SELECT DISTINCT w FROM Workspace w LEFT JOIN WorkspaceMember wm ON wm.workspaceId = w.id WHERE w.ownerId = :userId OR wm.userId = :userId")
     Page<Workspace> findByOwnerIdOrMemberUserIdPaginated(@Param("userId") String userId, Pageable pageable);
+
+    @Query("SELECT w FROM Workspace w WHERE :search IS NULL OR :search = '' OR " +
+           "LOWER(w.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(w.keyPrefix) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Workspace> searchWorkspaces(@Param("search") String search, Pageable pageable);
 }

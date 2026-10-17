@@ -18,6 +18,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.taskcenter.service.TelegramMessageEvent;
+import com.taskcenter.util.TelegramUtil;
+import java.util.UUID;
+
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -32,6 +38,27 @@ public class TelegramAuthController {
     private final JwtTokenProvider tokenProvider;
     private final AuthService authService;
     private final com.taskcenter.service.WorkspaceInvitationService workspaceInvitationService;
+    private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TelegramAuthController(TelegramInitDataValidator validator,
+                                  ObjectMapper mapper,
+                                  UserRepository userRepository,
+                                  JwtTokenProvider tokenProvider,
+                                  AuthService authService,
+                                  com.taskcenter.service.WorkspaceInvitationService workspaceInvitationService,
+                                  PasswordEncoder passwordEncoder,
+                                  ApplicationEventPublisher eventPublisher) {
+        this.validator = validator;
+        this.mapper = mapper;
+        this.userRepository = userRepository;
+        this.tokenProvider = tokenProvider;
+        this.authService = authService;
+        this.workspaceInvitationService = workspaceInvitationService;
+        this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
+    }
 
     public TelegramAuthController(TelegramInitDataValidator validator,
                                   ObjectMapper mapper,
@@ -39,12 +66,7 @@ public class TelegramAuthController {
                                   JwtTokenProvider tokenProvider,
                                   AuthService authService,
                                   com.taskcenter.service.WorkspaceInvitationService workspaceInvitationService) {
-        this.validator = validator;
-        this.mapper = mapper;
-        this.userRepository = userRepository;
-        this.tokenProvider = tokenProvider;
-        this.authService = authService;
-        this.workspaceInvitationService = workspaceInvitationService;
+        this(validator, mapper, userRepository, tokenProvider, authService, workspaceInvitationService, null, null);
     }
 
     public record TelegramAuthRequest(
@@ -117,9 +139,60 @@ public class TelegramAuthController {
         JsonNode user = mapper.readTree(params.get("user"));
         long telegramId = user.get("id").asLong();
 
-        User u = userRepository.findByTelegramChatId(telegramId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Avval botda akkauntingizni ulang"));
+        User u = userRepository.findByTelegramChatId(telegramId).orElse(null);
+        if (u == null) {
+            String username = user.has("username") && !user.get("username").isNull()
+                    ? user.get("username").asText().trim() : null;
+            String firstName = user.has("first_name") && !user.get("first_name").isNull()
+                    ? user.get("first_name").asText().trim() : "";
+            String lastName = user.has("last_name") && !user.get("last_name").isNull()
+                    ? user.get("last_name").asText().trim() : "";
+
+            String candidateName = (username != null && !username.isBlank())
+                    ? username.toLowerCase()
+                    : "tg_" + telegramId;
+
+            if (userRepository.existsByName(candidateName)) {
+                candidateName = candidateName + "_" + (telegramId % 10000);
+            }
+
+            String fullName = (firstName + " " + lastName).trim();
+            if (fullName.isBlank()) {
+                fullName = (username != null ? username : candidateName);
+            }
+
+            String rawPass = UUID.randomUUID().toString();
+            String encodedPass = passwordEncoder != null ? passwordEncoder.encode(rawPass) : rawPass;
+
+            User newUser = User.builder()
+                    .name(candidateName)
+                    .fullName(fullName)
+                    .email("tg_" + telegramId + "@taskcenter.local")
+                    .password(encodedPass)
+                    .telegramChatId(telegramId)
+                    .role(User.Role.USER)
+                    .lastSeenAt(LocalDateTime.now())
+                    .build();
+            User savedUser = userRepository.save(newUser);
+            u = (savedUser != null) ? savedUser : newUser;
+
+            if (workspaceInvitationService != null) {
+                String pendingToken = workspaceInvitationService.getPendingChatInvite(telegramId);
+                if (pendingToken != null) {
+                    try {
+                        workspaceInvitationService.acceptInvitation(pendingToken, u);
+                        workspaceInvitationService.removePendingChatInvite(telegramId);
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            if (eventPublisher != null) {
+                String welcomeMsg = "🎉 Davraga xush kelibsiz, <b>" + TelegramUtil.escapeHtml(fullName) + "</b>!\n\n"
+                        + "Telegram Mini App orqali hisobingiz muvaffaqiyatli yaratildi va botga ulandi ☕️\n"
+                        + "Endi barcha vazifalaringizni shu yerdan va Mini App orqali qulay boshqara olasiz!";
+                eventPublisher.publishEvent(new TelegramMessageEvent(telegramId, welcomeMsg));
+            }
+        }
 
         u.setLastSeenAt(LocalDateTime.now());
         userRepository.save(u);

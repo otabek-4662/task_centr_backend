@@ -21,6 +21,12 @@
       case 'submit-auth':
         call('handleLogin');
         break;
+      case 'demo-login':
+        call('handleDemoLogin');
+        break;
+      case 'admin-login':
+        call('handleAdminLogin');
+        break;
       case 'toggle-theme':
         call('toggleTheme');
         break;
@@ -48,6 +54,15 @@
       case 'refresh-chat':
         call('loadChatTab');
         break;
+      case 'open-add-contact-modal':
+        call('openAddContactModal');
+        break;
+      case 'open-change-password':
+        call('openChangePasswordModal');
+        break;
+      case 'logout-user':
+        call('promptLogout');
+        break;
       case 'chat-channel':
         call('switchChatChannel', el.dataset.channel);
         break;
@@ -74,6 +89,24 @@
         break;
       case 'refresh-workspace-tab':
         call('loadWorkspaceSettingsTab');
+        break;
+      case 'admin-refresh':
+        call('loadAdminDashboard');
+        break;
+      case 'admin-evict-cache':
+        call('evictAdminCache');
+        break;
+      case 'admin-switch-subtab':
+        call('switchAdminSubtab', el.dataset.subtab);
+        break;
+      case 'admin-user-search-btn':
+        call('searchAdminUsers');
+        break;
+      case 'admin-ws-search-btn':
+        call('searchAdminWorkspaces');
+        break;
+      case 'admin-send-broadcast':
+        call('sendAdminBroadcast');
         break;
       case 'filter':
         call('setFilter', el);
@@ -168,6 +201,12 @@
       } else if (e.target.id === 'comment-input') {
         e.preventDefault();
         call('addComment');
+      } else if (e.target.id === 'admin-user-search') {
+        e.preventDefault();
+        call('searchAdminUsers');
+      } else if (e.target.id === 'admin-ws-search') {
+        e.preventDefault();
+        call('searchAdminWorkspaces');
       }
     }
   });
@@ -178,7 +217,8 @@
 
   document.addEventListener('change', function (e) {
     var t = e.target;
-    if (t.id === 'stats-ws') call('loadStats');
+    if (t.id === 'ws' || t.id === 'ws-desktop') call('selectWorkspace', t.value);
+    else if (t.id === 'stats-ws') call('loadStats');
     else if (t.id === 'board-sprint-select' || t.id === 'filter-direction' || t.id === 'filter-label') {
       call('applyFilters');
     } else if (t.id === 'd-col-select') {

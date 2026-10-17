@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=25" rel="stylesheet">
+<link href="style.css?v=29" rel="stylesheet">
 </head>
 <body>
 
@@ -86,6 +86,19 @@
       <button type="button" id="btn-auth-submit" class="btn-action btn-primary btn-full" data-action="submit-auth">
         Tizimga kirish
       </button>
+
+      <div class="auth-browser-divider">
+        <span>yoki brauzerda tezkor kirish</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button type="button" id="btn-demo-login" class="btn-action btn-soft" data-action="demo-login" title="Elshod demo hisobi bilan tezkor kirish">
+          ⚡️ Elshod (User)
+        </button>
+        <button type="button" id="btn-admin-login" class="btn-action btn-soft" data-action="admin-login" title="SuperAdmin demo hisobi bilan tezkor kirish">
+          🛡 Admin (SuperAdmin)
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -136,6 +149,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Jamoa va Sozlamalar</span>
       </button>
+      <button type="button" class="nav-item" id="nav-item-admin" data-tab="admin" data-action="tab" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>SuperAdmin</span>
+      </button>
     </nav>
 
     <div class="sidebar-ornament-divider" aria-hidden="true">
@@ -175,10 +192,6 @@
         <button type="button" id="btn-hero-toggle" class="hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
           <span>✦ 3D Vitrina</span>
         </button>
-        <div id="live-indicator" class="live-indicator" title="Jonli WebSocket aloqasi">
-          <span class="live-dot"></span>
-          <span class="live-text">Jonli</span>
-        </div>
         <button type="button" class="icon-btn" data-action="open-notifications" title="Bildirishnomalar" aria-label="Bildirishnomalar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="notif-badge" class="notif-dot" style="display:none">0</span>
@@ -325,6 +338,7 @@
         <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
           <div class="chip active" data-filter="all" data-action="filter">Barchasi</div>
           <div class="chip" data-filter="mine" data-action="filter">Menga biriktirilgan</div>
+          <div class="chip" data-filter="today" data-action="filter">📅 Bugun</div>
           <div class="chip" data-filter="overdue" data-action="filter">Muddati o‘tgan</div>
           <div class="chip" data-filter="high" data-action="filter">Yuqori ustuvorlik</div>
           <div class="chip" data-filter="archived" data-action="filter">Arxivlanganlar</div>
@@ -367,9 +381,12 @@
     <!-- TAB 4: CHAT -->
     <div id="tab-chat" class="tab-content" style="display:none">
       <div class="chat-layout">
-        <div class="chat-sidebar">
+        <div class="chat-sidebar" id="chat-sidebar">
           <div class="chat-sidebar-header">
-            <h3>Jamoaviy muloqot</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;">
+              <h3 style="margin:0;">Jamoaviy muloqot</h3>
+              <button type="button" class="btn-chip-action primary" id="btn-add-contact" style="display:none;" data-action="open-add-contact-modal">+ Kontakt</button>
+            </div>
             <div class="chat-mode-pills">
               <button type="button" class="chip active" data-action="chat-channel" data-channel="public">Umumiy xona</button>
               <button type="button" class="chip" data-action="chat-channel" data-channel="direct">Shaxsiy xabar</button>
@@ -428,6 +445,82 @@
       <div id="workspace-settings-container" class="page-scroll-body"></div>
     </div>
 
+    <!-- TAB 7: SUPERADMIN PLATFORM PANEL -->
+    <div id="tab-admin" class="tab-content" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>🛡 SuperAdmin Boshqaruv Markazi</h2>
+          <p class="hint">Tizim ko‘rsatkichlari, foydalanuvchilar, ish maydonlari va Telegram xabarnoma</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-action btn-soft" data-action="admin-refresh">🔄 Yangilash</button>
+          <button type="button" class="btn-action btn-soft" data-action="admin-evict-cache">🧹 Keshni tozalash</button>
+        </div>
+      </div>
+      <div class="page-scroll-body" style="padding:16px;">
+        <!-- KPI Metrics Grid -->
+        <div class="admin-kpi-grid" id="admin-kpi-container">
+          <div class="skeleton card" style="height:80px;"></div>
+          <div class="skeleton card" style="height:80px;"></div>
+          <div class="skeleton card" style="height:80px;"></div>
+          <div class="skeleton card" style="height:80px;"></div>
+        </div>
+
+        <!-- Admin Subtabs -->
+        <div class="admin-subtabs" role="tablist">
+          <button type="button" class="admin-subtab-btn active" data-subtab="users" data-action="admin-switch-subtab">👥 Foydalanuvchilar</button>
+          <button type="button" class="admin-subtab-btn" data-subtab="workspaces" data-action="admin-switch-subtab">🏢 Ish maydonlari</button>
+          <button type="button" class="admin-subtab-btn" data-subtab="broadcast" data-action="admin-switch-subtab">📢 Telegram Xabarnoma</button>
+          <button type="button" class="admin-subtab-btn" data-subtab="jobs" data-action="admin-switch-subtab">⚙️ Fon xizmatlari</button>
+        </div>
+
+        <!-- Subtab 1: Users -->
+        <div id="admin-panel-users" class="admin-subpanel active">
+          <div class="admin-filter-bar">
+            <input type="text" id="admin-user-search" class="admin-search-input" placeholder="Ism, email yoki username bo‘yicha qidirish..." aria-label="Foydalanuvchilarni qidirish">
+            <button type="button" class="btn-action btn-primary" data-action="admin-user-search-btn">Qidirish</button>
+          </div>
+          <div id="admin-users-list" class="admin-table-wrap">
+            <div class="skeleton card" style="height:120px;"></div>
+          </div>
+        </div>
+
+        <!-- Subtab 2: Workspaces -->
+        <div id="admin-panel-workspaces" class="admin-subpanel" style="display:none">
+          <div class="admin-filter-bar">
+            <input type="text" id="admin-ws-search" class="admin-search-input" placeholder="Loyiha nomi yoki prefix bo‘yicha qidirish..." aria-label="Ish maydonlarini qidirish">
+            <button type="button" class="btn-action btn-primary" data-action="admin-ws-search-btn">Qidirish</button>
+          </div>
+          <div id="admin-workspaces-list" class="admin-table-wrap">
+            <div class="skeleton card" style="height:120px;"></div>
+          </div>
+        </div>
+
+        <!-- Subtab 3: Telegram Broadcast -->
+        <div id="admin-panel-broadcast" class="admin-subpanel" style="display:none">
+          <div class="card admin-broadcast-card">
+            <h3 style="margin-bottom:6px;">📢 Telegram orqali barcha a’zolarga e’lon yuborish</h3>
+            <p class="hint">Telegram boti ulangan barcha foydalanuvchilar chatiga rasmiy xabarnoma yuboriladi.</p>
+            <div class="form-group" style="margin-top:12px;">
+              <textarea id="admin-broadcast-text" rows="5" placeholder="E’lon matnini kiriting... (HTML yoki matn formatida)" style="width:100%;resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="admin-broadcast-silent"> Ovozli bildirishnomasiz (Silent)
+              </label>
+              <button type="button" class="btn-action btn-primary" data-action="admin-send-broadcast">🚀 Xabarnomani yuborish</button>
+            </div>
+            <div id="admin-broadcast-status" style="margin-top:14px;display:none;"></div>
+          </div>
+        </div>
+
+        <!-- Subtab 4: Jobs -->
+        <div id="admin-panel-jobs" class="admin-subpanel" style="display:none">
+          <div id="admin-jobs-list" class="admin-table-wrap"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-tab-bar" aria-label="Mobil navigatsiya">
       <div class="tab-btn active" data-tab="board" data-action="tab" role="button" tabindex="0">
@@ -453,6 +546,10 @@
       <div class="tab-btn" data-tab="workspace" data-action="tab" role="button" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
         <span>Jamoa</span>
+      </div>
+      <div class="tab-btn" id="mobile-tab-admin" data-tab="admin" data-action="tab" role="button" tabindex="0" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Admin</span>
       </div>
     </nav>
   </div>
@@ -693,7 +790,7 @@
   <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="app.js?v=25"></script>
-<script src="ui-bind.js?v=35"></script>
+<script src="app.js?v=31"></script>
+<script src="ui-bind.js?v=41"></script>
 </body>
 </html>

@@ -123,7 +123,7 @@ public class SecurityConfig {
     @org.springframework.core.annotation.Order(1)
     public SecurityFilterChain appFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/app", "/app/**")
+            .securityMatcher("/", "/app", "/app/**")
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
@@ -132,9 +132,9 @@ public class SecurityConfig {
                     "script-src 'self' https://telegram.org https://cdn.jsdelivr.net; " +
                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "font-src 'self' https://fonts.gstatic.com data:; " +
-                    "img-src 'self' data:; " +
-                    "connect-src 'self' ws: wss:; " +
-                    "frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org"
+                    "img-src 'self' data: https:; " +
+                    "connect-src 'self' ws: wss: http: https:; " +
+                    "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org"
                 ))
                 .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                 .frameOptions(frame -> frame.disable())
@@ -171,8 +171,10 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/config/public", "/favicon.ico", "/api/invitations/*", "/api/calendar/feed/**").permitAll()
                     .requestMatchers("/favicon.ico", "/ws/**").permitAll();
 
-                // Swagger UI va OpenAPI hujjatlari faqat dev / non-prod profilida ochiq bo'ladi
-                if (!isProd) {
+                // Swagger UI va OpenAPI hujjatlari agar yoqilgan bo'lsa ochiq bo'ladi (default true)
+                boolean swaggerEnabled = environment == null
+                        || Boolean.parseBoolean(environment.getProperty("springdoc.swagger-ui.enabled", "true"));
+                if (swaggerEnabled) {
                     authz.requestMatchers(
                         "/swagger-ui.html",
                         "/swagger-ui/**",
@@ -186,6 +188,7 @@ public class SecurityConfig {
                 authz
                     .requestMatchers("/actuator/health").permitAll()
                     .requestMatchers("/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     // Admin only endpoints (workspaceId parametri berilmaganda faqat admin ko'ra oladi)
                     .requestMatchers(request -> "GET".equalsIgnoreCase(request.getMethod())
                             && ("/api/users".equals(request.getRequestURI()) || "/api/users".equals(request.getServletPath()))

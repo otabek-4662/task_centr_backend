@@ -86,6 +86,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private TaskDependencyService taskDependencyService;
     private RecurringTaskService recurringTaskService;
     private CalendarAndReportService calendarAndReportService;
+    private com.taskcenter.security.JwtTokenProvider jwtTokenProvider;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setJwtTokenProvider(com.taskcenter.security.JwtTokenProvider jwtTokenProvider) {
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setFocusTimerService(FocusTimerService focusTimerService) {
@@ -338,7 +344,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             } else if (text.equals("/report") || text.equals("📄 PDF Hisobot")) {
                 taskCreationStates.remove(chatId);
                 handleReportCommand(chatId);
-            } else if (text.equals("/app")) {
+            } else if (text.equals("/app") || text.equals("📱 Mini App")) {
                 taskCreationStates.remove(chatId);
                 handleAppCommand(chatId);
             } else if (text.equals("/help") || text.equals("ℹ️ Yordam")) {
@@ -630,15 +636,38 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private void handleAppCommand(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Mini App orqali barcha vazifalarni qulay boshqaring 👇");
-        
+        message.setText("☕️ <b>Choylashamiz — Ish Maydoni</b>\n\n"
+                + "Ilovani o'zingizga qulay usulda oching:\n"
+                + "• <b>📱 Mini App:</b> Telegram ichida to'g'ridan-to'g'ri ochiladi\n"
+                + "• <b>🌐 Brauzerda ochish:</b> Istalgan internet brauzerda (Chrome, Safari, Edge va h.k.) ochiladi");
+        message.setParseMode("HTML");
+
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        InlineKeyboardButton btn = new InlineKeyboardButton();
-        btn.setText("📱 Ochish");
-        btn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/"));
-        markup.setKeyboard(List.of(List.of(btn)));
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row = new ArrayList<>();
+        InlineKeyboardButton btnMiniApp = new InlineKeyboardButton();
+        btnMiniApp.setText("📱 Mini App");
+        btnMiniApp.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/"));
+        row.add(btnMiniApp);
+
+        InlineKeyboardButton btnBrowser = new InlineKeyboardButton();
+        btnBrowser.setText("🌐 Brauzerda ochish");
+        String browserUrl = miniappBaseUrl + "/app/";
+        if (jwtTokenProvider != null) {
+            Optional<User> userOpt = userRepository.findByTelegramChatId(chatId);
+            if (userOpt.isPresent()) {
+                String token = jwtTokenProvider.generateTokenFromUser(userOpt.get());
+                browserUrl += "?token=" + token;
+            }
+        }
+        btnBrowser.setUrl(browserUrl);
+        row.add(btnBrowser);
+
+        rows.add(row);
+        markup.setKeyboard(rows);
         message.setReplyMarkup(markup);
-        
+
         executeWithRetry(message, chatId, 0);
     }
 
@@ -2118,6 +2147,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
         webAppBtn.setText("📱 Ochish");
         webAppBtn.setWebApp(new org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo(miniappBaseUrl + "/app/?task=" + task.getId()));
         row3.add(webAppBtn);
+
+        InlineKeyboardButton browserBtn = new InlineKeyboardButton();
+        browserBtn.setText("🌐 Brauzerda");
+        browserBtn.setUrl(miniappBaseUrl + "/app/?task=" + task.getId());
+        row3.add(browserBtn);
         rows.add(row3);
 
         markup.setKeyboard(rows);
@@ -2139,8 +2173,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
         row2.add("⏰ Muddati o'tganlar");
 
         KeyboardRow row3 = new KeyboardRow();
+        row3.add("📱 Mini App");
         row3.add("🏆 Mening maqomim");
-        row3.add("🔍 Qidiruv");
         row3.add("ℹ️ Yordam");
 
         keyboard.add(row1);

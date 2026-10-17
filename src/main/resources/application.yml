@@ -170,7 +170,7 @@ storage:
 
 app:
   seed:
-    enabled: ${APP_SEED_ENABLED:false}
+    enabled: ${APP_SEED_ENABLED:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 

@@ -15,14 +15,16 @@ spring:
 
 springdoc:
   api-docs:
-    enabled: false
+    enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
-    enabled: false
+    enabled: ${SWAGGER_ENABLED:true}
 
 telegram:
   bot:
     webhook-url: ${TELEGRAM_BOT_WEBHOOK_URL:https://task-centr-backend.onrender.com/api/webhooks/telegram}
 
 app:
+  seed:
+    enabled: ${APP_SEED_ENABLED:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://task-center-frontend.onrender.com,https://task-centr-backend.onrender.com}
