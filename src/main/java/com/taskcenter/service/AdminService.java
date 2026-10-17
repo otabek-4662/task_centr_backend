@@ -1,5 +1,6 @@
 package com.taskcenter.service;
 
+import com.taskcenter.dto.TaskActivityDto;
 import com.taskcenter.dto.admin.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,8 @@ public interface AdminService {
     Page<AdminWorkspaceDto> getWorkspaces(String search, Pageable pageable);
 
     void deleteWorkspace(String workspaceId);
+
+    Page<TaskActivityDto> getAuditLogs(Pageable pageable);
 
     AdminBroadcastResultDto broadcastTelegramMessage(AdminBroadcastRequest request);
 

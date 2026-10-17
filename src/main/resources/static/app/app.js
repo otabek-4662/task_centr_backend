@@ -4027,6 +4027,18 @@ function handleRealTimeEvent(ev, rawFrame = '') {
 // ===== SuperAdmin Platform Dashboard & Operations =====
 let currentAdminSubtab = 'users';
 
+function formatUptime(seconds) {
+  if (!seconds || seconds <= 0) return '0 daq';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts = [];
+  if (d > 0) parts.push(d + ' kun');
+  if (h > 0) parts.push(h + ' soat');
+  if (m > 0 || parts.length === 0) parts.push(m + ' daq');
+  return parts.join(' ');
+}
+
 window.loadAdminDashboard = async function () {
   const kpiWrap = document.getElementById('admin-kpi-container');
   if (!kpiWrap) return;
@@ -4034,6 +4046,7 @@ window.loadAdminDashboard = async function () {
   try {
     const res = await api('/api/admin/dashboard');
     const d = res?.data || {};
+    const uptimeStr = formatUptime(d.uptimeSeconds);
 
     kpiWrap.innerHTML = `
       <div class="admin-kpi-card">
@@ -4044,7 +4057,7 @@ window.loadAdminDashboard = async function () {
       <div class="admin-kpi-card">
         <div class="kpi-label">Ish maydonlari</div>
         <div class="kpi-val">${d.totalWorkspaces || 0}</div>
-        <div class="kpi-sub">Faol loyihalar</div>
+        <div class="kpi-sub">📎 Fayllar: ${d.totalAttachments || 0} ta</div>
       </div>
       <div class="admin-kpi-card">
         <div class="kpi-label">Jami vazifalar</div>
@@ -4053,8 +4066,8 @@ window.loadAdminDashboard = async function () {
       </div>
       <div class="admin-kpi-card">
         <div class="kpi-label">Tizim & Xotira</div>
-        <div class="kpi-val">${d.jvmUsedMemoryMb || 0} MB</div>
-        <div class="kpi-sub">Max: ${d.jvmMaxMemoryMb || 0} MB • ${d.botStatus || 'BOT'}</div>
+        <div class="kpi-val">${d.jvmUsedMemoryMb || 0} / ${d.jvmMaxMemoryMb || 0} MB</div>
+        <div class="kpi-sub">⏱ Uptime: ${uptimeStr} • ${d.botStatus || 'BOT'}</div>
       </div>
     `;
   } catch (e) {
@@ -4075,6 +4088,7 @@ window.switchAdminSubtab = function (subtab) {
 
   if (subtab === 'users') loadAdminUsers();
   if (subtab === 'workspaces') loadAdminWorkspaces();
+  if (subtab === 'audit') loadAdminAuditLogs();
   if (subtab === 'jobs') loadAdminJobs();
 };
 
@@ -4223,6 +4237,64 @@ window.deleteAdminWorkspace = function (wsId, wsTitle) {
       showToast("O'chirishda xatolik: " + e.message);
     }
   });
+};
+
+function formatAuditTime(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return isoStr;
+  }
+}
+
+window.loadAdminAuditLogs = async function () {
+  const listEl = document.getElementById('admin-audit-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="skeleton card" style="height:80px;margin-bottom:8px;"></div>';
+
+  try {
+    const res = await api('/api/admin/audit?size=50&sort=createdAt,desc');
+    const logs = res?.data?.content || [];
+    if (!logs.length) {
+      listEl.innerHTML = '<div class="hint" style="text-align:center;padding:20px;">Hozircha audit yozuvlari mavjud emas</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    logs.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'admin-row-item';
+
+      const timeStr = formatAuditTime(item.createdAt);
+      const actionBadge = item.actionType || 'HARAKAT';
+      const actor = item.userFullName || item.userName || 'Tizim';
+      let diffHtml = '';
+      if (item.oldValue || item.newValue) {
+        diffHtml = `<span style="color:var(--text-muted);font-size:12px;"> (${escapeHtml(item.oldValue || '—')} ➔ <strong>${escapeHtml(item.newValue || '—')}</strong>)</span>`;
+      }
+
+      row.innerHTML = `
+        <div class="admin-row-info">
+          <div class="admin-row-title">
+            <span class="admin-badge admin" style="font-size:11px;">${escapeHtml(actionBadge)}</span>
+            <span>${escapeHtml(actor)}</span>
+            ${item.userName ? `<span class="hint" style="font-size:12px;">(@${escapeHtml(item.userName)})</span>` : ''}
+          </div>
+          <div class="admin-row-meta">
+            ${item.fieldName ? `Maydon: <code>${escapeHtml(item.fieldName)}</code> ` : ''}
+            ${diffHtml}
+            ${item.taskId ? ` • Vazifa ID: <code>${escapeHtml(item.taskId.substring(0, 8))}...</code>` : ''}
+            • ⏱ ${timeStr}
+          </div>
+        </div>
+      `;
+      listEl.appendChild(row);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="hint">Audit jurnali yuklanmadi: ${e.message}</div>`;
+  }
 };
 
 window.sendAdminBroadcast = async function () {

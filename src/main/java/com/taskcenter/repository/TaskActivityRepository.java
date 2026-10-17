@@ -20,4 +20,8 @@ public interface TaskActivityRepository extends JpaRepository<TaskActivity, Stri
            "  SELECT t.id FROM Task t WHERE t.workspaceId = :workspaceId" +
            ") ORDER BY a.createdAt DESC")
     Page<TaskActivity> findByWorkspaceIdOrderByCreatedAtDesc(@Param("workspaceId") String workspaceId, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    Page<TaskActivity> findAll(Pageable pageable);
 }

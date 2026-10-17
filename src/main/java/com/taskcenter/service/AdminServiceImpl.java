@@ -1,10 +1,12 @@
 package com.taskcenter.service;
 
+import com.taskcenter.dto.TaskActivityDto;
 import com.taskcenter.dto.admin.*;
 import com.taskcenter.exception.ResourceNotFoundException;
 import com.taskcenter.model.User;
 import com.taskcenter.model.Workspace;
 import com.taskcenter.repository.AttachmentRepository;
+import com.taskcenter.repository.TaskActivityRepository;
 import com.taskcenter.repository.TaskRepository;
 import com.taskcenter.repository.UserRepository;
 import com.taskcenter.repository.WorkspaceMemberRepository;
@@ -37,9 +39,13 @@ public class AdminServiceImpl implements AdminService {
     private final CacheManager cacheManager;
     private final GarbageCollectorService garbageCollectorService;
     private final InvitationCleanupService invitationCleanupService;
+    private final TaskActivityRepository taskActivityRepository;
 
     @Autowired(required = false)
     private TelegramBotService telegramBotService;
+
+    @Autowired(required = false)
+    private EmailService emailService;
 
     @Value("${telegram.bot.webhook-url:}")
     private String webhookUrl;
@@ -52,7 +58,8 @@ public class AdminServiceImpl implements AdminService {
             AttachmentRepository attachmentRepository,
             CacheManager cacheManager,
             GarbageCollectorService garbageCollectorService,
-            InvitationCleanupService invitationCleanupService) {
+            InvitationCleanupService invitationCleanupService,
+            TaskActivityRepository taskActivityRepository) {
         this.userRepository = userRepository;
         this.workspaceRepository = workspaceRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
@@ -61,6 +68,7 @@ public class AdminServiceImpl implements AdminService {
         this.cacheManager = cacheManager;
         this.garbageCollectorService = garbageCollectorService;
         this.invitationCleanupService = invitationCleanupService;
+        this.taskActivityRepository = taskActivityRepository;
     }
 
     @Override
@@ -238,6 +246,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<TaskActivityDto> getAuditLogs(Pageable pageable) {
+        return taskActivityRepository.findAll(pageable)
+                .map(TaskActivityDto::fromEntity);
+    }
+
+    @Override
     public List<AdminSystemJobDto> getSystemJobs() {
         List<AdminSystemJobDto> jobs = new ArrayList<>();
         jobs.add(AdminSystemJobDto.builder()
@@ -256,6 +271,14 @@ public class AdminServiceImpl implements AdminService {
                 .lastRunAt(LocalDateTime.now())
                 .build());
 
+        jobs.add(AdminSystemJobDto.builder()
+                .jobKey("email_queue_processor")
+                .name("Email navbatini qayta ishlash (Email Queue Processor)")
+                .description("Kutilayotgan (PENDING) yoki to'xtab qolgan taklifnoma emaillarini qayta jo'natish")
+                .status("IDLE")
+                .lastRunAt(LocalDateTime.now())
+                .build());
+
         return jobs;
     }
 
@@ -267,6 +290,11 @@ public class AdminServiceImpl implements AdminService {
         } else if ("invitation_cleanup".equalsIgnoreCase(jobKey)) {
             log.info("Admin tomonidan Invitation Cleanup qo'lda ishga tushirildi");
             invitationCleanupService.cleanupExpiredInvitations();
+        } else if ("email_queue_processor".equalsIgnoreCase(jobKey)) {
+            log.info("Admin tomonidan Email Queue Processor qo'lda ishga tushirildi");
+            if (emailService != null) {
+                emailService.processPendingJobs();
+            }
         } else {
             throw new IllegalArgumentException("Noma'lum xizmat kaliti: " + jobKey);
         }

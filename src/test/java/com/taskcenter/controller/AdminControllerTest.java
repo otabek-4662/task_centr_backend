@@ -170,6 +170,31 @@ class AdminControllerTest {
     }
 
     @Test
+    @DisplayName("Platforma audit jurnali (Audit Logs) - ROLE_ADMIN uchun 200 qaytadi")
+    @WithMockUser(roles = "ADMIN")
+    void getAuditLogs_asAdmin_returnsAuditLogs() throws Exception {
+        com.taskcenter.dto.TaskActivityDto act = com.taskcenter.dto.TaskActivityDto.builder()
+                .id("act-1")
+                .taskId("task-123")
+                .userId("u-1")
+                .userName("elshod")
+                .userFullName("Elshod T")
+                .actionType(com.taskcenter.model.TaskActivityType.STATUS_UPDATED)
+                .fieldName("column_id")
+                .oldValue("TODO")
+                .newValue("DONE")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(adminService.getAuditLogs(any())).thenReturn(new PageImpl<>(List.of(act), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/admin/audit"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].userName").value("elshod"))
+                .andExpect(jsonPath("$.data.content[0].actionType").value("STATUS_UPDATED"));
+    }
+
+    @Test
     @DisplayName("Barcha keshlarni tozalash (Cache Evict)")
     @WithMockUser(roles = "ADMIN")
     void evictAllCaches_asAdmin_callsService() throws Exception {

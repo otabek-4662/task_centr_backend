@@ -105,6 +105,9 @@
       case 'admin-ws-search-btn':
         call('searchAdminWorkspaces');
         break;
+      case 'admin-audit-refresh':
+        call('loadAdminAuditLogs');
+        break;
       case 'admin-send-broadcast':
         call('sendAdminBroadcast');
         break;

@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=29" rel="stylesheet">
+<link href="style.css?v=30" rel="stylesheet">
 </head>
 <body>
 
@@ -470,6 +470,7 @@
         <div class="admin-subtabs" role="tablist">
           <button type="button" class="admin-subtab-btn active" data-subtab="users" data-action="admin-switch-subtab">👥 Foydalanuvchilar</button>
           <button type="button" class="admin-subtab-btn" data-subtab="workspaces" data-action="admin-switch-subtab">🏢 Ish maydonlari</button>
+          <button type="button" class="admin-subtab-btn" data-subtab="audit" data-action="admin-switch-subtab">📋 Audit Jurnali</button>
           <button type="button" class="admin-subtab-btn" data-subtab="broadcast" data-action="admin-switch-subtab">📢 Telegram Xabarnoma</button>
           <button type="button" class="admin-subtab-btn" data-subtab="jobs" data-action="admin-switch-subtab">⚙️ Fon xizmatlari</button>
         </div>
@@ -492,6 +493,17 @@
             <button type="button" class="btn-action btn-primary" data-action="admin-ws-search-btn">Qidirish</button>
           </div>
           <div id="admin-workspaces-list" class="admin-table-wrap">
+            <div class="skeleton card" style="height:120px;"></div>
+          </div>
+        </div>
+
+        <!-- Subtab 2.5: Audit Logs -->
+        <div id="admin-panel-audit" class="admin-subpanel" style="display:none">
+          <div class="admin-filter-bar" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="hint" style="margin:0;">Tizimdagi barcha so‘nggi harakatlar, vazifalar va statuslar jurnali</span>
+            <button type="button" class="btn-action btn-soft" data-action="admin-audit-refresh">🔄 Yangilash</button>
+          </div>
+          <div id="admin-audit-list" class="admin-table-wrap">
             <div class="skeleton card" style="height:120px;"></div>
           </div>
         </div>
@@ -790,7 +802,7 @@
   <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="app.js?v=31"></script>
-<script src="ui-bind.js?v=41"></script>
+<script src="app.js?v=32"></script>
+<script src="ui-bind.js?v=42"></script>
 </body>
 </html>

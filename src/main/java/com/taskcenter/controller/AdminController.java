@@ -1,6 +1,7 @@
 package com.taskcenter.controller;
 
 import com.taskcenter.dto.ApiResponse;
+import com.taskcenter.dto.TaskActivityDto;
 import com.taskcenter.dto.admin.*;
 import com.taskcenter.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,6 +71,13 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Void>> deleteWorkspace(@PathVariable String workspaceId) {
         adminService.deleteWorkspace(workspaceId);
         return ResponseEntity.ok(ApiResponse.success("Ish maydoni o'chirildi", null));
+    }
+
+    @GetMapping("/audit")
+    @Operation(summary = "Platforma audit jurnali", description = "Butun tizimdagi so'nggi harakatlar va o'zgarishlar jurnalini qaytaradi")
+    public ResponseEntity<ApiResponse<Page<TaskActivityDto>>> getAuditLogs(
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Platforma audit jurnali", adminService.getAuditLogs(pageable)));
     }
 
     @PostMapping("/telegram/broadcast")
