@@ -274,7 +274,7 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        LocalTime userLocalTime = getTashkentTime();
+        LocalTime userLocalTime = now != null ? now.toLocalTime() : getTashkentTime();
         if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, eslatma yuborilmaydi: userId={}", userId);
@@ -367,7 +367,7 @@ public class TelegramSchedulerService {
 
         // Sokin soatlar tekshiruvi
         User user = userMap.get(userId);
-        LocalTime userLocalTime = getTashkentTime();
+        LocalTime userLocalTime = now != null ? now.toLocalTime() : getTashkentTime();
         if (user != null && isInQuietHours(userLocalTime,
                 user.getTelegramQuietStart(), user.getTelegramQuietEnd())) {
             log.debug("Sokin soat, digest yuborilmaydi: userId={}", userId);

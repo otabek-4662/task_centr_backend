@@ -44,11 +44,15 @@ Tizim kod bazasi (Frontend, Backend, TMA integratsiyasi, DB va Render bulut muhi
 - **Mexanizm:** Telegram Webhook'ka 2-3 soniya davomida javob qaytarilmasa, Telegram ulanishni bekor qilishi va aynan o'sha update'ni qayta-qayta yuborishi (retry) mumkin.
 - **Oqibat:** Dublikat xabarlar, bazada takroriy yozuvlar va Render Free rejasidagi 5 talik HikariCP ulanish hovuzi to'lib qolib (`Connection is not available`) butun backendning qulashi.
 
+### Xatar 7: Sokin Soatlarni (Quiet Hours) Tekshirishda Haqiqiy Tizim Soatiga Tayanish (Time-of-Day Flaky Test)
+- **Mexanizm:** `TelegramSchedulerService` ning `processReminderForUser` va `processDigestForUser` metodlari tashqaridan uzatilgan `now` (masalan, testda berilgan 18:00 yoki 08:00) o'rniga haqiqiy server soatini `getTashkentTime()` orqali o'qigan. Natijada kunduzi o'tgan testlar tunda (22:00 dan keyin) sokin soat shartiga tushib, xabar yuborishni bloklab CI ni yiqitar edi.
+- **Oqibat:** Kechki payt commit qilinganda testlarning soat tufayli kutilmaganda qulashi (flaky tests).
+
 ---
 
 ## 3. Amalga Oshirilgan Tuzatishlar va Profilaktika Choralari (Mitigations)
 
-Ushbu 6 ta xatarni bartaraf etish uchun quyidagi qat'iy arxitektura va kod o'zgarishlari kiritildi:
+Ushbu 7 ta xatarni bartaraf etish uchun quyidagi qat'iy arxitektura va kod o'zgarishlari kiritildi:
 
 ### 3.1. `storageGet` ning 350ms Qat'iy Timeout Fallback bilan Mustahkamlanishi
 - `localStorage` dan o'qish birinchi o'ringa qo'yildi (sinxron, 0ms).
@@ -81,6 +85,10 @@ Ushbu 6 ta xatarni bartaraf etish uchun quyidagi qat'iy arxitektura va kod o'zga
   - Telegram retry bo'lmaydi.
   - `RequestLoggingFilter` dagi `[SLOW/ERROR] duration=2333ms` xatosi yo'qoladi.
   - Unit testlar (`new TelegramWebhookController(service, secret)`) to'g'ridan-to'g'ri ishlashi uchun moslashuvchan konstruktor saqlandi.
+
+### 3.7. Sokin Soatlar Tekshiruvini Simulyatsiya Qilingan `now` Vaqtiga Bog'lash
+- `TelegramSchedulerService` ichida `LocalTime userLocalTime = now != null ? now.toLocalTime() : getTashkentTime();` ga o'zgartirildi.
+- Bu orqali testlar va rejalashtiruvchi istalgan soatda (kunduzi yoki 22:00 dan keyin) 100% deterministik va barqaror ishlaydi.
 
 ---
 
