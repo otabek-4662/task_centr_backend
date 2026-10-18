@@ -1528,7 +1528,26 @@ function openCustomModal(titleText, renderFn) {
   }
 }
 
-window.openSheet = function (mode, taskId = null, defaultColId = null) {
+async function getOrFetchTask(taskId) {
+  if (!taskId) return null;
+  let task = tasksData.find(t => t.id === taskId);
+  if (!task) {
+    try {
+      const res = await api('/api/tasks/' + taskId);
+      task = res?.data || res;
+      if (task && task.id) {
+        const idx = tasksData.findIndex(t => t.id === task.id);
+        if (idx >= 0) tasksData[idx] = task;
+        else tasksData.push(task);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch task ' + taskId, e);
+    }
+  }
+  return task;
+}
+
+window.openSheet = async function (mode, taskId = null, defaultColId = null) {
   haptic('impact', 'light');
   hideAllSheetViews();
   document.getElementById('sheet-overlay').classList.add('active');
@@ -1562,7 +1581,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
     if (document.getElementById('f-parent-task')) document.getElementById('f-parent-task').value = '';
     if (document.getElementById('f-recurrence')) document.getElementById('f-recurrence').value = 'NONE';
     document.getElementById('f-sprint').value = selectedSprintFilter || '';
-    if (defaultColId) document.getElementById('f-col').value = defaultColId;
+    document.getElementById('f-col').value = defaultColId || (colsData.length > 0 ? colsData[0].id : '');
 
     document.querySelectorAll('#f-assignee-picker .member-avatar').forEach(a => a.classList.remove('active'));
     document.querySelectorAll('#f-direction-picker .tag-choice').forEach(a => a.classList.remove('active'));
@@ -1575,7 +1594,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
       tg.MainButton.onClick(saveTask);
     }
   } else if (mode === 'edit') {
-    const task = tasksData.find(t => t.id === taskId);
+    const task = await getOrFetchTask(taskId);
     if (!task) return closeSheet();
     if (isTma && tg.enableClosingConfirmation) {
       try { tg.enableClosingConfirmation(); } catch (e) {}
@@ -1617,7 +1636,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
       tg.MainButton.onClick(saveTask);
     }
   } else if (mode === 'view') {
-    const task = tasksData.find(t => t.id === taskId);
+    const task = await getOrFetchTask(taskId);
     if (!task) return closeSheet();
     detailView.style.display = 'block';
     document.getElementById('sheet-title').textContent = "Vazifa tafsilotlari";
@@ -1709,7 +1728,7 @@ window.openSheet = function (mode, taskId = null, defaultColId = null) {
     loadAttachments(task.id);
     loadActivities(task.id);
   } else if (mode === 'quick') {
-    const task = tasksData.find(t => t.id === taskId);
+    const task = await getOrFetchTask(taskId);
     if (!task) return closeSheet();
     quickView.style.display = 'block';
     document.getElementById('sheet-title').textContent = "Tezkor amallar";
@@ -1772,7 +1791,8 @@ window.addEventListener('popstate', () => {
 
 window.saveTask = async function () {
   const id = document.getElementById('f-id').value;
-  const colId = document.getElementById('f-col').value;
+  let colId = document.getElementById('f-col').value;
+  if (!colId && colsData.length > 0) colId = colsData[0].id;
   const title = document.getElementById('f-title').value.trim();
   const desc = document.getElementById('f-desc').value.trim();
   const priority = document.getElementById('f-priority').value;
@@ -2174,7 +2194,7 @@ async function downloadTaskAttachment(attachmentId, fileName) {
   try {
     const headers = {};
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    else if (tgInitData) headers['X-Telegram-Init-Data'] = tgInitData;
+    else if (isTma && tg.initData) headers['X-Telegram-Init-Data'] = tg.initData;
     const res = await fetch(`${API}/api/attachments/${attachmentId}/download`, { headers });
     if (!res.ok) throw new Error('Yuklab olishda xatolik: ' + res.status);
     const blob = await res.blob();
@@ -3191,7 +3211,7 @@ window.exportWorkspacePdf = async function () {
   try {
     const headers = {};
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    else if (tgInitData) headers['X-Telegram-Init-Data'] = tgInitData;
+    else if (isTma && tg.initData) headers['X-Telegram-Init-Data'] = tg.initData;
     const res = await fetch(`${API}/api/workspaces/${wsId}/export/daily-report.pdf`, { headers });
     if (!res.ok) throw new Error('PDF hisobotni yuklab olishda xatolik');
     const blob = await res.blob();
@@ -3356,6 +3376,30 @@ window.loadWorkspaceSettingsTab = async function () {
         `;
         row.querySelector('.m-name').textContent = m.fullName || m.name;
         if (m.role !== 'OWNER' && m.id !== currentUserId) {
+          const roleSel = document.createElement('select');
+          roleSel.className = 'compact-select';
+          roleSel.style.marginRight = '6px';
+          ['ADMIN', 'MEMBER', 'VIEWER'].forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r;
+            opt.textContent = r;
+            if (m.role === r) opt.selected = true;
+            roleSel.appendChild(opt);
+          });
+          roleSel.onchange = async () => {
+            try {
+              await api(`/api/workspaces/${currentWsId}/members/${m.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ role: roleSel.value })
+              });
+              showToast("A'zo roli yangilandi: " + roleSel.value);
+              loadWorkspaceSettingsTab();
+            } catch (err) {
+              roleSel.value = m.role;
+            }
+          };
+          row.appendChild(roleSel);
+
           const rmBtn = document.createElement('button');
           rmBtn.className = 'btn-chip-action';
           rmBtn.style.color = 'var(--danger)';
@@ -3889,8 +3933,9 @@ function initWebSocket() {
         updateLiveIndicator('connected');
         startWsHeartbeat();
         if (currentWsId) subscribeWsWorkspace(currentWsId);
-        // Subscribe to public chat and personal notifications
+        // Subscribe to public chat, events and personal notifications
         ws.send(`SUBSCRIBE\nid:sub-pub-chat\ndestination:/topic/public-chat\n\n\0`);
+        ws.send(`SUBSCRIBE\nid:sub-pub-chat-events\ndestination:/topic/public-chat-events\n\n\0`);
         ws.send(`SUBSCRIBE\nid:sub-user-chat\ndestination:/user/queue/private-chat\n\n\0`);
         ws.send(`SUBSCRIBE\nid:sub-user-notif\ndestination:/user/queue/notifications\n\n\0`);
       } else if (data.startsWith('ERROR')) {

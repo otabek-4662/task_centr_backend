@@ -85,7 +85,7 @@ public class ChatService {
             message.setAttachments(atts);
         }
 
-        if (req.getReplyToId() != null) {
+        if (req.getReplyToId() != null && !req.getReplyToId().isBlank()) {
             ChatMessage replyTo = getMessage(req.getReplyToId());
             message.setReplyTo(replyTo);
         }
@@ -135,7 +135,7 @@ public class ChatService {
             message.setAttachments(atts);
         }
 
-        if (req.getReplyToId() != null) {
+        if (req.getReplyToId() != null && !req.getReplyToId().isBlank()) {
             ChatMessage replyTo = getMessage(req.getReplyToId());
             message.setReplyTo(replyTo);
         }
