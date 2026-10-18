@@ -32,7 +32,7 @@ public class RecurringTaskService {
             return null;
         }
         int step = (interval != null && interval > 0) ? interval : 1;
-        LocalDate d = (baseDate != null) ? baseDate : LocalDate.now();
+        LocalDate d = (baseDate != null) ? baseDate : com.taskcenter.util.AppTime.today();
 
         return switch (rule) {
             case DAILY -> d.plusDays(step);

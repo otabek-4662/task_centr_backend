@@ -65,7 +65,7 @@ public class LabelService {
         if (req.getColor() != null && !req.getColor().isBlank()) {
             label.setColor(req.getColor().trim());
         }
-        label.setUpdatedAt(LocalDateTime.now());
+        label.setUpdatedAt(com.taskcenter.util.AppTime.nowUtc());
 
         Label saved = labelRepository.save(label);
         return LabelDto.fromEntity(saved);

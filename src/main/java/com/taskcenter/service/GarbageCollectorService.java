@@ -38,7 +38,7 @@ public class GarbageCollectorService {
     public void cleanUpOldDeletedRecords() {
         log.info("Garbage Collector: 30 kundan eski o'chirilgan ma'lumotlarni tozalash boshlandi...");
 
-        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
+        LocalDateTime cutoffDate = com.taskcenter.util.AppTime.nowUtc().minusDays(30);
 
         try {
             List<String> storagePaths = jdbcTemplate.queryForList(
