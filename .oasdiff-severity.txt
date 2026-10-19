@@ -1,5 +1,6 @@
 request-property-type-changed info
 response-property-type-changed info
+api-security-anonymous-access-removed info
 response-property-became-nullable warn
 response-property-enum-value-added warn
 response-media-type-removed warn
