@@ -78,6 +78,22 @@ window.toggleTheme = function () {
     showToast("☀️ Oq rejim (Clean Minimal)");
   }
   haptic('impact', 'medium');
+  if (currentTab === 'profile') renderProfileTab();
+};
+
+window.setTheme = function (themeName) {
+  if (!['light', 'dark', 'gold-ai'].includes(themeName)) return;
+  try { localStorage.setItem('tc_theme', themeName); } catch (e) {}
+  applyAppTheme(themeName);
+  if (themeName === 'gold-ai') {
+    showToast("👑 Royal Gold AI (Executive Luxury)");
+  } else if (themeName === 'dark') {
+    showToast("🌙 Qora shisha rejim (Dark Glass)");
+  } else {
+    showToast("☀️ Oq rejim (Clean Minimal)");
+  }
+  haptic('impact', 'medium');
+  if (currentTab === 'profile') renderProfileTab();
 };
 
 const API = location.origin;
@@ -475,20 +491,26 @@ function updateSidebarUser() {
   const nm = document.getElementById('sidebar-username');
   const rl = document.getElementById('sidebar-userrole');
   const displayName = currentUser.fullName || currentUser.name || 'Foydalanuvchi';
-  if (av) av.textContent = getInitials(displayName);
+  const initials = getInitials(displayName);
+  if (av) av.textContent = initials;
+  const headerAv = document.getElementById('header-avatar');
+  if (headerAv) headerAv.textContent = initials;
   if (nm) nm.textContent = displayName;
-  if (rl) rl.textContent = (currentUser.statusNickname ? ('🏆 ' + currentUser.statusNickname) : ('@' + (currentUser.name || 'user')));
+  const devRole = localStorage.getItem('tc_dev_role') || (currentUser.statusNickname ? ('🏆 ' + currentUser.statusNickname) : ('@' + (currentUser.name || 'user')));
+  if (rl) rl.textContent = devRole;
 
   const greetEl = document.getElementById('hero-greeting-badge');
   if (greetEl) greetEl.textContent = `Assalomu alaykum, ${displayName}!`;
   const rankEl = document.getElementById('hero-rank-pill');
   if (rankEl) rankEl.textContent = '🏆 ' + (currentUser.statusNickname || "O'zimizdan");
 
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || (localStorage.getItem('tc_dev_role') || '').includes('SuperAdmin');
   const adminNav = document.getElementById('nav-item-admin');
   const adminMobileNav = document.getElementById('mobile-tab-admin');
+  const headerAdminBtn = document.getElementById('header-admin-btn');
   if (adminNav) adminNav.style.display = isAdmin ? 'flex' : 'none';
   if (adminMobileNav) adminMobileNav.style.display = isAdmin ? 'flex' : 'none';
+  if (headerAdminBtn) headerAdminBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 }
 
 async function loadWorkspacesList(preferredWsId = null) {
@@ -1406,6 +1428,14 @@ window.applyFilters = function () {
     if (match) {
       if (currentFilter === 'mine') {
         if (!currentUserId || !task.assignees || !task.assignees.some(a => a.id === currentUserId)) match = false;
+      } else if (currentFilter === 'frontend') {
+        const feHay = `${task.title || ''} ${task.description || ''} ${(task.directions || []).map(d => d.name).join(' ')} ${(task.labels || []).map(l => l.name).join(' ')} ${(task.assignees || []).map(a => a.name || a.fullName || '').join(' ')}`.toLowerCase();
+        const isFe = ['frontend', 'ui', 'css', 'xusan'].some(k => feHay.includes(k));
+        if (!isFe) match = false;
+      } else if (currentFilter === 'backend') {
+        const beHay = `${task.title || ''} ${task.description || ''} ${(task.directions || []).map(d => d.name).join(' ')} ${(task.labels || []).map(l => l.name).join(' ')} ${(task.assignees || []).map(a => a.name || a.fullName || '').join(' ')}`.toLowerCase();
+        const isBe = ['backend', 'api', 'db', 'sql', 'server'].some(k => beHay.includes(k));
+        if (!isBe) match = false;
       } else if (currentFilter === 'today') {
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -2393,6 +2423,7 @@ window.switchTab = function (tabId) {
   if (tabId === 'chat') loadChatTab();
   if (tabId === 'stats') loadStats();
   if (tabId === 'workspace') loadWorkspaceSettingsTab();
+  if (tabId === 'profile') renderProfileTab();
   if (tabId === 'admin') loadAdminDashboard();
   if (tabId === 'games' && window.ChoyGames) window.ChoyGames.init();
 };
@@ -2864,6 +2895,30 @@ window.loadChatTab = async function () {
   } catch (e) {}
 };
 
+function formatChatMessageContent(raw) {
+  if (!raw) return '';
+  let escaped = String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  escaped = escaped.replace(/```(?:[a-zA-Z0-9]+)?\n?([\s\S]*?)```/g, function(match, code) {
+    return `<pre class="chat-code-block" data-action="copy-code" title="Nusxalash uchun bosing"><code>${code}</code></pre>`;
+  });
+
+  escaped = escaped.replace(/`([^`\n]+)`/g, function(match, code) {
+    return `<code class="chat-inline-code" data-action="copy-code" title="Nusxalash uchun bosing">${code}</code>`;
+  });
+
+  escaped = escaped.replace(/\b([A-Z0-9]{2,10}-\d+)\b/g, function(match, key) {
+    return `<span class="chat-task-tag" data-action="open-task-by-key" data-task-key="${key}" title="Vazifani ochish">#${key}</span>`;
+  });
+
+  return escaped;
+}
+
 async function loadChatMessages() {
   const msgBox = document.getElementById('chat-messages-box');
   if (!msgBox) return;
@@ -2902,7 +2957,7 @@ async function loadChatMessages() {
         <div class="chat-reactions-bar"></div>
       `;
       bubble.querySelector('.cb-author').textContent = isMine ? 'Siz' : (m.senderFullName || m.senderName || 'Foydalanuvchi');
-      bubble.querySelector('.cb-content').textContent = m.content;
+      bubble.querySelector('.cb-content').innerHTML = formatChatMessageContent(m.content);
 
       if (m.replyTo) {
         const rq = document.createElement('div');
@@ -3833,6 +3888,288 @@ window.loadWorkspaceSettingsTab = async function () {
     container.appendChild(calGroupCard);
   } catch (e) {
     container.innerHTML = `<div class="empty-placeholder">Yuklashda xatolik: ${e.message}</div>`;
+  }
+};
+
+// ===== TAB 7: DEDICATED PROFILE & DEVELOPER HUB =====
+window.renderProfileTab = async function () {
+  const container = document.getElementById('profile-container');
+  if (!container) return;
+
+  try {
+    const meRes = await api('/api/me');
+    if (meRes?.data) currentUser = meRes.data;
+    updateSidebarUser();
+  } catch (e) {}
+
+  const displayName = currentUser?.fullName || currentUser?.name || 'Foydalanuvchi';
+  const username = currentUser?.name || 'user';
+  const initials = getInitials(displayName);
+  const currentDevRole = localStorage.getItem('tc_dev_role') || (currentUser?.role === 'SUPER_ADMIN' ? '🛡 SuperAdmin' : (currentUser?.name?.toLowerCase().includes('xusan') ? '🎨 Frontend Developer' : '⚙️ Backend & DB Architect'));
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  const isAnimDisabled = localStorage.getItem('tc_anim_disabled') === '1';
+  const isGamesEnabled = localStorage.getItem('tc_games_enabled') === '1' || localStorage.getItem('choy_enable_games') === '1';
+
+  // Calculate personal KPIs from tasksData
+  const myTasks = (tasksData || []).filter(t => (t.assignees || []).some(a => a.id === currentUserId));
+  const doneTasks = myTasks.filter(t => {
+    const col = (boardColumns || []).find(c => c.id === t.columnId);
+    return col ? col.isDone : false;
+  });
+  const inProgressTasks = myTasks.filter(t => !doneTasks.includes(t));
+
+  container.innerHTML = `
+    <!-- Card 1: Identity & Role Badge -->
+    <div class="profile-card">
+      <div class="profile-card-header">
+        <div class="profile-card-title">👤 Shaxsiy Ma’lumotlar va Rol</div>
+        <span class="badge" style="background:var(--accent-soft);color:var(--btn-color);font-weight:700;">${currentUser?.role || 'MEMBER'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="assignee-avatar lg" style="font-size:22px;width:56px;height:56px;">${initials}</div>
+        <div style="min-width:0;flex:1;">
+          <h3 style="margin:0;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</h3>
+          <div class="hint" style="font-size:13px;">@${username}</div>
+        </div>
+      </div>
+      <div>
+        <label class="sidebar-label" style="margin-bottom:6px;display:block;">Dasturchi / Arxitektor Roli</label>
+        <div class="dev-role-selector">
+          <button type="button" class="dev-role-pill ${currentDevRole.includes('Backend') ? 'active' : ''}" data-action="set-dev-role" data-role="⚙️ Backend & DB Architect">⚙️ Backend & DB Architect (Bekmurod)</button>
+          <button type="button" class="dev-role-pill ${currentDevRole.includes('Frontend') ? 'active' : ''}" data-action="set-dev-role" data-role="🎨 Frontend Developer">🎨 Frontend Developer (Xusanboy)</button>
+          <button type="button" class="dev-role-pill ${currentDevRole.includes('SuperAdmin') ? 'active' : ''}" data-action="set-dev-role" data-role="🛡 SuperAdmin">🛡 SuperAdmin</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label>To‘liq ism</label>
+          <input type="text" id="prof-fullname-input" value="${displayName}" style="padding:8px 11px;border-radius:8px;border:1px solid var(--line);background:var(--sec-bg-color);width:100%;">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>Username</label>
+          <input type="text" id="prof-name-input" value="${username}" style="padding:8px 11px;border-radius:8px;border:1px solid var(--line);background:var(--sec-bg-color);width:100%;">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px solid var(--line);">
+        <div>
+          <span style="font-size:12.5px;font-weight:700;">✈️ Telegram Bot:</span>
+          <span class="hint" style="font-size:12px;">${currentUser?.telegramLinked ? '✅ Ulangan' : '❌ Ulanmagan'}</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${currentUser?.telegramLinked 
+            ? '<button type="button" class="btn-chip-action" style="color:var(--danger);" data-action="unlink-telegram">Telegramni uzish</button>'
+            : '<button type="button" class="btn-chip-action primary" data-action="link-telegram">🔗 Botga ulash</button>'
+          }
+          <button type="button" class="btn-action btn-primary" data-action="save-profile" style="padding:6px 14px;font-size:12.5px;">Saqlash</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Personal Productivity KPIs -->
+    <div class="profile-card">
+      <div class="profile-card-header">
+        <div class="profile-card-title">📊 Shaxsiy Unumdorlik Ko‘rsatkichlari</div>
+        <span class="badge" style="background:var(--gold-soft);color:var(--gold-deep);font-weight:700;">Live Sprint</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+        <div class="hero-kpi-chip" style="text-align:center;padding:12px 8px;">
+          <div class="kpi-chip-val" style="color:var(--btn-color);font-size:22px;">${myTasks.length}</div>
+          <div class="kpi-chip-lbl" style="font-size:11px;">Menga biriktirilgan</div>
+        </div>
+        <div class="hero-kpi-chip" style="text-align:center;padding:12px 8px;">
+          <div class="kpi-chip-val" style="color:var(--ok);font-size:22px;">${doneTasks.length}</div>
+          <div class="kpi-chip-lbl" style="font-size:11px;">Bajarilgan</div>
+        </div>
+        <div class="hero-kpi-chip" style="text-align:center;padding:12px 8px;">
+          <div class="kpi-chip-val" style="color:var(--warn);font-size:22px;">${inProgressTasks.length}</div>
+          <div class="kpi-chip-lbl" style="font-size:11px;">Jarayonda</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+        <button type="button" class="btn-action btn-soft" data-action="tab" data-tab="mytasks" style="width:100%;justify-content:center;">📋 Mening barcha vazifalarimga o‘tish</button>
+        <button type="button" class="btn-chip-action" data-action="filter" data-filter="mine" style="width:100%;justify-content:center;height:34px;">🎯 Doskada faqat mening vazifalarimni ko‘rish</button>
+      </div>
+    </div>
+
+    <!-- Card 3: Interface & Personal Preferences -->
+    <div class="profile-card">
+      <div class="profile-card-header">
+        <div class="profile-card-title">🎨 Dizayn va Ko‘rinish Sozlamalari</div>
+      </div>
+      <div>
+        <label class="sidebar-label" style="margin-bottom:8px;display:block;">Mavzuni tanlang (3 xil uslub)</label>
+        <div class="theme-cards-grid">
+          <div class="theme-card ${currentTheme === 'light' ? 'active' : ''}" data-action="set-theme" data-theme-val="light" role="button" tabindex="0">
+            <div class="theme-swatch light"></div>
+            <div class="theme-title">☀️ Oq Minimal</div>
+          </div>
+          <div class="theme-card ${currentTheme === 'dark' ? 'active' : ''}" data-action="set-theme" data-theme-val="dark" role="button" tabindex="0">
+            <div class="theme-swatch dark"></div>
+            <div class="theme-title">🌙 Qora Glass</div>
+          </div>
+          <div class="theme-card ${currentTheme === 'gold-ai' ? 'active' : ''}" data-action="set-theme" data-theme-val="gold-ai" role="button" tabindex="0">
+            <div class="theme-swatch gold-ai"></div>
+            <div class="theme-title">👑 Royal Gold AI</div>
+          </div>
+        </div>
+      </div>
+      <div class="setting-toggle-row">
+        <div>
+          <strong style="font-size:13px;">✦ 3D Vitrina & Piyola</strong>
+          <div class="hint" style="font-size:11px;">Bosh sahifadagi 3D vitrinani ko‘rsatish yoki mini-dock rejimiga yig‘ish</div>
+        </div>
+        <button type="button" class="btn-chip-action" data-action="toggle-hero" style="height:32px;">Almashtirish</button>
+      </div>
+      <div class="setting-toggle-row">
+        <div>
+          <strong style="font-size:13px;">🍵 Piyola va fon animatsiyalari</strong>
+          <div class="hint" style="font-size:11px;">Resurslarni tejash uchun 3D aylanish va choy bug‘i harakatini to‘xtatish</div>
+        </div>
+        <button type="button" class="btn-chip-action ${isAnimDisabled ? '' : 'primary'}" data-action="toggle-tea-animation" style="height:32px;">
+          ${isAnimDisabled ? 'O‘chirilgan' : 'Yoqilgan'}
+        </button>
+      </div>
+      <div class="setting-toggle-row">
+        <div>
+          <strong style="font-size:13px;">🎮 Choyxona Arcade menyusi</strong>
+          <div class="hint" style="font-size:11px;">Navigatsiya menyusiga 12 ta tanaffus mini-o‘yinlari bo‘limini chiqarish</div>
+        </div>
+        <button type="button" class="btn-chip-action ${isGamesEnabled ? 'primary' : ''}" data-action="toggle-games-menu" style="height:32px;">
+          ${isGamesEnabled ? 'Menyuda ko‘rinadi' : 'Yashiringan'}
+        </button>
+      </div>
+    </div>
+
+    <!-- Card 4: Security & Developer Tools -->
+    <div class="profile-card">
+      <div class="profile-card-header">
+        <div class="profile-card-title">🛡 Xavfsizlik va Dasturchi Vositalari</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button type="button" class="btn-chip-action" data-action="open-change-password" style="height:38px;justify-content:flex-start;padding:0 14px;">
+          🔒 Parolni o‘zgartirish (Change Password)
+        </button>
+        <button type="button" class="btn-chip-action" data-action="clear-local-cache" style="height:38px;justify-content:flex-start;padding:0 14px;">
+          🧹 Lokal keshni tozalash va qayta yuklash
+        </button>
+        <button type="button" class="btn-chip-action" data-action="logout" style="height:38px;justify-content:flex-start;padding:0 14px;color:var(--danger);border-color:rgba(239,68,68,0.3);">
+          🚪 Chiqish (Tizimdan chiqish)
+        </button>
+      </div>
+    </div>
+  `;
+};
+
+window.setDevRole = function (role) {
+  if (!role) return;
+  try { localStorage.setItem('tc_dev_role', role); } catch (e) {}
+  updateSidebarUser();
+  if (currentTab === 'profile') renderProfileTab();
+  showToast(`Rol o‘rnatildi: ${role}`);
+  haptic('impact', 'light');
+};
+
+window.saveProfileData = async function () {
+  const fullEl = document.getElementById('prof-fullname-input');
+  const nameEl = document.getElementById('prof-name-input');
+  const fullName = (fullEl ? fullEl.value : (currentUser?.fullName || '')).trim();
+  const name = (nameEl ? nameEl.value : (currentUser?.name || '')).trim();
+  try {
+    const res = await api('/api/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ fullName, name })
+    });
+    currentUser = res?.data || currentUser;
+    updateSidebarUser();
+    showToast("Profil muvaffaqiyatli saqlandi!");
+    haptic('notification', 'success');
+  } catch (err) {}
+};
+
+window.linkTelegramAccount = async function () {
+  try {
+    const res = await api('/api/users/me/telegram-link-token', { method: 'POST' });
+    const botUser = res?.data?.botUsername || 'choylashamiz_bot';
+    const token = res?.data?.token;
+    if (token) {
+      const url = `https://t.me/${botUser}?start=${token}`;
+      if (window.Telegram?.WebApp?.openTelegramLink) {
+        Telegram.WebApp.openTelegramLink(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    }
+  } catch (e) {}
+};
+
+window.unlinkTelegramAccount = async function () {
+  try {
+    await api('/api/users/me/telegram', { method: 'DELETE' });
+    showToast("Telegram hisobi uzildi");
+    if (currentUser) currentUser.telegramLinked = false;
+    if (currentTab === 'profile') renderProfileTab();
+  } catch (e) {}
+};
+
+window.toggleTeaAnimationPreference = function () {
+  const current = localStorage.getItem('tc_anim_disabled') === '1';
+  if (current) {
+    try { localStorage.removeItem('tc_anim_disabled'); } catch (e) {}
+    document.documentElement.classList.remove('no-animations');
+    showToast("🍵 Animatsiyalar yoqildi");
+  } else {
+    try { localStorage.setItem('tc_anim_disabled', '1'); } catch (e) {}
+    document.documentElement.classList.add('no-animations');
+    showToast("🍵 Animatsiyalar o‘chirildi");
+  }
+  haptic('impact', 'light');
+  if (currentTab === 'profile') renderProfileTab();
+};
+
+window.clearLocalCache = function () {
+  const token = localStorage.getItem('tc_token');
+  const ws = localStorage.getItem('tc_ws');
+  const theme = localStorage.getItem('tc_theme');
+  const role = localStorage.getItem('tc_dev_role');
+  localStorage.clear();
+  if (token) localStorage.setItem('tc_token', token);
+  if (ws) localStorage.setItem('tc_ws', ws);
+  if (theme) localStorage.setItem('tc_theme', theme);
+  if (role) localStorage.setItem('tc_dev_role', role);
+  showToast("🧹 Lokal kesh tozalandi!");
+  haptic('notification', 'success');
+  setTimeout(() => location.reload(), 400);
+};
+
+window.copyCodeSnippet = async function (el) {
+  const code = el.innerText || el.textContent;
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    showToast("Nusxalandi! 📋");
+    haptic('notification', 'success');
+  } catch (err) {
+    showToast("Nusxalandi: " + code.substring(0, 20));
+  }
+};
+
+window.openTaskByKey = function (taskKey) {
+  if (!taskKey) return;
+  const key = taskKey.toUpperCase().replace(/^#/, '');
+  const found = (tasksData || []).find(t => (t.publicId || '').toUpperCase() === key);
+  if (found) {
+    openSheet('view', found.id);
+  } else {
+    showToast(`Vazifa topilmadi: ${key}`);
+  }
+};
+
+window.sendQuickDevMsg = function (msg) {
+  if (!msg) return;
+  const inp = document.getElementById('chat-msg-input');
+  if (inp) {
+    inp.value = (inp.value ? inp.value + ' ' : '') + msg;
+    inp.focus();
   }
 };
 

@@ -3133,4 +3133,235 @@ input:checked + .toggle-slider:before {
   border-color: var(--gold);
 }
 
+/* ===== TAB 7: SHAXSIY PROFIL & DEVELOPER HUB ===== */
+.profile-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.profile-card {
+  background: var(--surface-color);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.profile-card-title {
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Developer Role Pills */
+.dev-role-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+.dev-role-pill {
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--sec-bg-color);
+  color: var(--hint-color);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dev-role-pill:hover {
+  border-color: var(--btn-color);
+  color: var(--text-color);
+}
+.dev-role-pill.active {
+  background: var(--accent-soft);
+  border-color: var(--btn-color);
+  color: var(--btn-color);
+}
+[data-theme="dark"] .dev-role-pill.active,
+[data-theme="gold-ai"] .dev-role-pill.active {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+/* Theme Selector Cards */
+.theme-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.theme-card {
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 10px;
+  background: var(--sec-bg-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.18s var(--ease);
+  position: relative;
+}
+.theme-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--btn-color);
+  box-shadow: var(--shadow-1);
+}
+.theme-card.active {
+  border-color: var(--btn-color);
+  background: var(--surface-color);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+[data-theme="dark"] .theme-card.active,
+[data-theme="gold-ai"] .theme-card.active {
+  border-color: var(--gold);
+}
+.theme-swatch {
+  width: 100%;
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.theme-swatch.light { background: linear-gradient(135deg, #F8FAFC 50%, #0284C7 50%); }
+.theme-swatch.dark { background: linear-gradient(135deg, #09121D 50%, #06B6D4 50%); }
+.theme-swatch.gold-ai { background: linear-gradient(135deg, #0A0D14 50%, #D4AF37 50%); }
+.theme-title { font-size: 11.5px; font-weight: 700; text-align: center; }
+
+/* Dev Quick-Status Bar in Chat */
+.chat-dev-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--sec-bg-color);
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.chat-dev-bar::-webkit-scrollbar { display: none; }
+.dev-status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-color);
+  color: var(--text-color);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dev-status-pill:hover {
+  border-color: var(--btn-color);
+  background: var(--accent-soft);
+  color: var(--btn-color);
+  transform: translateY(-1px);
+}
+
+/* Chat Code Snippets & Task Tag Badges */
+.chat-code-block {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  cursor: pointer;
+  position: relative;
+}
+[data-theme="dark"] .chat-code-block,
+[data-theme="gold-ai"] .chat-code-block {
+  background: rgba(0, 0, 0, 0.35);
+}
+.chat-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--btn-color);
+}
+[data-theme="dark"] .chat-inline-code,
+[data-theme="gold-ai"] .chat-inline-code {
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold);
+}
+.chat-task-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--btn-color);
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+  border: 1px solid rgba(2, 132, 199, 0.3);
+  margin: 0 2px;
+}
+.chat-task-tag:hover {
+  text-decoration: underline;
+  transform: translateY(-1px);
+}
+
+/* Header Admin & Profile Pills */
+.header-admin-pill {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+[data-theme="dark"] .header-admin-pill,
+[data-theme="gold-ai"] .header-admin-pill {
+  color: var(--gold);
+}
+.header-admin-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-gold);
+}
+.header-profile-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: transform 0.15s;
+}
+.header-profile-pill:hover {
+  transform: scale(1.06);
+}
+
+
 

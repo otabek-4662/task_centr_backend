@@ -30,6 +30,36 @@
       case 'toggle-theme':
         call('toggleTheme');
         break;
+      case 'set-theme':
+        call('setTheme', el.dataset.themeVal);
+        break;
+      case 'send-quick-dev-msg':
+        call('sendQuickDevMsg', el.dataset.msg);
+        break;
+      case 'clear-local-cache':
+        call('clearLocalCache');
+        break;
+      case 'copy-code':
+        call('copyCodeSnippet', el);
+        break;
+      case 'open-task-by-key':
+        call('openTaskByKey', el.dataset.taskKey);
+        break;
+      case 'set-dev-role':
+        call('setDevRole', el.dataset.role);
+        break;
+      case 'save-profile':
+        call('saveProfileData');
+        break;
+      case 'unlink-telegram':
+        call('unlinkTelegramAccount');
+        break;
+      case 'link-telegram':
+        call('linkTelegramAccount');
+        break;
+      case 'toggle-tea-animation':
+        call('toggleTeaAnimationPreference');
+        break;
       case 'toggle-hero':
         call('toggleHeroShowcase');
         break;
@@ -88,6 +118,7 @@
       case 'open-change-password':
         call('openChangePasswordModal');
         break;
+      case 'logout':
       case 'logout-user':
         call('promptLogout');
         break;

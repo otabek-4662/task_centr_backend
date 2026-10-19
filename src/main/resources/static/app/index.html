@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=44" rel="stylesheet">
+<link href="style.css?v=46" rel="stylesheet">
 </head>
 <body>
 
@@ -149,6 +149,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Jamoa va Sozlamalar</span>
       </button>
+      <button type="button" class="nav-item" data-tab="profile" data-action="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>Shaxsiy Profil</span>
+      </button>
       <button type="button" class="nav-item" id="nav-item-games" data-tab="games" data-action="tab" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
         <span>Tanaffus (O‘yinlar)</span>
@@ -161,7 +165,7 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="sidebar-user" data-action="tab" data-tab="workspace" role="button" tabindex="0">
+      <div class="sidebar-user" id="sidebar-user" data-action="tab" data-tab="profile" role="button" tabindex="0" title="Shaxsiy Profil">
         <div id="sidebar-avatar" class="assignee-avatar lg">U</div>
         <div class="sidebar-user-info">
           <div id="sidebar-username" class="u-name">Foydalanuvchi</div>
@@ -193,6 +197,7 @@
       </div>
 
       <div class="header-right">
+        <button type="button" id="header-admin-btn" class="header-admin-pill" data-action="tab" data-tab="admin" title="SuperAdmin Boshqaruv Markazi" style="display:none;">🛡 Admin</button>
         <button type="button" class="btn-action btn-primary header-new-task-btn" data-action="new-task">+ Yangi vazifa</button>
         <div class="header-utility-group">
           <button type="button" id="btn-hero-toggle" class="header-util-btn hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
@@ -208,6 +213,9 @@
           <button type="button" id="btn-refresh" class="header-util-btn icon-btn sm" data-action="refresh-board" title="Ma’lumotlarni yangilash" aria-label="Yangilash">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
           </button>
+        </div>
+        <div id="header-profile-btn" class="header-profile-pill" data-action="tab" data-tab="profile" role="button" tabindex="0" title="Shaxsiy Profil va Sozlamalar">
+          <div id="header-avatar" class="assignee-avatar sm">U</div>
         </div>
       </div>
     </header>
@@ -346,6 +354,8 @@
         <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
           <div class="chip active" data-filter="all" data-action="filter">Barchasi</div>
           <div class="chip" data-filter="mine" data-action="filter">Menga</div>
+          <div class="chip" data-filter="frontend" data-action="filter">🎨 Frontend</div>
+          <div class="chip" data-filter="backend" data-action="filter">⚙️ Backend & DB</div>
           <div class="chip" data-filter="today" data-action="filter">📅 Bugun</div>
           <div class="chip" data-filter="overdue" data-action="filter">Muddati o‘tgan</div>
           <div class="chip" data-filter="high" data-action="filter">Yuqori</div>
@@ -426,6 +436,14 @@
             <span id="chat-reply-text"></span>
             <button type="button" class="icon-btn sm" data-action="cancel-chat-reply">×</button>
           </div>
+          <!-- Dev Quick-Status Bar -->
+          <div class="chat-dev-bar" id="chat-dev-bar">
+            <button type="button" class="dev-status-pill" data-action="send-quick-dev-msg" data-msg="✅ API tayyor">✅ API tayyor</button>
+            <button type="button" class="dev-status-pill" data-action="send-quick-dev-msg" data-msg="🗄 DB / Migration yangilandi">🗄 DB / Migration yangilandi</button>
+            <button type="button" class="dev-status-pill" data-action="send-quick-dev-msg" data-msg="🎨 UI / Dizayn tayyor">🎨 UI / Dizayn tayyor</button>
+            <button type="button" class="dev-status-pill" data-action="send-quick-dev-msg" data-msg="🐞 Xatolik (Bug) tekshiring">🐞 Xatolik (Bug) tekshiring</button>
+            <button type="button" class="dev-status-pill" data-action="send-quick-dev-msg" data-msg="🚀 Serverga deploy qilindi">🚀 Serverga deploy qilindi</button>
+          </div>
           <div class="chat-composer">
             <input type="text" id="chat-msg-input" placeholder="Xabar yozing... (Enter — yuborish)">
             <button type="button" class="btn-action btn-primary" data-action="send-chat-msg">Yuborish</button>
@@ -450,16 +468,30 @@
       <div id="stats-container" class="page-scroll-body"></div>
     </div>
 
-    <!-- TAB 6: WORKSPACE SETTINGS, TEAM, INVITES, LABELS, DIRECTIONS & PROFILE -->
+    <!-- TAB 6: WORKSPACE SETTINGS, TEAM, INVITES, LABELS, DIRECTIONS -->
     <div id="tab-workspace" class="tab-content" style="display:none">
       <div class="tab-header">
         <div>
-          <h2>Jamoa, Teglar va Shaxsiy profil</h2>
-          <p class="hint">A’zolar va taklifnomalar, yo‘nalishlar (Directions), teglar (Labels) hamda hisob sozlamalari</p>
+          <h2>Loyiha va Jamoa boshqaruvi</h2>
+          <p class="hint">A’zolarni taklif qilish, yo‘nalishlar va teglarni sozlash</p>
         </div>
         <button type="button" class="btn-action btn-soft" data-action="refresh-workspace-tab">Yangilash</button>
       </div>
       <div id="workspace-settings-container" class="page-scroll-body"></div>
+    </div>
+
+    <!-- TAB 7: SHAXSIY PROFIL & DEVELOPER HUB -->
+    <div id="tab-profile" class="tab-content" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>👤 Shaxsiy Profil va Dasturchi Markazi</h2>
+          <p class="hint">Dasturchi roli (Backend / Frontend), shaxsiy unumdorlik KPI lari, mavzular va xavfsizlik</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-action btn-soft" data-action="tab" data-tab="profile">🔄 Yangilash</button>
+        </div>
+      </div>
+      <div id="profile-container" class="page-scroll-body profile-dashboard-grid"></div>
     </div>
 
     <!-- TAB 7: SUPERADMIN PLATFORM PANEL -->
@@ -589,6 +621,10 @@
       <div class="tab-btn" data-tab="workspace" data-action="tab" role="button" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
         <span>Jamoa</span>
+      </div>
+      <div class="tab-btn" id="mobile-tab-profile" data-tab="profile" data-action="tab" role="button" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>Profil</span>
       </div>
       <div class="tab-btn" id="mobile-tab-games" data-tab="games" data-action="tab" role="button" tabindex="0" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
@@ -838,7 +874,7 @@
 </div>
 
 <script src="games.js?v=4"></script>
-<script src="app.js?v=44"></script>
-<script src="ui-bind.js?v=52"></script>
+<script src="app.js?v=46"></script>
+<script src="ui-bind.js?v=54"></script>
 </body>
 </html>
