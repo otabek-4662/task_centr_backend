@@ -683,7 +683,12 @@ window.handleLogin = async function () {
       let msg = authMode === 'register' ? "Ro'yxatdan o'tishda xatolik" : "Login yoki parol xato";
       try {
         const errJson = await loginRes.json();
-        msg = errJson.message || msg;
+        if (loginRes.status === 429) {
+          const waitSec = errJson.retryAfterSeconds || loginRes.headers.get('Retry-After') || 60;
+          msg = `⏳ Juda ko'p urinish. Iltimos, ${waitSec} soniyadan so'ng qayta urinib ko'ring.`;
+        } else {
+          msg = errJson.message || msg;
+        }
       } catch (e) {}
       throw new Error(msg);
     }
@@ -726,21 +731,35 @@ window.handleLogin = async function () {
 };
 
 window.handleDemoLogin = async function () {
-  const usernameInput = document.getElementById('login-username');
-  const passwordInput = document.getElementById('login-password');
-  if (usernameInput) usernameInput.value = 'elshod';
-  if (passwordInput) passwordInput.value = 'password123';
-  if (authMode !== 'login') window.switchAuthMode('login');
-  await window.handleLogin();
+  const btn = document.getElementById('btn-demo-login');
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
+  try {
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    if (usernameInput) usernameInput.value = 'elshod';
+    if (passwordInput) passwordInput.value = 'password123';
+    if (authMode !== 'login') window.switchAuthMode('login');
+    await window.handleLogin();
+  } finally {
+    if (btn) setTimeout(() => { btn.disabled = false; }, 1200);
+  }
 };
 
 window.handleAdminLogin = async function () {
-  const usernameInput = document.getElementById('login-username');
-  const passwordInput = document.getElementById('login-password');
-  if (usernameInput) usernameInput.value = 'admin';
-  if (passwordInput) passwordInput.value = 'password123';
-  if (authMode !== 'login') window.switchAuthMode('login');
-  await window.handleLogin();
+  const btn = document.getElementById('btn-admin-login');
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
+  try {
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    if (usernameInput) usernameInput.value = 'admin';
+    if (passwordInput) passwordInput.value = 'password123';
+    if (authMode !== 'login') window.switchAuthMode('login');
+    await window.handleLogin();
+  } finally {
+    if (btn) setTimeout(() => { btn.disabled = false; }, 1200);
+  }
 };
 
 // ===== Board & Workspace Data Loading =====

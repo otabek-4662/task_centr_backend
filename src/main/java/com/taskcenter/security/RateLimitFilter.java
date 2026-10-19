@@ -20,9 +20,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final boolean apiEnabled;
 
-    @Value("${ratelimit.login.ip.max:10}")
+    @Value("${ratelimit.login.ip.max:30}")
     private int loginIpMax;
-    @Value("${ratelimit.login.ip.window-minutes:5}")
+    @Value("${ratelimit.login.ip.window-minutes:2}")
     private int loginIpWindow;
 
     @Value("${ratelimit.telegram.ip.max:30}")
