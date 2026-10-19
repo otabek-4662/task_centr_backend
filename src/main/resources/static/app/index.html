@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=42" rel="stylesheet">
+<link href="style.css?v=44" rel="stylesheet">
 </head>
 <body>
 
@@ -161,7 +161,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button type="button" class="btn-action btn-primary btn-full" data-action="new-task">+ Yangi vazifa</button>
       <div class="sidebar-user" data-action="tab" data-tab="workspace" role="button" tabindex="0">
         <div id="sidebar-avatar" class="assignee-avatar lg">U</div>
         <div class="sidebar-user-info">
@@ -187,26 +186,29 @@
             <option value="">Barcha vazifalar (Doska)</option>
           </select>
         </div>
-      </div>
-
-      <div class="header-right">
         <div id="live-indicator" class="live-indicator disconnected" title="Jonli ulanish holati">
           <span class="live-dot"></span>
           <span class="live-text">Oflayn</span>
         </div>
-        <button type="button" id="btn-hero-toggle" class="hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
-          <span>✦ 3D Vitrina</span>
-        </button>
-        <button type="button" class="icon-btn" data-action="open-notifications" title="Bildirishnomalar" aria-label="Bildirishnomalar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span id="notif-badge" class="notif-dot" style="display:none">0</span>
-        </button>
-        <button type="button" class="icon-btn theme-toggle-btn" id="btn-theme-toggle" data-action="toggle-theme" title="Mavzuni almashtirish (Oq / Qora / Tilla AI)" aria-label="Mavzuni almashtirish">
-          <span id="theme-btn-icon">☀️</span>
-        </button>
-        <button type="button" id="btn-refresh" class="icon-btn" data-action="refresh-board" title="Ma’lumotlarni yangilash" aria-label="Yangilash">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-        </button>
+      </div>
+
+      <div class="header-right">
+        <button type="button" class="btn-action btn-primary header-new-task-btn" data-action="new-task">+ Yangi vazifa</button>
+        <div class="header-utility-group">
+          <button type="button" id="btn-hero-toggle" class="header-util-btn hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
+            <span>✦ 3D Vitrina</span>
+          </button>
+          <button type="button" class="header-util-btn icon-btn sm" data-action="open-notifications" title="Bildirishnomalar" aria-label="Bildirishnomalar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="notif-badge" class="notif-dot" style="display:none">0</span>
+          </button>
+          <button type="button" class="header-util-btn icon-btn sm theme-toggle-btn" id="btn-theme-toggle" data-action="toggle-theme" title="Mavzuni almashtirish (Oq / Qora / Tilla AI)" aria-label="Mavzuni almashtirish">
+            <span id="theme-btn-icon">☀️</span>
+          </button>
+          <button type="button" id="btn-refresh" class="header-util-btn icon-btn sm" data-action="refresh-board" title="Ma’lumotlarni yangilash" aria-label="Yangilash">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -337,28 +339,26 @@
 
       <!-- Board Search & Filter Bar -->
       <div class="filters" id="main-filters">
-        <div class="filters-top-row">
-          <div class="search-bar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Vazifa nomi, kodi (LOY-1) yoki tavsifi bo‘yicha qidirish..." aria-label="Qidirish">
-          </div>
-          <div class="board-toolbar-actions">
-            <select id="filter-direction" class="compact-select" aria-label="Yo‘nalish bo‘yicha filtrlash">
-              <option value="">Barcha yo‘nalishlar</option>
-            </select>
-            <select id="filter-label" class="compact-select" aria-label="Teg bo‘yicha filtrlash">
-              <option value="">Barcha teglar</option>
-            </select>
-            <button type="button" class="btn-chip-action" data-action="add-column">+ Ustun</button>
-          </div>
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search-input" placeholder="Vazifa qidirish (nomi, kodi)..." aria-label="Qidirish">
         </div>
         <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
           <div class="chip active" data-filter="all" data-action="filter">Barchasi</div>
-          <div class="chip" data-filter="mine" data-action="filter">Menga biriktirilgan</div>
+          <div class="chip" data-filter="mine" data-action="filter">Menga</div>
           <div class="chip" data-filter="today" data-action="filter">📅 Bugun</div>
           <div class="chip" data-filter="overdue" data-action="filter">Muddati o‘tgan</div>
-          <div class="chip" data-filter="high" data-action="filter">Yuqori ustuvorlik</div>
-          <div class="chip" data-filter="archived" data-action="filter">Arxivlanganlar</div>
+          <div class="chip" data-filter="high" data-action="filter">Yuqori</div>
+          <div class="chip" data-filter="archived" data-action="filter">Arxiv</div>
+        </div>
+        <div class="board-toolbar-actions">
+          <select id="filter-direction" class="compact-select" aria-label="Yo‘nalish bo‘yicha filtrlash">
+            <option value="">Barcha yo‘nalishlar</option>
+          </select>
+          <select id="filter-label" class="compact-select" aria-label="Teg bo‘yicha filtrlash">
+            <option value="">Barcha teglar</option>
+          </select>
+          <button type="button" class="btn-chip-action" data-action="add-column">+ Ustun</button>
         </div>
       </div>
 
@@ -838,7 +838,7 @@
 </div>
 
 <script src="games.js?v=4"></script>
-<script src="app.js?v=42"></script>
-<script src="ui-bind.js?v=51"></script>
+<script src="app.js?v=44"></script>
+<script src="ui-bind.js?v=52"></script>
 </body>
 </html>

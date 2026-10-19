@@ -1127,17 +1127,19 @@ function renderBoard() {
           ${c.isDone ? '<span class="col-done-badge">✓ Done</span>' : ''}
           <span class="col-count">0</span>
         </div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <button type="button" class="sort-btn rebal-btn" title="LexoRank tartibini muvozanatlash">⚖️</button>
-          <button type="button" class="sort-btn" title="Saralash">⇅</button>
-          <button type="button" class="sort-btn del-btn" title="Ustunni o‘chirish">×</button>
+        <div class="col-header-actions">
+          <button type="button" class="col-btn col-add-task-btn" data-action="new-task" data-col-id="${c.id}" title="Ushbu ustunga vazifa qo‘shish" aria-label="Vazifa qo‘shish">+</button>
+          <button type="button" class="col-btn sort-btn rebal-btn" title="LexoRank tartibini muvozanatlash">⚖️</button>
+          <button type="button" class="col-btn sort-btn col-sort-toggle" title="Saralash">⇅</button>
+          <span class="col-actions-sep" aria-hidden="true"></span>
+          <button type="button" class="col-btn sort-btn del-btn" title="Ustunni o‘chirish" aria-label="Ustunni o‘chirish">×</button>
         </div>
       </div>
       <div class="list"></div>
       <div class="col-footer">
         <div class="col-inline-composer">
-          <input type="text" class="composer-input" placeholder="+ Vazifa qo‘shish (Enter)..." aria-label="Tez vazifa qo‘shish">
-          <button type="button" class="composer-expand-btn" title="Batafsil oynada yaratish" aria-label="Batafsil yaratish">↗</button>
+          <input type="text" class="composer-input" placeholder="+ Tez vazifa yozing (Enter)..." aria-label="Tez vazifa yozish">
+          <button type="button" class="composer-expand-btn" data-action="new-task" data-col-id="${c.id}" title="Batafsil oynada yaratish" aria-label="Batafsil yaratish">⤢</button>
         </div>
       </div>
     `;
@@ -1155,6 +1157,8 @@ function renderBoard() {
     } else {
       countEl.textContent = colTasks.length;
     }
+    const colAddBtn = colEl.querySelector('.col-add-task-btn');
+    if (colAddBtn) colAddBtn.onclick = (e) => { e.stopPropagation(); openSheet('create', null, c.id); };
     colEl.querySelector('.rebal-btn').onclick = async (e) => {
       e.stopPropagation();
       try {
@@ -1163,7 +1167,8 @@ function renderBoard() {
         loadBoard(currentWsId);
       } catch (err) {}
     };
-    colEl.querySelectorAll('.sort-btn')[1].onclick = (e) => { e.stopPropagation(); cycleSortColumn(c.id); };
+    const colSortToggle = colEl.querySelector('.col-sort-toggle');
+    if (colSortToggle) colSortToggle.onclick = (e) => { e.stopPropagation(); cycleSortColumn(c.id); };
     colEl.querySelector('.del-btn').onclick = (e) => { e.stopPropagation(); promptDeleteColumn(c.id); };
 
     const listEl = colEl.querySelector('.list');
@@ -1178,7 +1183,7 @@ function renderBoard() {
     const qInp = colEl.querySelector('.composer-input');
     if (qInp) qInp.onkeydown = (e) => { if (e.key === 'Enter') quickAddTask(qInp, c.id); };
     const expandBtn = colEl.querySelector('.composer-expand-btn');
-    if (expandBtn) expandBtn.onclick = () => openSheet('create', null, c.id);
+    if (expandBtn) expandBtn.onclick = (e) => { e.stopPropagation(); openSheet('create', null, c.id); };
 
     container.appendChild(colEl);
 

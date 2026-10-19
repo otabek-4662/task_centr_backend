@@ -146,7 +146,7 @@
         call('promptAddColumn');
         break;
       case 'new-task':
-        call('openSheet', 'create');
+        call('openSheet', 'create', null, el.dataset.colId || null);
         break;
       case 'save-task':
         call('saveTask');
