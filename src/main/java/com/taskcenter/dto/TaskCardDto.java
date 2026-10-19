@@ -36,6 +36,9 @@ public class TaskCardDto {
     @Schema(description = "Vazifa batafsil tavsifi", example = "Frontendda Swagger UI guruhlarini ko'rsatish")
     private String description;
 
+    @Schema(description = "LexoRank qiymati", example = "0|hzzzzz:")
+    private String lexoRank;
+
     @Schema(description = "Muhimlik darajasi", example = "HIGH")
     private Priority priority;
 
@@ -95,6 +98,7 @@ public class TaskCardDto {
                 .workspaceId(t.getWorkspaceId())
                 .title(t.getTitle())
                 .description(t.getDescription())
+                .lexoRank(t.getLexoRank())
                 .priority(t.getPriority() != null ? t.getPriority() : Priority.MEDIUM)
                 .issueType(t.getIssueType() != null ? t.getIssueType() : IssueType.TASK)
                 .dueDate(t.getDueDate())
