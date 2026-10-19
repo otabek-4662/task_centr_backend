@@ -1122,6 +1122,7 @@ function renderBoard() {
     colEl.innerHTML = `
       <div class="col-header">
         <div class="col-header-left">
+          <span class="col-status-dot" style="background:${colColor}"></span>
           <span class="col-title-text"></span>
           ${c.isDone ? '<span class="col-done-badge">✓ Done</span>' : ''}
           <span class="col-count">0</span>
@@ -1134,10 +1135,10 @@ function renderBoard() {
       </div>
       <div class="list"></div>
       <div class="col-footer">
-        <div class="quick-add">
-          <input type="text" placeholder="+ Tez vazifa qo'shish (Enter)...">
+        <div class="col-inline-composer">
+          <input type="text" class="composer-input" placeholder="+ Vazifa qo‘shish (Enter)..." aria-label="Tez vazifa qo‘shish">
+          <button type="button" class="composer-expand-btn" title="Batafsil oynada yaratish" aria-label="Batafsil yaratish">↗</button>
         </div>
-        <button type="button" class="btn-add-task">+ Batafsil vazifa yaratish</button>
       </div>
     `;
 
@@ -1169,14 +1170,15 @@ function renderBoard() {
     listEl.dataset.col = c.id;
 
     if (colTasks.length === 0) {
-      listEl.innerHTML = `<div class="empty-placeholder"><div style="font-size:26px;margin-bottom:6px;">📋</div>Ushbu ustunda vazifalar yo'q</div>`;
+      listEl.innerHTML = `<div class="empty-placeholder"><span class="empty-icon">📋</span><span>Bo‘sh</span></div>`;
     } else {
       colTasks.forEach(t => listEl.appendChild(createCard(t)));
     }
 
-    const qInp = colEl.querySelector('.quick-add input');
-    qInp.onkeydown = (e) => { if (e.key === 'Enter') quickAddTask(qInp, c.id); };
-    colEl.querySelector('.btn-add-task').onclick = () => openSheet('create', null, c.id);
+    const qInp = colEl.querySelector('.composer-input');
+    if (qInp) qInp.onkeydown = (e) => { if (e.key === 'Enter') quickAddTask(qInp, c.id); };
+    const expandBtn = colEl.querySelector('.composer-expand-btn');
+    if (expandBtn) expandBtn.onclick = () => openSheet('create', null, c.id);
 
     container.appendChild(colEl);
 
@@ -4241,11 +4243,19 @@ function handleRealTimeEvent(ev, rawFrame = '') {
     const saved = localStorage.getItem('tc_hero_collapsed') || localStorage.getItem('choy_hero_collapsed');
     const heroEl = document.getElementById('hero-showcase');
     const dockEl = document.getElementById('hero-mini-dock');
-    if (saved === '1') {
+    // Default to COLLAPSED (Mini-dock mode) for 85% Kanban board space unless explicitly opened ('0')
+    const shouldCollapse = saved !== '0';
+    if (shouldCollapse) {
       if (heroEl) heroEl.classList.add('is-collapsed', 'collapsed');
       if (dockEl) {
         dockEl.classList.add('visible');
         dockEl.style.display = 'flex';
+      }
+    } else {
+      if (heroEl) heroEl.classList.remove('is-collapsed', 'collapsed');
+      if (dockEl) {
+        dockEl.classList.remove('visible');
+        dockEl.style.display = 'none';
       }
     }
   } catch (e) {}

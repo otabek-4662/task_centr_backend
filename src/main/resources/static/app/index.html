@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=38" rel="stylesheet">
+<link href="style.css?v=42" rel="stylesheet">
 </head>
 <body>
 
@@ -160,10 +160,6 @@
       </button>
     </nav>
 
-    <div class="sidebar-ornament-divider" aria-hidden="true">
-      <span>❖</span><span>✦</span><span>❖</span>
-    </div>
-
     <div class="sidebar-footer">
       <button type="button" class="btn-action btn-primary btn-full" data-action="new-task">+ Yangi vazifa</button>
       <div class="sidebar-user" data-action="tab" data-tab="workspace" role="button" tabindex="0">
@@ -217,8 +213,7 @@
     <!-- TAB 1: KANBAN BOARD + 3D ANIMATED HERO -->
     <div id="tab-board" class="tab-content active">
       <!-- Breathtaking 3D Animated Uzbek Hero Showcase (Collapsible for Power Users) -->
-      <section id="hero-showcase" class="hero-showcase" aria-label="Choylashamiz 3D bosh sahifa vitrinasi">
-        <div class="hero-ikat-border" aria-hidden="true"></div>
+      <section id="hero-showcase" class="hero-showcase is-collapsed collapsed" aria-label="Choylashamiz 3D bosh sahifa vitrinasi">
         <div class="hero-inner">
           <div class="hero-copy">
             <div class="hero-eyebrow">
@@ -299,18 +294,10 @@
                 <div class="hero-piyola-aura" aria-hidden="true"></div>
               </div>
 
-              <!-- Depth Layer +55px: Floating Live Status Badges -->
+              <!-- Depth Layer +55px: Floating Live Status Badge (Single Clean Pill) -->
               <div class="floating-3d-chip chip-top-left" id="float-chip-status" data-action="piyola-interact" role="button" tabindex="0">
                 <span class="f-dot ok"></span>
                 <span id="float-chip-done-text">Barakalla • Bajarildi</span>
-              </div>
-              <div class="floating-3d-chip chip-bottom-right" id="float-chip-brand">
-                <span>✦ Choylashamiz Pro</span>
-              </div>
-
-              <!-- Subtle interactive tooltip / hint below the bowl -->
-              <div class="piyola-interactive-hint" data-action="piyola-interact" role="button" tabindex="0">
-                <span>☕ Piyolaga bosing — Tezkor Fokus / Holat</span>
               </div>
 
               <!-- Saucer Shadow Plane -->
@@ -320,8 +307,8 @@
         </div>
       </section>
 
-      <!-- Compact 1-Line Mini Dock when 3D Hero is hidden -->
-      <div id="hero-mini-dock" class="hero-mini-dock">
+      <!-- Compact 1-Line Mini Dock when 3D Hero is hidden (Active by Default) -->
+      <div id="hero-mini-dock" class="hero-mini-dock visible" style="display:flex;">
         <div class="mini-dock-left">
           <img src="piyola-3d.png" alt="Piyola" class="mini-dock-piyola" data-action="piyola-interact" title="Tezkor Fokus / Choy ustida impuls">
           <div class="mini-dock-kpis">
@@ -363,7 +350,6 @@
               <option value="">Barcha teglar</option>
             </select>
             <button type="button" class="btn-chip-action" data-action="add-column">+ Ustun</button>
-            <button type="button" class="btn-chip-action primary" data-action="new-task">+ Yangi vazifa</button>
           </div>
         </div>
         <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
@@ -851,8 +837,8 @@
   <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="games.js?v=3"></script>
-<script src="app.js?v=41"></script>
-<script src="ui-bind.js?v=50"></script>
+<script src="games.js?v=4"></script>
+<script src="app.js?v=42"></script>
+<script src="ui-bind.js?v=51"></script>
 </body>
 </html>
