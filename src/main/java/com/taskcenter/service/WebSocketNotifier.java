@@ -10,10 +10,6 @@ public class WebSocketNotifier {
     private final SimpMessagingTemplate messagingTemplate;
     private final com.taskcenter.repository.UserRepository userRepository;
 
-    public WebSocketNotifier(SimpMessagingTemplate messagingTemplate) {
-        this(messagingTemplate, null);
-    }
-
     public WebSocketNotifier(SimpMessagingTemplate messagingTemplate, com.taskcenter.repository.UserRepository userRepository) {
         this.messagingTemplate = messagingTemplate;
         this.userRepository = userRepository;
