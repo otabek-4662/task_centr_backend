@@ -118,3 +118,21 @@ Git commit yoki push qilishdan oldin `.github/workflows/ci.yml` dagi barcha 3 ta
 | Loyiha xaritasini yangilash | `python3 scripts/generate-project-map.py` | `python scripts\generate-project-map.py` |
 | Swagger UI (dev) | `http://localhost:8080/swagger-ui.html` | `http://localhost:8080/swagger-ui.html` |
 | Mini App UI | `http://localhost:8080/app/` | `http://localhost:8080/app/` |
+
+---
+
+## 5. MCP va Database Vositalari Xavfsizlik Qoidalari (Zero-Production-Access & Read-Only Sandbox)
+
+1. **Production DB Izolyatsiyasi (Qat'iy Taqiqlangan):**
+   - Hech qanday MCP serveri yoki agent vositasiga Render Cloud Production PostgreSQL ma'lumotlar bazasi connection stringi berilmaydi.
+   - Render Free pool hajmi atigi 5 ta bo'lganligi sababli, har qanday tashqi ulanish prod tizimni butunlay to'xtatib qo'yishi mumkin.
+2. **Lokal Read-Only Sandbox:**
+   - Ma'lumotlar bazasi sxemasini va jadvallarni tekshirish kerak bo'lsa, faqat lokal PostgreSQL muhiti ishlatiladi.
+   - Ulanish faqat `scripts/setup-readonly-db-user.sql` orqali yaratilgan `readonly_agent` (faqat `SELECT`, `default_transaction_read_only = on`) foydalanuvchisi orqali amalga oshiriladi.
+3. **DDL va DML Mutatsiyalar Taqiqi:**
+   - MCP yoki agent vositalari orqali to'g'ridan-to'g'ri `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER` bajarish taqiqlanadi.
+   - Sxemaga har qanday o'zgarish faqat yangi Flyway migratsiyasi (`resources/db/migration/V<N>__*.sql`) orqali kiritiladi va Testcontainers orqali tekshiriladi.
+4. **Token va Maxfiylik Himoyasi:**
+   - GitHub PAT yoki tashqi servis tokenlari hech qachon loyiha fayllariga (`.env`, `.properties`) yozilmaydi.
+   - Barcha MCP server sozlamalari faqat global `~/.gemini/config/mcp_config.json` da saqlanadi va Git'dan tashqarida turadi.
+

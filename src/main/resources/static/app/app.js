@@ -5,24 +5,46 @@ try {
   if (tg.expand) tg.expand();
 } catch (e) {}
 
-// Theme initialization (Telegram theme or saved preference)
-(function initTheme() {
-  function applyTheme() {
-    let savedTheme = null;
-    try { savedTheme = localStorage.getItem('tc_theme'); } catch (e) {}
-    if (savedTheme === 'dark' || (!savedTheme && tg.colorScheme === 'dark')) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else if (savedTheme === 'light') {
-      document.documentElement.removeAttribute('data-theme');
-    }
+// 3-Theme Architecture (light -> dark -> gold-ai -> light)
+function updateThemeUI(theme) {
+  const iconEl = document.getElementById('theme-btn-icon');
+  const btn = document.getElementById('btn-theme-toggle');
+  if (theme === 'gold-ai') {
+    if (iconEl) iconEl.textContent = '👑';
+    if (btn) btn.title = 'Mavzu: Royal Gold AI (Bosing: Oq rejimga)';
+  } else if (theme === 'dark') {
+    if (iconEl) iconEl.textContent = '🌙';
+    if (btn) btn.title = 'Mavzu: Qora Shisha (Bosing: Tilla AI rejimga)';
+  } else {
+    if (iconEl) iconEl.textContent = '☀️';
+    if (btn) btn.title = 'Mavzu: Oq Minimal (Bosing: Qora rejimga)';
   }
-  applyTheme();
+}
+
+function applyAppTheme(themeName) {
+  let theme = themeName;
+  if (!['light', 'dark', 'gold-ai'].includes(theme)) {
+    theme = (tg && tg.colorScheme === 'dark') ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeUI(theme);
+}
+
+(function initTheme() {
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('tc_theme'); } catch (e) {}
+  applyAppTheme(savedTheme);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeUI(currentTheme);
+  });
 
   try {
-    if (tg.onEvent) {
+    if (tg && tg.onEvent) {
       tg.onEvent('themeChanged', () => {
         if (!localStorage.getItem('tc_theme')) {
-          applyTheme();
+          applyAppTheme((tg.colorScheme === 'dark') ? 'dark' : 'light');
         }
       });
     }
@@ -39,12 +61,23 @@ try {
 })();
 
 window.toggleTheme = function () {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const next = isDark ? 'light' : 'dark';
-  if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-  else document.documentElement.removeAttribute('data-theme');
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  let next = 'light';
+  if (current === 'light') next = 'dark';
+  else if (current === 'dark') next = 'gold-ai';
+  else next = 'light';
+
   try { localStorage.setItem('tc_theme', next); } catch (e) {}
-  haptic('impact', 'light');
+  applyAppTheme(next);
+
+  if (next === 'gold-ai') {
+    showToast("👑 Royal Gold AI (Executive Luxury)");
+  } else if (next === 'dark') {
+    showToast("🌙 Qora shisha rejim (Dark Glass)");
+  } else {
+    showToast("☀️ Oq rejim (Clean Minimal)");
+  }
+  haptic('impact', 'medium');
 };
 
 const API = location.origin;
@@ -960,6 +993,28 @@ function updateHeroLiveStats() {
   if (elAct) elAct.textContent = inProgCount;
   if (elOvr) elOvr.textContent = overdueCount;
 
+  const miniTot = document.getElementById('mini-kpi-total');
+  const miniDone = document.getElementById('mini-kpi-done');
+  const miniAct = document.getElementById('mini-kpi-active');
+  const miniOvr = document.getElementById('mini-kpi-overdue');
+  if (miniTot) miniTot.textContent = total;
+  if (miniDone) miniDone.textContent = `${pct}%`;
+  if (miniAct) miniAct.textContent = inProgCount;
+  if (miniOvr) miniOvr.textContent = overdueCount;
+
+  const mdTot = document.getElementById('md-total');
+  const mdDone = document.getElementById('md-done');
+  const mdAct = document.getElementById('md-active');
+  if (mdTot) mdTot.textContent = total;
+  if (mdDone) mdDone.textContent = `${pct}%`;
+  if (mdAct) mdAct.textContent = inProgCount;
+
+  const scene3d = document.getElementById('hero-3d-scene');
+  if (scene3d) {
+    scene3d.classList.toggle('velocity-high', inProgCount >= 5);
+    scene3d.classList.toggle('has-overdue', overdueCount > 0);
+  }
+
   const floatDone = document.getElementById('float-chip-done-text');
   if (floatDone) floatDone.textContent = `Samaradorlik: ${pct}% (${doneCount}/${total})`;
 }
@@ -973,10 +1028,46 @@ window.escapeHtmlText = escapeHtmlText;
 
 window.toggleHeroShowcase = function () {
   const hero = document.getElementById('hero-showcase');
+  const dock = document.getElementById('hero-mini-dock');
   if (!hero) return;
-  const collapsed = hero.classList.toggle('collapsed');
-  try { localStorage.setItem('tc_hero_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+  const isCollapsed = hero.classList.toggle('is-collapsed');
+  hero.classList.toggle('collapsed', isCollapsed);
+  if (dock) {
+    dock.classList.toggle('visible', isCollapsed);
+    dock.style.display = isCollapsed ? 'flex' : 'none';
+  }
+  try {
+    localStorage.setItem('tc_hero_collapsed', isCollapsed ? '1' : '0');
+    localStorage.setItem('choy_hero_collapsed', isCollapsed ? '1' : '0');
+  } catch (e) {}
   haptic('impact', 'light');
+};
+
+window.interactWithPiyola = function () {
+  const card = document.querySelector('.hero-piyola-card3d');
+  if (card) {
+    card.classList.remove('piyola-bounce');
+    void card.offsetWidth;
+    card.classList.add('piyola-bounce');
+  }
+  haptic('impact', 'medium');
+
+  const activeTasks = (tasksData || []).filter(t => !t.isArchived);
+  const total = activeTasks.length;
+  const doneColIds = new Set((colsData || []).filter(c => c.isDone || /bajarildi|tugadi|done|ko'z tegmasin/i.test(c.title || '')).map(c => c.id));
+  const doneCount = activeTasks.filter(t => doneColIds.has(t.columnId)).length;
+  const overdueCount = activeTasks.filter(t => t.isOverdue && !doneColIds.has(t.columnId)).length;
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+  let msg = `☕ Choylashamiz AI: ${total} ta vazifadan ${doneCount} tasi tayyor (${pct}%).`;
+  if (overdueCount > 0) {
+    msg += ` ⚠️ ${overdueCount} ta vazifada muddat kechikmoqda!`;
+  } else if (pct >= 80 && total > 0) {
+    msg += ` 🌟 A'lo sur'at! Barakalla!`;
+  } else {
+    msg += ` Ishlar maromida ketmoqda.`;
+  }
+  showToast(msg);
 };
 
 function renderBoard() {
@@ -2267,13 +2358,56 @@ window.switchTab = function (tabId) {
   currentTab = tabId;
   haptic('selection');
 
+  if (tabId !== 'games' && window.ChoyGames && window.ChoyGames.destroyCurrent) {
+    window.ChoyGames.destroyCurrent();
+  }
+
   if (tabId === 'sprints') loadSprintsTab();
   if (tabId === 'mytasks') loadMyTasks();
   if (tabId === 'chat') loadChatTab();
   if (tabId === 'stats') loadStats();
   if (tabId === 'workspace') loadWorkspaceSettingsTab();
   if (tabId === 'admin') loadAdminDashboard();
+  if (tabId === 'games' && window.ChoyGames) window.ChoyGames.init();
 };
+
+window.toggleGamesMenu = function (forcedState) {
+  const desktopBtn = document.getElementById('nav-item-games');
+  const mobileBtn = document.getElementById('mobile-tab-games');
+  const currentlyHidden = desktopBtn ? (desktopBtn.style.display === 'none') : true;
+  const show = typeof forcedState === 'boolean' ? forcedState : currentlyHidden;
+
+  if (desktopBtn) desktopBtn.style.display = show ? 'flex' : 'none';
+  if (mobileBtn) mobileBtn.style.display = show ? 'flex' : 'none';
+
+  try {
+    const s = show ? '1' : '0';
+    localStorage.setItem('choy_enable_games', s);
+    localStorage.setItem('tc_games_enabled', s);
+  } catch (e) {}
+
+  const gamesSwitch = document.getElementById('toggle-games-menu-switch');
+  if (gamesSwitch) gamesSwitch.checked = show;
+
+  if (!show && currentTab === 'games') {
+    if (window.ChoyGames && window.ChoyGames.destroyCurrent) {
+      window.ChoyGames.destroyCurrent();
+    }
+    window.switchTab('board');
+  }
+  showToast(show ? "🎮 Choyxona Arcade menyuga qo'shildi!" : "🙈 Choyxona Arcade menyudan yashirildi");
+  haptic('impact', 'medium');
+};
+
+(function initGamesVisibility() {
+  try {
+    const enabled = localStorage.getItem('choy_enable_games') === '1' || localStorage.getItem('tc_games_enabled') === '1';
+    const d = document.getElementById('nav-item-games');
+    const m = document.getElementById('mobile-tab-games');
+    if (d) d.style.display = enabled ? 'flex' : 'none';
+    if (m) m.style.display = enabled ? 'flex' : 'none';
+  } catch (e) {}
+})();
 
 // ===== TAB 2: SPRINTS & BACKLOG =====
 window.loadSprintsTab = async function () {
@@ -3135,6 +3269,7 @@ window.stopActiveFocusTimer = async function () {
     if (currentTaskId) loadWorklogs(currentTaskId);
   } catch (e) {}
 };
+window.stopFocusTimer = window.stopActiveFocusTimer;
 
 async function loadDependencies(taskId) {
   const list = document.getElementById('dependencies-list');
@@ -3541,6 +3676,18 @@ window.loadWorkspaceSettingsTab = async function () {
         </label>
       </div>
 
+      <!-- Games Hub Menu Toggle -->
+      <div class="setting-toggle-row">
+        <div>
+          <strong style="font-size:13.5px;">🎮 Choyxona Arcade (Tanaffus o‘yinlari)</strong>
+          <div class="hint" style="font-size:11.5px;margin-top:2px;">Navigatsiya menyusiga 12 ta mini-o‘yinlar bo‘limini chiqarish</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-games-menu-switch" ${localStorage.getItem('tc_games_enabled') === '1' ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <div style="padding-top:14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div>
           <strong>✈️ Telegram Bot ulanishi:</strong>
@@ -3566,6 +3713,13 @@ window.loadWorkspaceSettingsTab = async function () {
           document.documentElement.classList.add('no-animations');
           showToast("🍵 Animatsiyalar o'chirildi");
         }
+      };
+    }
+
+    const gamesToggle = profCard.querySelector('#toggle-games-menu-switch');
+    if (gamesToggle) {
+      gamesToggle.onchange = (e) => {
+        window.toggleGamesMenu(e.target.checked);
       };
     }
 
@@ -4062,13 +4216,18 @@ function handleRealTimeEvent(ev, rawFrame = '') {
   }
 }
 
-// ===== Interactive 3D Hero Parallax Controller (Pointer + Touch + Reduced Motion Aware) =====
+// ===== Interactive 3D Hero Parallax Controller (Pointer + Touch + Reduced Motion Aware + 60fps Lerp Physics) =====
 (function initHero3DParallax() {
   try {
-    const savedCollapsed = localStorage.getItem('tc_hero_collapsed');
+    const saved = localStorage.getItem('tc_hero_collapsed') || localStorage.getItem('choy_hero_collapsed');
     const heroEl = document.getElementById('hero-showcase');
-    if (heroEl && savedCollapsed === '1') {
-      heroEl.classList.add('collapsed');
+    const dockEl = document.getElementById('hero-mini-dock');
+    if (saved === '1') {
+      if (heroEl) heroEl.classList.add('is-collapsed', 'collapsed');
+      if (dockEl) {
+        dockEl.classList.add('visible');
+        dockEl.style.display = 'flex';
+      }
     }
   } catch (e) {}
 
@@ -4081,34 +4240,97 @@ function handleRealTimeEvent(ev, rawFrame = '') {
     const sc = document.getElementById(sceneId);
     if (!vp || !sc) return;
 
+    let targetRx = 6;
+    let targetRy = -8;
+    let targetSx = 0;
+    let targetSy = 0;
+    let targetGlintX = 50;
+    let targetGlintY = 50;
+
+    let currentRx = 6;
+    let currentRy = -8;
+    let currentSx = 0;
+    let currentSy = 0;
+    let currentGlintX = 50;
+    let currentGlintY = 50;
+
+    let isHovered = false;
     let rafId = null;
-    function applyTilt(clientX, clientY) {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const rect = vp.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const nx = ((clientX - rect.left) / rect.width) - 0.5;
-        const ny = ((clientY - rect.top) / rect.height) - 0.5;
-        const ry = Math.max(-18, Math.min(18, nx * 28));
-        const rx = Math.max(-14, Math.min(14, -ny * 22 + 5));
-        sc.style.setProperty('--rx', rx.toFixed(1) + 'deg');
-        sc.style.setProperty('--ry', ry.toFixed(1) + 'deg');
-      });
+
+    function lerp(start, end, factor) {
+      return start + (end - start) * factor;
     }
 
-    function resetTilt() {
-      sc.style.setProperty('--rx', '6deg');
-      sc.style.setProperty('--ry', '-8deg');
+    function animate() {
+      if (!sc || !sc.style) { rafId = null; return; }
+      currentRx = lerp(currentRx, targetRx, 0.12);
+      currentRy = lerp(currentRy, targetRy, 0.12);
+      currentSx = lerp(currentSx, targetSx, 0.12);
+      currentSy = lerp(currentSy, targetSy, 0.12);
+      currentGlintX = lerp(currentGlintX, targetGlintX, 0.12);
+      currentGlintY = lerp(currentGlintY, targetGlintY, 0.12);
+
+      sc.style.setProperty('--rx', currentRx.toFixed(2) + 'deg');
+      sc.style.setProperty('--ry', currentRy.toFixed(2) + 'deg');
+      sc.style.setProperty('--sx', currentSx.toFixed(1) + 'px');
+      sc.style.setProperty('--sy', currentSy.toFixed(1) + 'px');
+      sc.style.setProperty('--glint-x', currentGlintX.toFixed(1) + '%');
+      sc.style.setProperty('--glint-y', currentGlintY.toFixed(1) + '%');
+
+      const diff = Math.abs(targetRx - currentRx) + Math.abs(targetRy - currentRy);
+      if (diff > 0.01 || isHovered) {
+        rafId = requestAnimationFrame(animate);
+      } else {
+        rafId = null;
+      }
     }
 
-    vp.addEventListener('pointermove', (e) => applyTilt(e.clientX, e.clientY), { passive: true });
-    vp.addEventListener('pointerleave', resetTilt, { passive: true });
+    function scheduleFrame() {
+      if (!rafId) {
+        rafId = requestAnimationFrame(animate);
+      }
+    }
+
+    function updateTargetFromClient(clientX, clientY) {
+      const rect = vp.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const nx = ((clientX - rect.left) / rect.width) - 0.5;
+      const ny = ((clientY - rect.top) / rect.height) - 0.5;
+
+      targetRy = Math.max(-18, Math.min(18, nx * 28));
+      targetRx = Math.max(-14, Math.min(14, -ny * 22 + 5));
+      targetSx = -nx * 14;
+      targetSy = -ny * 10;
+      targetGlintX = Math.max(10, Math.min(90, 50 + nx * 60));
+      targetGlintY = Math.max(10, Math.min(90, 50 + ny * 60));
+
+      scheduleFrame();
+    }
+
+    function resetTarget() {
+      isHovered = false;
+      targetRx = 6;
+      targetRy = -8;
+      targetSx = 0;
+      targetSy = 0;
+      targetGlintX = 50;
+      targetGlintY = 50;
+      scheduleFrame();
+    }
+
+    vp.addEventListener('pointerenter', () => { isHovered = true; scheduleFrame(); }, { passive: true });
+    vp.addEventListener('pointermove', (e) => {
+      isHovered = true;
+      updateTargetFromClient(e.clientX, e.clientY);
+    }, { passive: true });
+    vp.addEventListener('pointerleave', resetTarget, { passive: true });
     vp.addEventListener('touchmove', (e) => {
       if (e.touches && e.touches[0]) {
-        applyTilt(e.touches[0].clientX, e.touches[0].clientY);
+        isHovered = true;
+        updateTargetFromClient(e.touches[0].clientX, e.touches[0].clientY);
       }
     }, { passive: true });
-    vp.addEventListener('touchend', resetTilt, { passive: true });
+    vp.addEventListener('touchend', resetTarget, { passive: true });
   }
 
   bindStageParallax('hero-3d-viewport', 'hero-3d-scene');

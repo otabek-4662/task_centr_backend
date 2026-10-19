@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=33" rel="stylesheet">
+<link href="style.css?v=38" rel="stylesheet">
 </head>
 <body>
 
@@ -149,6 +149,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Jamoa va Sozlamalar</span>
       </button>
+      <button type="button" class="nav-item" id="nav-item-games" data-tab="games" data-action="tab" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
+        <span>Tanaffus (O‘yinlar)</span>
+        <span class="badge-pill" style="background:var(--gold-soft);color:var(--gold);">12</span>
+      </button>
       <button type="button" class="nav-item" id="nav-item-admin" data-tab="admin" data-action="tab" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>SuperAdmin</span>
@@ -200,8 +205,8 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="notif-badge" class="notif-dot" style="display:none">0</span>
         </button>
-        <button type="button" class="icon-btn" data-action="toggle-theme" title="Mavzuni o‘zgartirish (Kun / Tun)" aria-label="Mavzuni o‘zgartirish">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <button type="button" class="icon-btn theme-toggle-btn" id="btn-theme-toggle" data-action="toggle-theme" title="Mavzuni almashtirish (Oq / Qora / Tilla AI)" aria-label="Mavzuni almashtirish">
+          <span id="theme-btn-icon">☀️</span>
         </button>
         <button type="button" id="btn-refresh" class="icon-btn" data-action="refresh-board" title="Ma’lumotlarni yangilash" aria-label="Yangilash">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
@@ -287,19 +292,25 @@
                 </defs>
               </svg>
 
-              <!-- Depth Layer +32px: Authentic Uploaded Paxta-Gulli Piyola -->
-              <div class="hero-piyola-card3d">
+              <!-- Depth Layer +35px: Authentic Uploaded Paxta-Gulli Piyola with Interactive Trigger -->
+              <div class="hero-piyola-card3d" data-action="piyola-interact" role="button" tabindex="0" title="☕ Piyolaga bosing — Tezkor Fokus / Holat">
                 <img src="piyola-3d.png" alt="Choylashamiz Paxta gulli piyola" class="hero-piyola-img">
                 <div class="hero-piyola-glint" aria-hidden="true"></div>
+                <div class="hero-piyola-aura" aria-hidden="true"></div>
               </div>
 
               <!-- Depth Layer +55px: Floating Live Status Badges -->
-              <div class="floating-3d-chip chip-top-left" id="float-chip-status">
+              <div class="floating-3d-chip chip-top-left" id="float-chip-status" data-action="piyola-interact" role="button" tabindex="0">
                 <span class="f-dot ok"></span>
                 <span id="float-chip-done-text">Barakalla • Bajarildi</span>
               </div>
               <div class="floating-3d-chip chip-bottom-right" id="float-chip-brand">
                 <span>✦ Choylashamiz Pro</span>
+              </div>
+
+              <!-- Subtle interactive tooltip / hint below the bowl -->
+              <div class="piyola-interactive-hint" data-action="piyola-interact" role="button" tabindex="0">
+                <span>☕ Piyolaga bosing — Tezkor Fokus / Holat</span>
               </div>
 
               <!-- Saucer Shadow Plane -->
@@ -308,6 +319,22 @@
           </div>
         </div>
       </section>
+
+      <!-- Compact 1-Line Mini Dock when 3D Hero is hidden -->
+      <div id="hero-mini-dock" class="hero-mini-dock">
+        <div class="mini-dock-left">
+          <img src="piyola-3d.png" alt="Piyola" class="mini-dock-piyola" data-action="piyola-interact" title="Tezkor Fokus / Choy ustida impuls">
+          <div class="mini-dock-kpis">
+            <span class="mini-dock-pill">📋 Jami: <strong id="md-total">0</strong></span>
+            <span class="mini-dock-pill" style="color:var(--ok)">✅ <strong id="md-done">0%</strong></span>
+            <span class="mini-dock-pill" style="color:var(--warn)">⚡ Jarayonda: <strong id="md-active">0</strong></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" class="btn-chip-action" data-action="piyola-interact" title="25 daqiqalik Fokus taymer">☕ Fokus (25m)</button>
+          <button type="button" class="btn-chip-action primary" data-action="toggle-hero">✦ 3D Piyolani ko‘rsatish</button>
+        </div>
+      </div>
 
       <!-- Live Pomodoro / Focus Timer Sticky Banner -->
       <div id="active-timer-banner" style="display:none;margin:10px 16px 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(239,68,68,0.14));border:1px solid var(--gold, #D4AF37);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -537,6 +564,20 @@
       </div>
     </div>
 
+    <!-- TAB 8: CHOYXONA ARCADE (GAMES HUB - HIDDEN BY DEFAULT IN SETTINGS) -->
+    <div id="tab-games" class="tab-content" style="display:none">
+      <div class="tab-header">
+        <div>
+          <h2>🎮 Choyxona Arcade — Tanaffus Markazi</h2>
+          <p class="hint">Bir piyola choy ustida miyani chalg‘itish va jamoaviy rekordlar o‘rnatish uchun 12 ta klassik o‘yin</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-action btn-soft" data-action="toggle-games-menu">🙈 Menyudan yashirish</button>
+        </div>
+      </div>
+      <div id="games-container" class="page-scroll-body"></div>
+    </div>
+
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-tab-bar" aria-label="Mobil navigatsiya">
       <div class="tab-btn active" data-tab="board" data-action="tab" role="button" tabindex="0">
@@ -562,6 +603,10 @@
       <div class="tab-btn" data-tab="workspace" data-action="tab" role="button" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
         <span>Jamoa</span>
+      </div>
+      <div class="tab-btn" id="mobile-tab-games" data-tab="games" data-action="tab" role="button" tabindex="0" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
+        <span>O‘yinlar</span>
       </div>
       <div class="tab-btn" id="mobile-tab-admin" data-tab="admin" data-action="tab" role="button" tabindex="0" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -806,7 +851,8 @@
   <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="app.js?v=35"></script>
-<script src="ui-bind.js?v=45"></script>
+<script src="games.js?v=3"></script>
+<script src="app.js?v=40"></script>
+<script src="ui-bind.js?v=50"></script>
 </body>
 </html>

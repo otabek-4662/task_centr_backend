@@ -33,6 +33,34 @@
       case 'toggle-hero':
         call('toggleHeroShowcase');
         break;
+      case 'piyola-interact':
+        call('interactWithPiyola');
+        break;
+      case 'play-game':
+        call('playGame', el.dataset.game);
+        break;
+      case 'restart-game':
+        call('restartCurrentGame');
+        break;
+      case 'close-game-stage':
+        call('closeGameStage');
+        break;
+      case 'game-ctrl':
+        call('handleGameCtrl', el.dataset.dir);
+        break;
+      case 'toggle-games-menu':
+        call('toggleGamesMenu');
+        break;
+      case 'game-cell':
+      case 'game-cell-click':
+        call('handleGameCellClick', el);
+        break;
+      case 'game-mode-toggle':
+        call('toggleGameMode');
+        break;
+      case 'game-num-select':
+        call('handleGameNumSelect', el.dataset.num);
+        break;
       case 'open-ws-modal':
         call('openWorkspaceModal');
         break;
