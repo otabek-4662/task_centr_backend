@@ -30,6 +30,8 @@ jobs:
       - name: Build and run tests with Testcontainers
         run: ./mvnw -B clean verify
         env:
+          # Testcontainers 1.19.7 defaults to API 1.32, below Docker 29's minimum.
+          JAVA_TOOL_OPTIONS: "-Dapi.version=1.44"
           JWT_SECRET: "ci-pipeline-super-secret-key-that-is-at-least-256-bits-long-hs256"
           TELEGRAM_BOT_TOKEN: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
           TELEGRAM_BOT_USERNAME: "TaskCenterTestBot"
@@ -72,8 +74,11 @@ jobs:
 
       - name: Install oasdiff
         run: |
-          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sudo sh || \
-          (curl -fsSL https://github.com/oasdiff/oasdiff/releases/download/v1.33.0/oasdiff_1.33.0_linux_amd64.tar.gz | sudo tar -xz -C /usr/local/bin oasdiff)
+          archive=oasdiff_1.40.0_linux_amd64.tar.gz
+          curl -fsSL "https://github.com/oasdiff/oasdiff/releases/download/v1.40.0/$archive" -o "$RUNNER_TEMP/$archive"
+          (cd "$RUNNER_TEMP" && printf '2d04b8f41b145809dd554e9be9ca04d21d1b4eedad5af983ddea36832d3c5e0d  %s\n' "$archive" | sha256sum -c -)
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
+          sudo install -m 0755 "$RUNNER_TEMP/oasdiff" /usr/local/bin/oasdiff
           oasdiff --version
 
       - name: Check OpenAPI backward compatibility (oasdiff)

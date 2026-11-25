@@ -12,6 +12,10 @@ import java.util.List;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    static final List<String> ROOT_ASSET_PATHS = List.of(
+            "/style.css", "/app.js", "/games.js", "/ui-bind.js",
+            "/piyola-3d.png", "/choylashamiz-logo.png");
+
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
 
     public WebMvcConfig(CurrentUserArgumentResolver currentUserArgumentResolver) {
@@ -26,6 +30,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/app/**")
+                .addResourceLocations("classpath:/static/app/");
+        // A forward from /app keeps the browser URL, so relative assets resolve from /.
+        registry.addResourceHandler(ROOT_ASSET_PATHS.toArray(String[]::new))
                 .addResourceLocations("classpath:/static/app/");
     }
 

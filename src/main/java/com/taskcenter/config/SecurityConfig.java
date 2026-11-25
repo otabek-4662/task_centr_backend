@@ -5,6 +5,7 @@ import com.taskcenter.security.RateLimitFilter;
 import com.taskcenter.security.CustomAuthenticationEntryPoint;
 import com.taskcenter.security.CustomAccessDeniedHandler;
 import com.taskcenter.security.TelegramWebAppAuthFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Configuration
 @EnableWebSecurity
@@ -122,8 +124,13 @@ public class SecurityConfig {
     @Bean
     @org.springframework.core.annotation.Order(1)
     public SecurityFilterChain appFilterChain(HttpSecurity http) throws Exception {
+        String[] frontendPaths = Stream.concat(
+                Stream.of("/", "/app", "/app/", "/app/index.html"),
+                WebMvcConfig.ROOT_ASSET_PATHS.stream().flatMap(path -> Stream.of(path, "/app" + path))
+        ).toArray(String[]::new);
+
         http
-            .securityMatcher("/", "/app", "/app/**")
+            .securityMatcher(frontendPaths)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
@@ -140,7 +147,9 @@ public class SecurityConfig {
                 .frameOptions(frame -> frame.disable())
             )
             .authorizeHttpRequests(authz -> authz
-                .anyRequest().permitAll()
+                .requestMatchers(HttpMethod.GET, frontendPaths).permitAll()
+                .requestMatchers(HttpMethod.HEAD, frontendPaths).permitAll()
+                .anyRequest().denyAll()
             );
         return http.build();
     }
@@ -209,5 +218,22 @@ public class SecurityConfig {
         http.addFilterBefore(telegramWebAppAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // These filters belong to the API chain. Boot must not also run them as servlet filters.
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration() {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+                new FilterRegistrationBean<>(jwtAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<TelegramWebAppAuthFilter> telegramAuthFilterRegistration() {
+        FilterRegistrationBean<TelegramWebAppAuthFilter> registration =
+                new FilterRegistrationBean<>(telegramWebAppAuthFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 }
