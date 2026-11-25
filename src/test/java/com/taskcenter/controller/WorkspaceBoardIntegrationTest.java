@@ -193,6 +193,23 @@ class WorkspaceBoardIntegrationTest {
     }
 
     @Test
+    void archivedTasksAreExcludedAndDoneLimitPreservesRank() throws Exception {
+        String token = login(owner.getName(), "password123");
+        col1.setIsDone(true);
+        task3.setIsArchived(true);
+        mvc.perform(get("/api/workspaces/" + workspace.getId() + "/board")
+                        .param("doneLimit", "1").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].tasks.length()").value(1))
+                .andExpect(jsonPath("$.data[0].tasks[0].id").value(task1.getId()))
+                .andExpect(jsonPath("$.data[1].tasks.length()").value(0));
+        mvc.perform(get("/api/workspaces/" + workspace.getId() + "/columns").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].tasks.length()").value(2))
+                .andExpect(jsonPath("$.data[1].tasks.length()").value(0));
+    }
+
+    @Test
     @DisplayName("Integratsion test: 2 ustun, 3 task, to'g'ri tartib va barcha TaskDto maydonlari")
     void testGetBoard_returnsColumnsAndTasksSortedWithAllFields() throws Exception {
         String token = login(owner.getName(), "password123");

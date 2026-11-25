@@ -1,6 +1,7 @@
 package com.taskcenter.repository;
 
 import com.taskcenter.model.User;
+import com.taskcenter.dto.ChatUserDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,10 @@ import java.util.Optional;
 import java.util.Set;
 
 public interface UserRepository extends JpaRepository<User, String> {
+    @Query("SELECT new com.taskcenter.dto.ChatUserDto(u.id, u.name, u.fullName, u.email, false, u.lastSeenAt) " +
+           "FROM User u WHERE u.id <> :currentUserId")
+    List<ChatUserDto> findChatUsers(@Param("currentUserId") String currentUserId);
+
     Optional<User> findByName(String name);
     Optional<User> findByEmail(String email);
     boolean existsByName(String name);

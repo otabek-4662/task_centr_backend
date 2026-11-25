@@ -27,6 +27,18 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @EntityGraph(attributePaths = {"labels", "directions", "assignees", "checklistItems"})
     List<Task> findByParentIdOrderByLexoRankAsc(String parentId);
 
+    @EntityGraph(attributePaths = "assignees")
+    @Query("SELECT t FROM Task t WHERE t.workspaceId = :workspaceId " +
+           "AND (:sprintId IS NULL OR t.sprintId = :sprintId) " +
+           "AND (t.isArchived = false OR t.isArchived IS NULL) ORDER BY t.columnId, t.lexoRank")
+    List<Task> findVisibleBoardTasks(@Param("workspaceId") String workspaceId,
+                                     @Param("sprintId") String sprintId);
+
+    @Query("SELECT t FROM Task t WHERE EXISTS (SELECT d.id FROM TaskDependency d " +
+           "WHERE d.taskId = :taskId AND d.dependsOnTaskId = t.id) " +
+           "AND NOT EXISTS (SELECT c.id FROM BoardColumn c WHERE c.id = t.columnId AND c.isDone = true)")
+    List<Task> findUnfinishedBlockers(@Param("taskId") String taskId);
+
     @Query("SELECT COUNT(t) FROM Task t WHERE t.workspaceId = :workspaceId")
     long countAllByWorkspaceId(@Param("workspaceId") String workspaceId);
 
@@ -222,7 +234,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "FROM Task t " +
            "JOIN t.assignees a " +
            "JOIN BoardColumn bc ON bc.id = t.columnId " +
-           "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL)")
+           "WHERE a.id = :userId AND t.deletedAt IS NULL AND (t.isArchived = false OR t.isArchived IS NULL) ORDER BY t.columnId, t.lexoRank")
     UserTaskStatsProjection getUserTaskStats(@Param("userId") String userId, @Param("today") LocalDate today);
 
     @Query("SELECT t FROM Task t " +

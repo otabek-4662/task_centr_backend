@@ -446,7 +446,7 @@ class TaskServiceTest {
         BoardColumn col1 = BoardColumn.builder().id("col1").workspaceId("ws1").title("Todo").order(1).build();
         BoardColumn col2 = BoardColumn.builder().id("col2").workspaceId("ws1").title("Done").order(2).build();
         when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws1")).thenReturn(List.of(col1, col2));
-        when(taskRepository.findBySprintId("sprint-1")).thenReturn(List.of(t1, t2, t3));
+        when(taskRepository.findVisibleBoardTasks("ws1", "sprint-1")).thenReturn(List.of(t1, t2, t3));
 
         List<com.taskcenter.dto.ColumnWithCardsDto> board = taskService.getBoard("ws1", "sprint-1", testUser());
 
@@ -650,7 +650,7 @@ class TaskServiceTest {
         Task t1 = Task.builder().id("task-1").columnId("col-1").isArchived(false).lexoRank("1").build();
 
         when(columnRepository.findByWorkspaceIdOrderByOrderAsc("ws-1")).thenReturn(List.of(col));
-        when(taskRepository.findBySprintId("sprint-1")).thenReturn(List.of(t1));
+        when(taskRepository.findVisibleBoardTasks("ws-1", "sprint-1")).thenReturn(List.of(t1));
 
         List<com.taskcenter.dto.BoardInitColumnDto> res = taskService.getBoardInit("ws-1", "sprint-1", testUser());
 

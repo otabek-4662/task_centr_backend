@@ -49,6 +49,10 @@ public class ColumnDto {
                     .collect(Collectors.toList())
                 : new ArrayList<>();
 
+        return fromEntity(c, taskList);
+    }
+
+    public static ColumnDto fromEntity(BoardColumn c, List<TaskDto> taskList) {
         return ColumnDto.builder()
                 .id(c.getId())
                 .workspaceId(c.getWorkspaceId())

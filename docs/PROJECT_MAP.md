@@ -83,11 +83,12 @@
 - `WorkspaceInvitationController.java`
 - `WorkspaceMemberController.java`
 
-## 3. Asosiy Servislar (`service/*.java`) — Jami: 37 ta
+## 3. Asosiy Servislar (`service/*.java`) — Jami: 38 ta
 
 - `AdminService.java`
 - `AttachmentService.java`
 - `AuthService.java`
+- `BoardTasks.java`
 - `CacheInvalidationService.java`
 - `CalendarAndReportService.java`
 - `ChatPresenceService.java`

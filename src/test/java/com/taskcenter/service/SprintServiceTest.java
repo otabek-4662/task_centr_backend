@@ -172,7 +172,7 @@ class SprintServiceTest {
 
         Task t1 = Task.builder().id("task1").workspaceId("ws1").sprintId(null).build();
 
-        when(taskRepository.findById("task1")).thenReturn(Optional.of(t1));        org.mockito.Mockito.lenient().when(taskRepository.findWorkspaceIdById("task1")).thenReturn(Optional.ofNullable("ws1"));
+        when(taskRepository.findAllById(List.of("task1"))).thenReturn(List.of(t1));
 
         when(taskRepository.findBySprintIdOrderByLexoRankAsc("sprint1")).thenReturn(List.of(t1));
 

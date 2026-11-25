@@ -195,6 +195,7 @@ let authMode = 'login'; // 'login' | 'register'
 let currentUser = null;
 let currentUserId = null;
 let currentWsId = null;
+let boardLoadVersion = 0;
 let allWorkspaces = [];
 let colsData = [];
 let tasksData = [];
@@ -801,6 +802,7 @@ function updateBoardCache() {
 
 async function loadBoard(wsId) {
   if (!wsId) return;
+  const version = ++boardLoadVersion;
   currentWsId = wsId;
   storageSet('last_ws_id', wsId);
   subscribeWsWorkspace(wsId);
@@ -849,16 +851,14 @@ async function loadBoard(wsId) {
       api(endpoints.sprints(wsId)).catch(() => ({ data: [] }))
     ]);
 
-    colsData = colsRes?.data || [];
+    if (version !== boardLoadVersion || wsId !== currentWsId) return;
+    const columns = colsRes?.data || [];
+    tasksData = columns.flatMap(c => c.tasks || []);
+    colsData = columns.map(({ tasks, ...metadata }) => metadata);
     workspaceMembers = (membersRes?.data || []).filter(m => m.name !== 'Taklif etilgan');
     workspaceLabels = labelsRes?.data || [];
     workspaceDirections = dirsRes?.data || [];
     workspaceSprints = sprintsRes?.data || [];
-
-    tasksData = [];
-    colsData.forEach(c => {
-      if (c.tasks) tasksData.push(...c.tasks);
-    });
 
     updateBoardCache();
 
@@ -867,6 +867,7 @@ async function loadBoard(wsId) {
     renderBoard();
     hideLoader();
   } catch (e) {
+    if (version !== boardLoadVersion || wsId !== currentWsId) return;
     if (!hasCache) {
       const container = document.getElementById('board-container');
       if (container) container.innerHTML = `<div class="empty-placeholder">Doskani yuklashda xatolik: ${e.message}</div>`;
@@ -1121,8 +1122,13 @@ function renderBoard() {
   if (!container) return;
   container.innerHTML = '';
 
+  const tasksByColumn = new Map();
+  for (const task of tasksData) {
+    if (!tasksByColumn.has(task.columnId)) tasksByColumn.set(task.columnId, []);
+    tasksByColumn.get(task.columnId).push(task);
+  }
   colsData.forEach(c => {
-    let colTasks = tasksData.filter(t => t.columnId === c.id);
+    const colTasks = tasksByColumn.get(c.id) || [];
 
     const sort = sortPrefs[c.id] || 'manual';
     if (sort === 'deadline') {
@@ -1584,16 +1590,16 @@ function promptDeleteColumn(colId) {
 async function moveTask(taskId, targetColId, prevRank = null, nextRank = null) {
   const task = tasksData.find(t => t.id === taskId);
   if (!task) return;
-  const oldColId = task.columnId;
-  task.columnId = targetColId;
-  renderBoard();
-
+  const workspaceId = currentWsId;
   try {
-    const res = await api(endpoints.taskMove(currentWsId, taskId), {
+    const res = await api(endpoints.taskMove(workspaceId, taskId), {
       method: 'PATCH',
       body: JSON.stringify({ columnId: targetColId, prevRank, nextRank })
     });
-    if (res?.data) Object.assign(task, res.data);
+    if (workspaceId !== currentWsId) return;
+    const currentTask = tasksData.find(t => t.id === taskId);
+    if (currentTask && res?.data) Object.assign(currentTask, res.data);
+    renderBoard();
     updateBoardCache();
     const col = colsData.find(c => c.id === targetColId);
     if (col && (col.isDone || /bajarildi|tugadi|done|ko'z tegmasin/i.test(col.title))) {
@@ -1602,8 +1608,7 @@ async function moveTask(taskId, targetColId, prevRank = null, nextRank = null) {
       showToast("Holat yangilandi");
     }
   } catch (e) {
-    task.columnId = oldColId;
-    renderBoard();
+    if (workspaceId === currentWsId) renderBoard();
   }
 }
 
@@ -1612,21 +1617,45 @@ function celebrate() {
   showToast("🎉 Barakalla! Vazifa bajarildi!");
 }
 
+async function syncTaskSprint(workspaceId, task, sprintId) {
+  const previous = task.sprintId || null;
+  if (previous === sprintId) return true;
+  const path = endpoints.sprints(workspaceId);
+  try {
+    if (sprintId) {
+      await api(path + '/' + sprintId + '/tasks', {
+        method: 'POST', body: JSON.stringify({ taskIds: [task.id] })
+      });
+    } else {
+      await api(path + '/' + previous + '/tasks/' + task.id, { method: 'DELETE' });
+    }
+    task.sprintId = sprintId;
+    return true;
+  } catch {
+    showToast("Vazifa saqlandi. Sprintni o‘zgartirish uchun vazifani qayta oching.");
+    return false;
+  }
+}
+
 async function quickAddTask(inputEl, colId) {
   const title = inputEl.value.trim();
   if (!title) return;
+  if (inputEl.disabled) return;
   inputEl.disabled = true;
+  const workspaceId = currentWsId;
+  const sprintId = selectedSprintFilter || null;
   try {
-    const res = await api(endpoints.tasks(currentWsId), {
+    const res = await api(endpoints.tasks(workspaceId), {
       method: 'POST',
       body: JSON.stringify({
         title,
         columnId: colId,
         issueType: 'TASK',
-        priority: 'MEDIUM',
-        sprintId: selectedSprintFilter || null
+        priority: 'MEDIUM'
       })
     });
+    const sprintSaved = await syncTaskSprint(workspaceId, res.data, sprintId);
+    if (workspaceId !== currentWsId) return;
     if (res?.data) {
       tasksData.push(res.data);
       updateBoardCache();
@@ -1634,10 +1663,11 @@ async function quickAddTask(inputEl, colId) {
     inputEl.value = '';
     renderBoard();
     haptic('notification', 'success');
-    showToast("Vazifa yaratildi");
-  } catch (e) {}
-  inputEl.disabled = false;
-  inputEl.focus();
+    if (sprintSaved) showToast("Vazifa yaratildi");
+  } catch (e) {} finally {
+    inputEl.disabled = false;
+    if (inputEl.isConnected) inputEl.focus();
+  }
 }
 
 // ===== Sheets & Modals (Create / Edit / View / Custom) =====
@@ -1936,7 +1966,10 @@ window.addEventListener('popstate', () => {
   }
 });
 
+let savingTask = false;
 window.saveTask = async function () {
+  if (savingTask) return;
+  const workspaceId = currentWsId;
   const id = document.getElementById('f-id').value;
   let colId = document.getElementById('f-col').value;
   if (!colId && colsData.length > 0) colId = colsData[0].id;
@@ -1957,6 +1990,7 @@ window.saveTask = async function () {
     return tgAlert("Vazifa sarlavhasini kiriting!");
   }
 
+  savingTask = true;
   if (isTma && tg.MainButton) tg.MainButton.showProgress();
   try {
     const estRaw = document.getElementById('f-est-hours')?.value || '';
@@ -1973,30 +2007,25 @@ window.saveTask = async function () {
       estimatedHours,
       recurrenceRule,
       parentId,
-      sprintId: sprintId || '',
       columnId: colId,
       assigneeIds,
       directionIds,
       labelIds
     };
 
-    if (id) {
-      const res = await api(endpoints.taskDetails(currentWsId, id), {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      const updated = res.data;
-      tasksData = tasksData.map(t => t.id === id ? updated : t);
-    } else {
-      if (!payload.sprintId) delete payload.sprintId;
-      const res = await api(endpoints.tasks(currentWsId), {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      tasksData.push(res.data);
+    const path = id ? endpoints.taskDetails(workspaceId, id) : endpoints.tasks(workspaceId);
+    const { data: saved } = await api(path, {
+      method: id ? 'PUT' : 'POST', body: JSON.stringify(payload)
+    });
+    const sprintSaved = await syncTaskSprint(workspaceId, saved, sprintId);
+    if (workspaceId !== currentWsId) return;
+    const existing = tasksData.findIndex(t => t.id === saved.id);
+    if (existing < 0) tasksData.push(saved);
+    else tasksData[existing] = saved;
+    if (sprintSaved) {
+      haptic('notification', 'success');
+      showToast("Muvaffaqiyatli saqlandi");
     }
-    haptic('notification', 'success');
-    showToast("Muvaffaqiyatli saqlandi");
     closeSheet();
     renderBoard();
     updateBoardCache();
@@ -2004,6 +2033,7 @@ window.saveTask = async function () {
     if (currentTab === 'mytasks') loadMyTasks();
   } catch (e) {
   } finally {
+    savingTask = false;
     if (isTma && tg.MainButton) tg.MainButton.hideProgress();
   }
 };

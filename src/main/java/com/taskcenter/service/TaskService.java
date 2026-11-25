@@ -42,7 +42,6 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +50,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class TaskService {
@@ -172,20 +170,17 @@ public class TaskService {
     public List<ColumnWithCardsDto> getBoard(String workspaceId, String sprintId, Integer doneLimit, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        String effectiveSprintId = sprintId;
-        if (effectiveSprintId == null) {
-            Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE);
-            if (activeOpt.isPresent()) {
-                effectiveSprintId = activeOpt.get().getId();
+        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        Map<String, List<Task>> byColumn = boardTasksByColumn(workspaceId, sprintId);
+
+        for (BoardColumn col : cols) {
+            List<Task> tasks = byColumn.get(col.getId());
+            if (Boolean.TRUE.equals(col.getIsDone()) && tasks != null && doneLimit != null
+                    && doneLimit > 0 && tasks.size() > doneLimit) {
+                byColumn.put(col.getId(), tasks.subList(0, doneLimit));
             }
         }
-
-        List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<Task> allTasks = (effectiveSprintId != null)
-                ? taskRepository.findBySprintId(effectiveSprintId)
-                : taskRepository.findByWorkspaceIdWithDetails(workspaceId);
-
-        Set<String> creatorIds = allTasks.stream()
+        Set<String> creatorIds = byColumn.values().stream().flatMap(List::stream)
                 .map(Task::getCreatedBy)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
@@ -198,44 +193,27 @@ public class TaskService {
             });
         }
 
-        return cols.stream().map(c -> {
-            Stream<Task> stream = allTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()) && !Boolean.TRUE.equals(t.getIsArchived()))
-                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())));
-
-            if (Boolean.TRUE.equals(c.getIsDone()) && doneLimit != null && doneLimit > 0) {
-                stream = stream.limit(doneLimit);
-            }
-
-            List<Task> columnTasks = stream.collect(Collectors.toList());
-            return ColumnWithCardsDto.fromEntity(c, columnTasks, reporterMap);
-        }).collect(Collectors.toList());
+        return cols.stream()
+                .map(c -> ColumnWithCardsDto.fromEntity(c, byColumn.getOrDefault(c.getId(), List.of()), reporterMap))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<BoardInitColumnDto> getBoardInit(String workspaceId, String sprintId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
 
-        String effectiveSprintId = sprintId;
-        if (effectiveSprintId == null) {
-            Optional<Sprint> activeOpt = sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE);
-            if (activeOpt.isPresent()) {
-                effectiveSprintId = activeOpt.get().getId();
-            }
-        }
-
         List<BoardColumn> cols = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
-        List<Task> allTasks = (effectiveSprintId != null)
-                ? taskRepository.findBySprintId(effectiveSprintId)
-                : taskRepository.findByWorkspaceIdWithDetails(workspaceId);
+        Map<String, List<Task>> byColumn = boardTasksByColumn(workspaceId, sprintId);
+        return cols.stream()
+                .map(c -> BoardInitColumnDto.fromEntity(c, byColumn.getOrDefault(c.getId(), List.of())))
+                .toList();
+    }
 
-        return cols.stream().map(c -> {
-            List<Task> columnTasks = allTasks.stream()
-                    .filter(t -> c.getId().equals(t.getColumnId()) && !Boolean.TRUE.equals(t.getIsArchived()))
-                    .sorted(Comparator.comparing(Task::getLexoRank, Comparator.nullsLast(Comparator.naturalOrder())))
-                    .collect(Collectors.toList());
-            return BoardInitColumnDto.fromEntity(c, columnTasks);
-        }).collect(Collectors.toList());
+    private Map<String, List<Task>> boardTasksByColumn(String workspaceId, String sprintId) {
+        String effectiveSprintId = sprintId != null ? sprintId
+                : sprintRepository.findByWorkspaceIdAndStatus(workspaceId, SprintStatus.ACTIVE)
+                        .map(Sprint::getId).orElse(null);
+        return BoardTasks.groupByColumn(taskRepository.findVisibleBoardTasks(workspaceId, effectiveSprintId));
     }
 
     @Transactional(readOnly = true)

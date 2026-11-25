@@ -287,7 +287,8 @@ class ChatServiceTest {
     @Test
     @DisplayName("Chat foydalanuvchilarini olish (o'zidan tashqari, online holati bilan)")
     void testGetChatUsers() {
-        when(userRepository.findAll()).thenReturn(List.of(sender, recipient));
+        when(userRepository.findChatUsers("user-1")).thenReturn(List.of(
+                ChatUserDto.builder().id(recipient.getId()).name(recipient.getName()).build()));
         when(presenceService.isOnline("vali")).thenReturn(true);
 
         List<ChatUserDto> users = chatService.getChatUsers("user-1");

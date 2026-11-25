@@ -59,6 +59,8 @@ public class SprintService {
                 ? sprintRepository.findByWorkspaceIdAndStatusOrderByCreatedAtDesc(workspaceId, status)
                 : sprintRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
 
+        if (sprints.isEmpty()) return List.of();
+
         Map<String, SprintStatsProjection> statsMap = taskRepository.findSprintStatsByWorkspaceId(workspaceId)
                 .stream()
                 .collect(Collectors.toMap(SprintStatsProjection::getSprintId, s -> s, (a, b) -> a));
@@ -348,9 +350,13 @@ public class SprintService {
         }
 
         List<Task> tasksToSave = new ArrayList<>();
+        Map<String, Task> requestedTasks = taskRepository.findAllById(req.getTaskIds()).stream()
+                .collect(Collectors.toMap(Task::getId, task -> task));
         for (String taskId : req.getTaskIds()) {
-            Task task = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Task topilmadi: " + taskId));
+            Task task = requestedTasks.get(taskId);
+            if (task == null) {
+                throw new ResourceNotFoundException("Task topilmadi: " + taskId);
+            }
 
             if (!sprint.getWorkspaceId().equals(task.getWorkspaceId())) {
                 throw new BadRequestException("Task va sprint bir xil workspaceda bo'lishi kerak");

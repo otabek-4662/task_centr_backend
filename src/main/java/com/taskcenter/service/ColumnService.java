@@ -2,6 +2,8 @@ package com.taskcenter.service;
 
 import com.taskcenter.dto.ColumnCreateRequest;
 import com.taskcenter.dto.ColumnDto;
+import com.taskcenter.dto.TaskDto;
+import com.taskcenter.model.Task;
 import com.taskcenter.dto.ColumnPatchRequest;
 import com.taskcenter.dto.ColumnReorderItem;
 import com.taskcenter.exception.ResourceNotFoundException;
@@ -16,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 public class ColumnService {
@@ -39,10 +41,12 @@ public class ColumnService {
     @Transactional(readOnly = true)
     public List<ColumnDto> getColumns(String workspaceId, User currentUser) {
         authorizationService.checkAccess(workspaceId, currentUser);
-        return columnRepository.findByWorkspaceIdWithTasks(workspaceId)
-                .stream()
-                .map(ColumnDto::fromEntity)
-                .collect(Collectors.toList());
+        List<BoardColumn> columns = columnRepository.findByWorkspaceIdOrderByOrderAsc(workspaceId);
+        if (columns.isEmpty()) return List.of();
+        Map<String, List<Task>> byColumn = BoardTasks.groupByColumn(taskRepository.findVisibleBoardTasks(workspaceId, null));
+        return columns.stream().map(column -> ColumnDto.fromEntity(column,
+                byColumn.getOrDefault(column.getId(), List.of()).stream().map(TaskDto::fromEntity).toList()))
+                .toList();
     }
 
     @Transactional

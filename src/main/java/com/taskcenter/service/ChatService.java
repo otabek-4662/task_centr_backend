@@ -341,7 +341,7 @@ public class ChatService {
         } catch (Exception ignored) {
             // H2 yoki mock test muhitida fallback
         }
-        if (candidateMessages == null || candidateMessages.isEmpty()) {
+        if (candidateMessages == null) {
             candidateMessages = chatMessageRepository.findAllDirectMessagesForUser(currentUserId);
         }
 
@@ -434,26 +434,13 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public List<ChatUserDto> getChatUsers(String currentUserId) {
-        List<User> otherUsers = userRepository.findAll().stream()
-                .filter(u -> !u.getId().equals(currentUserId))
-                .collect(Collectors.toList());
-
-        if (otherUsers.size() <= 1) {
-            return otherUsers.stream()
-                    .map(this::toUserDto)
-                    .collect(Collectors.toList());
+        List<ChatUserDto> users = userRepository.findChatUsers(currentUserId);
+        if (users.isEmpty()) return users;
+        Set<String> online = users.size() > 1 ? safeGetOnlineUsers() : null;
+        for (ChatUserDto user : users) {
+            user.setOnline(online != null ? online.contains(user.getName()) : presenceService.isOnline(user.getName()));
         }
-
-        Set<String> onlineUsernames = safeGetOnlineUsers();
-        if (onlineUsernames != null) {
-            return otherUsers.stream()
-                    .map(u -> toUserDto(u, onlineUsernames.contains(u.getName())))
-                    .collect(Collectors.toList());
-        }
-
-        return otherUsers.stream()
-                .map(this::toUserDto)
-                .collect(Collectors.toList());
+        return users;
     }
 
     private Set<String> safeGetOnlineUsers() {
@@ -581,10 +568,6 @@ public class ChatService {
     private ChatMessage getMessage(String messageId) {
         return chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Xabar topilmadi: " + messageId));
-    }
-
-    private ChatUserDto toUserDto(User user) {
-        return toUserDto(user, presenceService.isOnline(user.getName()));
     }
 
     private ChatUserDto toUserDto(User user, boolean online) {

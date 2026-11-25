@@ -119,7 +119,7 @@ public class Task {
     private LocalDateTime updatedAt;
 
     @ManyToMany
-    @org.hibernate.annotations.BatchSize(size = 25)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @JoinTable(
         name = "task_labels",
         joinColumns = @JoinColumn(name = "task_id"),
@@ -129,7 +129,7 @@ public class Task {
     private Set<Label> labels = new HashSet<>();
 
     @ManyToMany
-    @org.hibernate.annotations.BatchSize(size = 25)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @JoinTable(
         name = "task_directions",
         joinColumns = @JoinColumn(name = "task_id"),
@@ -139,7 +139,7 @@ public class Task {
     private Set<Direction> directions = new HashSet<>();
 
     @ManyToMany
-    @org.hibernate.annotations.BatchSize(size = 25)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @JoinTable(
         name = "task_assignees",
         joinColumns = @JoinColumn(name = "task_id"),
@@ -149,7 +149,7 @@ public class Task {
     private Set<User> assignees = new HashSet<>();
 
     @ManyToMany
-    @org.hibernate.annotations.BatchSize(size = 25)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @JoinTable(
         name = "task_watchers",
         joinColumns = @JoinColumn(name = "task_id"),
@@ -159,7 +159,7 @@ public class Task {
     private Set<User> watchers = new HashSet<>();
 
     @OneToMany(mappedBy = "taskId", cascade = CascadeType.ALL, orphanRemoval = true)
-    @org.hibernate.annotations.BatchSize(size = 25)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @Builder.Default
     private Set<TaskChecklistItem> checklistItems = new HashSet<>();
 

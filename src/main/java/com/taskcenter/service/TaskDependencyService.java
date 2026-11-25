@@ -47,28 +47,7 @@ public class TaskDependencyService {
         if (task == null || task.getId() == null) {
             return Collections.emptyList();
         }
-        List<TaskDependency> deps = taskDependencyRepository.findByTaskId(task.getId());
-        if (deps.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<String> blockerIds = deps.stream().map(TaskDependency::getDependsOnTaskId).toList();
-        List<Task> blockerTasks = taskRepository.findAllById(blockerIds);
-
-        Map<String, BoardColumn> columnMap = new HashMap<>();
-        List<Task> unfinished = new ArrayList<>();
-
-        for (Task bTask : blockerTasks) {
-            if (bTask.getDeletedAt() != null) {
-                continue;
-            }
-            BoardColumn col = columnMap.computeIfAbsent(bTask.getColumnId(),
-                    id -> columnRepository.findById(id).orElse(null));
-            if (col == null || !Boolean.TRUE.equals(col.getIsDone())) {
-                unfinished.add(bTask);
-            }
-        }
-        return unfinished;
+        return taskRepository.findUnfinishedBlockers(task.getId());
     }
 
     @Transactional(readOnly = true)
@@ -121,15 +100,23 @@ public class TaskDependencyService {
         List<TaskDependency> blockedByDeps = taskDependencyRepository.findByTaskId(taskId);
         List<TaskDependency> blockingDeps = taskDependencyRepository.findByDependsOnTaskId(taskId);
 
+        Set<String> relatedIds = new HashSet<>();
+        blockedByDeps.forEach(dep -> relatedIds.add(dep.getDependsOnTaskId()));
+        blockingDeps.forEach(dep -> relatedIds.add(dep.getTaskId()));
+        Map<String, Task> tasksById = taskRepository.findAllById(relatedIds).stream()
+                .collect(Collectors.toMap(Task::getId, t -> t));
+        Set<String> blockerColumns = blockedByDeps.stream().map(dep -> tasksById.get(dep.getDependsOnTaskId()))
+                .filter(Objects::nonNull).map(Task::getColumnId).collect(Collectors.toSet());
+        Set<String> doneColumns = columnRepository.findAllById(blockerColumns).stream()
+                .filter(col -> Boolean.TRUE.equals(col.getIsDone())).map(BoardColumn::getId).collect(Collectors.toSet());
+
         List<DependencyItemDto> blockedBy = new ArrayList<>();
         boolean isBlocked = false;
 
         for (TaskDependency dep : blockedByDeps) {
-            Optional<Task> blockerOpt = taskRepository.findById(dep.getDependsOnTaskId());
-            if (blockerOpt.isEmpty()) continue;
-            Task blocker = blockerOpt.get();
-            BoardColumn col = columnRepository.findById(blocker.getColumnId()).orElse(null);
-            boolean done = col != null && Boolean.TRUE.equals(col.getIsDone());
+            Task blocker = tasksById.get(dep.getDependsOnTaskId());
+            if (blocker == null) continue;
+            boolean done = doneColumns.contains(blocker.getColumnId());
             if (!done) isBlocked = true;
 
             blockedBy.add(DependencyItemDto.builder()
@@ -146,9 +133,8 @@ public class TaskDependencyService {
 
         List<DependencyItemDto> blocking = new ArrayList<>();
         for (TaskDependency dep : blockingDeps) {
-            Optional<Task> targetOpt = taskRepository.findById(dep.getTaskId());
-            if (targetOpt.isEmpty()) continue;
-            Task target = targetOpt.get();
+            Task target = tasksById.get(dep.getTaskId());
+            if (target == null) continue;
 
             blocking.add(DependencyItemDto.builder()
                     .id(dep.getId())
