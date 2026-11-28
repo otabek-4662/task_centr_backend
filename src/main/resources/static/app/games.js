@@ -181,7 +181,10 @@
       recordLabel: 'Eng ko‘p chalingan qo‘ng‘iroq', desc: 'Orollarni kezing va beshta qo‘ng‘iroqni tartib bilan chaling. WASD bilan yuring, Space bilan sakrang, sichqonchani tortib atrofga qarang.' },
     { id: 'tidewater', title: 'Tidewater', icon: '🎣', tag: '3D baliq ovi', key: 'best',
       saveKey: 'tidewater.save.v1', recordLabel: 'Eng og‘ir baliq', recordUnit: 'kg', pointerLock: true,
-      desc: 'WASD bilan yuring, R bilan qarmoqni oling va sichqoncha bilan baliq tuting. Kompyuterda WebGPU kerak. Birinchi yuklanish uzoqroq.' }
+      desc: 'WASD bilan yuring, R bilan qarmoqni oling va sichqoncha bilan baliq tuting. Kompyuterda WebGPU kerak. Birinchi yuklanish uzoqroq.' },
+    { id: 'sprite-garden', title: 'Sprite Garden', icon: '🌿', tag: 'Erkin o‘yin', key: 'best',
+      saveKey: 'sprite-garden.v1', recordLabel: 'Eng ko‘p urug‘', downloads: true,
+      desc: 'Bog‘ eking va g‘orlarni kezing. WASD yoki strelkalar bilan yuring, R bilan qazing va F bilan eking. Sichqoncha uchun ekrandagi boshqaruvni oching.' }
   ].map(game => ({
     ...game, file: 'collection/' + game.id + '/index', collection: true
   }));
@@ -219,10 +222,15 @@
     if (!session?.game.key || event.origin !== 'null' || event.source !== session.frame.contentWindow ||
         data?.channel !== session.channel || typeof data.record !== 'string') return;
     if (data.type === 'choy-arcade-save' && session.game.saveKey) {
-      if (data.record.length > 128000) return;
+      const garden = session.game.id === 'sprite-garden';
+      if (data.record.length > (garden ? 512000 : 128000)) return;
       try {
         const save = JSON.parse(data.record);
-        if (save?.v === 1 && Array.isArray(save.inventory)) localStorage.setItem('choy_arcade_save_' + session.game.id, data.record);
+        const valid = garden
+          ? Array.isArray(save) && save.every(entry => Array.isArray(entry) && entry.length === 2 &&
+            typeof entry[0] === 'string' && entry[0].startsWith('sprite-garden-'))
+          : save?.v === 1 && Array.isArray(save.inventory);
+        if (valid) localStorage.setItem('choy_arcade_save_' + session.game.id, data.record);
       } catch {}
       return;
     }
@@ -378,7 +386,10 @@
       }
       const frame = document.createElement('iframe');
       frame.title = gameMeta.title;
-      frame.setAttribute('sandbox', gameMeta.pointerLock ? 'allow-scripts allow-pointer-lock' : 'allow-scripts');
+      const sandbox = ['allow-scripts'];
+      if (gameMeta.pointerLock) sandbox.push('allow-pointer-lock');
+      if (gameMeta.downloads) sandbox.push('allow-downloads');
+      frame.setAttribute('sandbox', sandbox.join(' '));
       frame.referrerPolicy = 'no-referrer';
       frame.src = '/app/arcade/' + gameMeta.file + '.html#' + params;
       importedSession = { frame, channel, game: gameMeta };
