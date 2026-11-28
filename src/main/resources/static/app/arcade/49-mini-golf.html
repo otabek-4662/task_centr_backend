@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="utf-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mini golf</title>
+<style>
+  :root{--bg:#0e1512;--panel:#1a2520;--ink:#e8f0ea;--mut:#9db3a6;--acc:#ffd34d}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:radial-gradient(1200px 700px at 50% -10%,#1c2b24,var(--bg));
+       font:14px/1.4 "Segoe UI",system-ui,sans-serif;color:var(--ink);padding:16px;
+       touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #wrap{width:min(960px,100%)}
+  #hud{display:flex;align-items:center;justify-content:space-between;gap:12px;
+      background:var(--panel);border:1px solid #2c3d34;border-radius:10px 10px 0 0;
+      padding:10px 14px;flex-wrap:wrap}
+  #info{font-weight:600;letter-spacing:.3px}
+  #info b{color:var(--acc)}
+  #hint{color:var(--mut);font-size:12px}
+  .btns{display:flex;gap:8px}
+  button{cursor:pointer;border:1px solid #3a5044;background:#24352c;color:var(--ink);
+         border-radius:8px;padding:6px 12px;font:inherit;font-size:13px}
+  button:hover{background:#2e4437;border-color:#4c6b58}
+  #stage{position:relative}
+  canvas{display:block;width:100%;height:auto;background:#2f8f57;border:1px solid #2c3d34;
+         border-top:none;border-radius:0 0 10px 10px;touch-action:none;cursor:crosshair}
+  #overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+           background:rgba(8,14,11,.72);border-radius:0 0 10px 10px;backdrop-filter:blur(2px)}
+  #overlay.hidden{display:none}
+  .card{background:var(--panel);border:1px solid #3a5044;border-radius:12px;
+        padding:22px 28px;text-align:center;min-width:300px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .card h2{margin:0 0 6px;font-size:20px}
+  .card p{margin:4px 0 14px;color:var(--mut)}
+  .card table{margin:0 auto 14px;border-collapse:collapse;font-size:13px}
+  .card td,.card th{padding:3px 9px;border-bottom:1px solid #2c3d34}
+  .card th{color:var(--mut);font-weight:600}
+  .card .tot td{font-weight:700;color:var(--acc)}
+  .primary{background:#2f7a4d!important;border-color:#3f9c65!important}
+  .primary:hover{background:#37905b!important}
+</style>
+
+
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div>
+      <div id="info"></div>
+      <div id="hint">Yo‘nalish va kuchni tanlash uchun to‘pni orqaga torting, urish uchun qo‘yib yuboring.</div>
+    </div>
+    <div class="btns">
+      <button id="btnHole" title="Reset this hole"><svg viewBox="0 0 24 24" width="12" height="12" style="vertical-align:-1px" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.2V9h-4.8"/></svg> Hole</button>
+      <button id="btnGame" title="To‘qqiz chuqurchani boshidan boshlash">Yangidan boshlash</button>
+    </div>
+  </div>
+  <div id="stage">
+    <canvas id="cv" width="960" height="640"></canvas>
+    <div id="aaa-score" class="sr">0</div>
+    <div id="overlay" class="hidden"></div>
+  </div>
+</div>
+
+
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="49-mini-golf.js"></script>
+</body>
+</html>

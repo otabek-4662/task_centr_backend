@@ -75,6 +75,9 @@
       case 'close-game-stage':
         call('closeGameStage');
         break;
+      case 'fullscreen-game':
+        call('toggleGameFullscreen');
+        break;
       case 'game-ctrl':
         call('handleGameCtrl', el.dataset.dir);
         break;

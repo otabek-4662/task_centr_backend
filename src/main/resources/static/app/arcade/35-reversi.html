@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Reversi</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #2b3a4a, #141a22);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #e8eef4;
+    padding: 20px;
+  }
+  h1 { font-size: 28px; letter-spacing: 6px; font-weight: 300; margin-bottom: 14px; }
+  h1 b { font-weight: 700; }
+
+  #scorebar {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 14px;
+    font-size: 15px;
+  }
+  .score { display: flex; align-items: center; gap: 8px; }
+  .pip { width: 18px; height: 18px; border-radius: 50%; }
+  .pip.black { background: radial-gradient(circle at 35% 30%, #555, #000); }
+  .pip.white { background: radial-gradient(circle at 35% 30%, #fff, #b9c2cc); }
+  #turn { min-width: 150px; text-align: center; color: #9fd48a; font-weight: 600; }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    width: min(90vw, 480px);
+    height: min(90vw, 480px);
+    background: #0b6623;
+    border: 6px solid #5a3a1e;
+    border-radius: 6px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 34px rgba(30,180,90,.14), inset 0 0 44px rgba(0,0,0,.35);
+    overflow: hidden;
+  }
+  .cell {
+    position: relative;
+    border: 1px solid rgba(0,0,0,.35);
+    background: linear-gradient(135deg, #12833a, #0d6e2c);
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cell.hint { cursor: pointer; }
+  .cell.hint:hover { background: linear-gradient(135deg, #1aa24a, #12833a); }
+  .cell.hint::after {
+    content: "";
+    width: 26%;
+    height: 26%;
+    border-radius: 50%;
+    background: rgba(255,255,255,.28);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.15);
+    animation: hintPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes hintPulse {
+    0%, 100% { transform: scale(1); opacity: .8; }
+    50% { transform: scale(1.28); opacity: 1; }
+  }
+  .cell.last { box-shadow: inset 0 0 0 3px rgba(255, 220, 80, .55); }
+
+  .disc {
+    width: 82%;
+    height: 82%;
+    border-radius: 50%;
+    animation: flip .28s ease-out;
+  }
+  .disc.b { background: radial-gradient(circle at 35% 30%, #666, #050505); box-shadow: inset 0 -3px 6px rgba(255,255,255,.12), 0 2px 4px rgba(0,0,0,.5); }
+  .disc.w { background: radial-gradient(circle at 35% 30%, #ffffff, #c4cdd6); box-shadow: inset 0 -3px 6px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.5); }
+  @keyframes flip { from { transform: scale(.4) rotateY(90deg); opacity: .3; } to { transform: scale(1) rotateY(0); opacity: 1; } }
+
+  #controls { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+  button {
+    background: #9fd48a;
+    color: #14202c;
+    border: none;
+    padding: 9px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform .1s, background .15s;
+  }
+  button:hover { background: #b4e5a2; transform: translateY(-1px); }
+  #msg { font-size: 15px; color: #ffd76e; min-height: 20px; font-weight: 600; }
+  .rules { margin-top: 10px; font-size: 12px; color: #7c8b9a; }
+</style>
+
+<style>
+/*AAA-INJECT-CSS*/
+html{touch-action:manipulation}
+body{-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+canvas{touch-action:none}
+button,input,select,textarea{touch-action:manipulation}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:2147483000;background:radial-gradient(ellipse at 50% 40%,transparent 58%,rgba(0,0,0,.28) 100%)}
+</style>
+
+
+
+
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+<h1><b>REVERSI</b></h1>
+<div id="scorebar">
+  <div class="score"><span class="pip black"></span><span>Siz: <b id="scoreB">2</b></span></div>
+  <div id="turn">Navbat sizda</div>
+  <div class="score"><span class="pip white"></span><span>AI: <b id="scoreW">2</b></span></div>
+</div>
+<div id="board"></div>
+<div id="controls">
+  <button id="restart">Qaytadan</button>
+  <div id="msg"></div>
+</div>
+<div class="rules">You are black. Click a highlighted square to place a disc and flip the AI's discs.</div>
+<div class="rules" id="record"></div>
+
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="35-reversi.js"></script>
+</body>
+</html>

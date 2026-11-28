@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ranglar ketma-ketligi</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(120,140,255,.14), transparent 55%),
+      linear-gradient(160deg, #181d33 0%, #0a0d1a 75%);
+    color: #fff;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+    letter-spacing: 5px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    text-shadow: 0 0 24px rgba(120,140,255,.45);
+  }
+
+  .hud { display: flex; gap: 10px; margin-bottom: 16px; }
+  .stat {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 12px;
+    padding: 7px 16px;
+    min-width: 84px;
+    text-align: center;
+    box-shadow: inset 0 0 14px rgba(0,0,0,.3);
+  }
+  .stat .label { display: block; font-size: .6rem; text-transform: uppercase; letter-spacing: 1.5px; color: #8fa3d8; }
+  .stat .value { font-weight: 800; font-variant-numeric: tabular-nums; }
+  #best .value { color: #ffd166; }
+
+  #device {
+    position: relative;
+    width: min(88vw, 380px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #33395c, #181d33 70%);
+    box-shadow: 0 24px 60px rgba(0,0,0,.65), inset 0 0 30px rgba(0,0,0,.5);
+    padding: 5.5%;
+  }
+  #device.strict .ring { box-shadow: 0 0 14px rgba(255,80,100,.8); }
+
+  #pads {
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 4.5%;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  .pad {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: filter .1s, transform .08s;
+    position: relative;
+  }
+  .pad::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.22), transparent 60%);
+    opacity: 0;
+    transition: opacity .1s;
+  }
+  .pad:active::after, .pad.lit::after { opacity: 1; }
+  .pad.lit { filter: brightness(1.65) saturate(1.3); }
+  .pad.g0 { background: linear-gradient(145deg, #1e9e4a, #157a38); border-radius: 100% 8% 8% 8%; }
+  .pad.g1 { background: linear-gradient(145deg, #e04444, #b23030); border-radius: 8% 100% 8% 8%; }
+  .pad.g2 { background: linear-gradient(145deg, #e8c832, #c0a020); border-radius: 8% 8% 8% 100%; }
+  .pad.g3 { background: linear-gradient(145deg, #3878e0, #2860b8); border-radius: 8% 8% 100% 8%; }
+  .pad.g0.lit { box-shadow: 0 0 50px #3ce06a, inset 0 0 40px #3ce06a; }
+  .pad.g1.lit { box-shadow: 0 0 50px #ff6a6a, inset 0 0 40px #ff6a6a; }
+  .pad.g2.lit { box-shadow: 0 0 50px #ffe86a, inset 0 0 40px #ffe86a; }
+  .pad.g3.lit { box-shadow: 0 0 50px #6aa8ff, inset 0 0 40px #6aa8ff; }
+
+  #center {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 42%; height: 42%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #3a4270, #161a30 75%);
+    border: 5px solid #0e1224;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6), inset 0 0 20px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    pointer-events: none;
+  }
+  #center .ring {
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.12);
+  }
+  #round-num {
+    font-size: clamp(1.7rem, 8vw, 2.4rem);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 16px rgba(140,160,255,.6);
+  }
+  #center .cap { font-size: .62rem; letter-spacing: 2px; color: #8fa3d8; text-transform: uppercase; }
+
+  #status {
+    margin-top: 18px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #cdd8f0;
+    min-height: 1.4em;
+    text-align: center;
+  }
+  #status.err { color: #ff9aa8; }
+  #status.good { color: #7de88a; }
+
+  #startBtn {
+    margin-top: 14px;
+    background: linear-gradient(135deg, #7888ff, #5a6ae8);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 34px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(120,140,255,.45), 0 3px 0 #3a449e;
+    transition: transform .12s;
+  }
+  #startBtn:hover { transform: scale(1.05); }
+  #startBtn:active { transform: translateY(2px); }
+  #startBtn.playing { opacity: .4; pointer-events: none; }
+</style>
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+
+<h1>RANGLAR KETMA-KETLIGI</h1>
+<div class="hud">
+  <div class="stat"><span class="label">Bosqich</span><span class="value" id="round">—</span></div>
+  <div class="stat" id="best"><span class="label">Rekord</span><span class="value" id="bestV">0</span></div>
+</div>
+
+<div id="device">
+  <div id="pads">
+    <div class="pad g0" data-p="0"></div>
+    <div class="pad g1" data-p="1"></div>
+    <div class="pad g2" data-p="2"></div>
+    <div class="pad g3" data-p="3"></div>
+  </div>
+  <div id="center">
+    <div class="ring"></div>
+    <div id="round-num">—</div>
+    <div class="cap">SIMON</div>
+  </div>
+</div>
+
+<div id="status">Watch the pattern, repeat it back.</div>
+<button id="startBtn">BOSHLASH</button>
+
+
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="11-simon-says.js"></script>
+</body>
+</html>

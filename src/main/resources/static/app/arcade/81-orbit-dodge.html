@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Orbita manevri</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    min-height:100vh;color:#fff;font-family:system-ui,-apple-system,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:14px;
+    background:
+      radial-gradient(1000px 700px at 70% -10%, rgba(49,46,129,.55), transparent 60%),
+      radial-gradient(900px 700px at 8% 110%, rgba(8,47,73,.5), transparent 60%),
+      #04060f;
+    overflow:hidden;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:
+      radial-gradient(1.6px 1.6px at 22% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 68% 42%, #a5c8ff 50%, transparent 51%),
+      radial-gradient(1.4px 1.4px at 84% 78%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 38% 66%, #7dd3fc 50%, transparent 51%),
+      radial-gradient(1.8px 1.8px at 55% 8%, #fff 50%, transparent 51%),
+      radial-gradient(1.1px 1.1px at 8% 58%, #c4b5fd 50%, transparent 51%);
+    background-size:340px 340px;animation:starDrift 90s linear infinite;
+  }
+  @keyframes starDrift{to{transform:translateY(340px)}}
+  .wrap{position:relative;width:min(540px,100%);display:flex;flex-direction:column;gap:10px}
+  .hud{
+    display:flex;justify-content:space-between;gap:8px;
+    background:rgba(13,18,38,.82);border:1px solid rgba(99,140,255,.28);
+    padding:10px 16px;border-radius:14px;font-weight:800;
+    box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter:blur(8px);
+  }
+  .hud .lab{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:#7f93c4;display:block}
+  .hud span{color:#7dd3fc;font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(125,211,252,.5)}
+  .hud .cval{color:#f472b6;text-shadow:0 0 14px rgba(244,114,182,.5)}
+  .hud .bval{color:#fde047;text-shadow:0 0 14px rgba(253,224,71,.5)}
+  canvas{
+    width:100%;height:auto;aspect-ratio:500/500;border-radius:18px;display:block;
+    border:1px solid rgba(99,140,255,.35);
+    box-shadow:0 0 0 1px rgba(0,0,0,.6),0 24px 70px rgba(0,0,0,.6),0 0 60px -18px rgba(88,140,255,.4);
+    background:#05070f;touch-action:none;
+  }
+  .ov{
+    position:absolute;inset:56px 0 0 0;border-radius:18px;z-index:5;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:22px;gap:14px;
+    background:radial-gradient(ellipse at 50% 40%, rgba(20,28,60,.55), rgba(4,6,15,.9) 75%);
+    backdrop-filter:blur(4px);transition:opacity .3s,visibility .3s;
+  }
+  .ov.hidden{opacity:0;visibility:hidden;pointer-events:none}
+  .title{
+    font-size:clamp(2rem,7vw,3.1rem);font-weight:900;letter-spacing:.04em;line-height:.95;
+    background:linear-gradient(180deg,#fff,#93c5fd 55%,#38bdf8);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 24px rgba(56,189,248,.45));
+  }
+  .title.hot{
+    background:linear-gradient(180deg,#fff,#fda4af 55%,#f43f5e);
+    filter:drop-shadow(0 0 24px rgba(244,63,94,.45));
+  }
+  .ov p{color:#b9c7e6;max-width:340px;font-size:.95rem;line-height:1.55}
+  .statline{display:flex;gap:18px;font-weight:800;font-size:1.05rem}
+  .statline b{color:#fde047}
+  .keys{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;color:#8fa3d0;font-size:.78rem;font-weight:700}
+  kbd{
+    background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35);
+    border-bottom-width:3px;border-radius:7px;padding:3px 9px;color:#dbe7ff;
+    font-family:ui-monospace,monospace;font-size:.72rem;font-weight:800;
+  }
+  .btn{
+    padding:13px 36px;border:none;border-radius:999px;cursor:pointer;
+    background:linear-gradient(135deg,#38bdf8,#818cf8);color:#04091a;
+    font-weight:900;font-size:1.02rem;letter-spacing:.06em;
+    box-shadow:0 10px 30px -6px rgba(56,189,248,.6),inset 0 1px 0 rgba(255,255,255,.55);
+    transition:transform .12s,box-shadow .2s;
+  }
+  .btn:hover{transform:translateY(-2px);box-shadow:0 16px 38px -6px rgba(56,189,248,.8),inset 0 1px 0 rgba(255,255,255,.6)}
+  .btn:active{transform:scale(.97)}
+  .hint{font-size:.78rem;color:#5f7099;font-weight:600}
+</style>
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div><span class="lab">Hisob</span><span id="score">0</span></div>
+    <div><span class="lab">Ketma-ketlik</span><span class="cval" id="combo">x1</span></div>
+    <div><span class="lab">Rekord</span><span class="bval" id="best">0</span></div>
+  </div>
+  <canvas id="c" width="500" height="500"></canvas>
+  <div class="ov" id="ov">
+    <h1 class="title" id="ovT">ORBITA<br>MANEVRI</h1>
+    <p id="ovP">Meteorlardan qochish uchun orbitalar orasida almashing. Yig‘ing: <b style="color:#fde047"><svg viewBox="0 0 24 24" style="width:.9em;height:.9em;vertical-align:-.1em"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17l-5.9 3.2 1.3-6.6L2.5 9l6.6-.8z" fill="#fde047"/></svg> stars</b> — chain them for combo multipliers. Near misses earn bonus points!</p>
+    <div class="statline" id="ovStats" style="display:none"></div>
+    <div class="keys"><span><kbd>Space</kbd>/<kbd>Click</kbd> cycle ring</span><span><kbd>W</kbd>/<kbd><svg width="9" height="10" viewBox="0 0 10 10" style="vertical-align:-1px"><path d="M5 1 9 6H6v3H4V6H1z" fill="currentColor"/></svg></kbd> out</span><span><kbd>S</kbd>/<kbd><svg width="9" height="10" viewBox="0 0 10 10" style="vertical-align:-1px"><path d="M5 9 1 4h3V1h2v3h3z" fill="currentColor"/></svg></kbd> in</span></div>
+    <button class="btn" id="startBtn">UCHISH</button>
+    <div class="hint">P pauses • Sound &amp; FX toggles in the HUD</div>
+  </div>
+</div>
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="81-orbit-dodge.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Neon pinbol</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:#090814;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;gap:8px;position:relative;overflow-x:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  body::before{content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(40% 50% at 20% 22%,rgba(244,114,182,.12),transparent 70%),
+      radial-gradient(45% 55% at 80% 20%,rgba(99,102,241,.16),transparent 70%),
+      radial-gradient(50% 55% at 55% 85%,rgba(34,211,238,.10),transparent 70%);
+    animation:aurora 20s ease-in-out infinite alternate}
+  @keyframes aurora{from{transform:rotate(-2deg) scale(1)}to{transform:rotate(2deg) scale(1.07)}}
+  .wrap{width:min(440px,100%);display:flex;flex-direction:column;gap:8px;position:relative}
+  .hud{display:flex;justify-content:space-between;background:rgba(21,18,43,.85);backdrop-filter:blur(8px);border:1px solid #3c347a;padding:8px 14px;border-radius:12px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .hud span{color:#f472b6;font-variant-numeric:tabular-nums}
+  #best{color:#facc15}
+  canvas{width:100%;height:auto;max-height:70vh;aspect-ratio:400/620;background:#100d24;border-radius:16px;border:2px solid #4c1d95;display:block;touch-action:none;box-shadow:0 0 30px rgba(124,58,237,.25),0 16px 40px rgba(0,0,0,.5)}
+  .touch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .tbtn{padding:12px;border:none;border-radius:10px;background:linear-gradient(180deg,#2d2560,#221b4a);color:#fff;font-weight:900;cursor:pointer;user-select:none;-webkit-user-select:none;font-family:inherit;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:5px;transition:filter .12s}
+  .tbtn:active{background:#ec4899}
+  .tbtn svg{width:14px;height:14px}
+  .tbtn.launch{background:linear-gradient(180deg,#7c3aed,#5b21b6)}
+</style>
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div>Hisob: <span id="score">0</span></div>
+    <div>Balls: <span id="balls">3</span></div>
+    <div>Rekord: <span id="best">0</span></div>
+  </div>
+  <canvas id="c" width="400" height="620"></canvas>
+  <div class="touch">
+    <button class="tbtn" id="lBtn"><svg viewBox="0 0 16 16"><path d="M10.5 2.5L4.5 8l6 5.5" fill="none" stroke="#f472b6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> LEFT</button>
+    <button class="tbtn launch" id="pBtn">UCHIRISH</button>
+    <button class="tbtn" id="rBtn">RIGHT <svg viewBox="0 0 16 16"><path d="M5.5 2.5l6 5.5-6 5.5" fill="none" stroke="#f472b6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</div>
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="72-pinball.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Stol tennisi</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(125,211,252,.1), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(244,114,182,.08), transparent 50%),
+      #07070d;
+    color: #e6e6f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    padding: 8px;
+  }
+  h1 {
+    font-size: clamp(17px, 4.5vw, 22px);
+    font-weight: 300;
+    letter-spacing: 10px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    color: #7dd3fc;
+    text-shadow: 0 0 20px rgba(125,211,252,.5);
+  }
+  #score {
+    font-size: clamp(30px, 9vw, 44px);
+    font-weight: 200;
+    letter-spacing: 12px;
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  #score .you { color: #7dd3fc; text-shadow: 0 0 18px rgba(125,211,252,.7); }
+  #score .ai  { color: #f472b6; text-shadow: 0 0 18px rgba(244,114,182,.7); }
+  #score .sep { color: #3a3a52; font-size: 0.6em; }
+  #wrap { position: relative; width: min(96vw, 800px); }
+  canvas {
+    display: block;
+    width: 100%;
+    background: #0a0a14;
+    border: 1px solid #26263c;
+    border-radius: 10px;
+    box-shadow: 0 0 44px rgba(125,211,252,.1), inset 0 0 60px rgba(0,0,0,.5);
+    cursor: none;
+    touch-action: none;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(7, 7, 13, 0.84);
+    backdrop-filter: blur(3px);
+    border-radius: 10px;
+    text-align: center;
+    transition: opacity 0.25s;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlayTitle { font-size: clamp(26px, 7vw, 38px); font-weight: 300; letter-spacing: 8px; margin-bottom: 12px; }
+  #overlaySub   { font-size: clamp(12px, 3.2vw, 15px); color: #9a9ab0; margin-bottom: 26px; line-height: 1.8; padding: 0 14px; }
+  #restartBtn {
+    background: none;
+    border: 1px solid #7dd3fc;
+    color: #7dd3fc;
+    font-size: 15px;
+    letter-spacing: 4px;
+    padding: 12px 34px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    text-transform: uppercase;
+    box-shadow: 0 0 18px rgba(125,211,252,.3), inset 0 0 12px rgba(125,211,252,.08);
+    transition: background 0.15s, color 0.15s, transform .12s;
+  }
+  #restartBtn:hover { background: #7dd3fc; color: #0a0a0f; transform: scale(1.05); }
+  #wins { margin-top: 12px; font-size: 11px; letter-spacing: 3px; color: #565672; text-transform: uppercase; }
+</style>
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+  <h1>Stol tennisi</h1>
+  <div id="score"><span class="you" id="youScore">0</span><span class="sep">:</span><span class="ai" id="aiScore">0</span></div>
+  <div id="wrap">
+    <canvas id="game" width="800" height="500"></canvas>
+    <div id="overlay">
+      <div id="overlayTitle">PONG</div>
+      <div id="overlaySub">First to 10 wins.<br>Drag your finger or mouse, or use W / S keys.</div>
+      <button id="restartBtn">O‘ynash</button>
+      <div id="wins"></div>
+    </div>
+  </div>
+
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="04-pong.js"></script>
+</body>
+</html>

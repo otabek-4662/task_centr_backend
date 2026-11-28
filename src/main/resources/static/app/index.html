@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="style.css?v=46" rel="stylesheet">
-<link href="/app/eclipse/theme.css?v=1" rel="stylesheet">
+<link href="style.css?v=47" rel="stylesheet">
+<link href="/app/eclipse/theme.css?v=2" rel="stylesheet">
 <link href="/app/eclipse/scene.css?v=1" rel="stylesheet">
 </head>
 <body>
@@ -122,7 +122,7 @@
       <label class="sidebar-label" for="ws-desktop">Ish maydoni (Loyiha)</label>
       <div class="ws-row">
         <div class="ws-switcher full"><select id="ws-desktop" aria-label="Ish maydonini tanlash"></select></div>
-        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi ish maydoni yaratish" aria-label="Yangi ish maydoni yaratish">+</button>
+        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi loyiha yaratish" aria-label="Yangi loyiha yaratish"><svg class="create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19V6a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3Zm9-8v5m-2.5-2.5h5"/></svg></button>
       </div>
     </div>
 
@@ -159,7 +159,7 @@
       <button type="button" class="nav-item" id="nav-item-games" data-tab="games" data-action="tab" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
         <span>Tanaffus (O‘yinlar)</span>
-        <span class="badge-pill" style="background:var(--gold-soft);color:var(--gold);">12</span>
+        <span class="badge-pill" id="arcade-game-count" style="background:var(--gold-soft);color:var(--gold);"></span>
       </button>
       <button type="button" class="nav-item" id="nav-item-admin" data-tab="admin" data-action="tab" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -187,7 +187,7 @@
           <img src="piyola-3d.png" alt="Choylashamiz" class="header-piyola-icon">
         </div>
         <div class="ws-switcher"><select id="ws" aria-label="Ish maydonini tanlash"></select></div>
-        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi ish maydoni yaratish" aria-label="Yangi ish maydoni yaratish">+</button>
+        <button type="button" class="icon-btn sm" data-action="open-ws-modal" title="Yangi loyiha yaratish" aria-label="Yangi loyiha yaratish"><svg class="create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19V6a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3Zm9-8v5m-2.5-2.5h5"/></svg></button>
         <div class="sprint-filter-wrap">
           <select id="board-sprint-select" aria-label="Sprint bo‘yicha filtrlash">
             <option value="">Barcha vazifalar (Doska)</option>
@@ -201,7 +201,7 @@
 
       <div class="header-right">
         <button type="button" id="header-admin-btn" class="header-admin-pill" data-action="tab" data-tab="admin" title="SuperAdmin Boshqaruv Markazi" style="display:none;">🛡 Admin</button>
-        <button type="button" class="btn-action btn-primary header-new-task-btn" data-action="new-task">+ Yangi vazifa</button>
+        <button type="button" class="btn-action btn-primary header-new-task-btn" data-action="new-task" aria-label="Yangi vazifa yaratish" title="Yangi vazifa yaratish"><svg class="create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8m0-18 4 4v3m-4-7v4h4m0 6v8m-4-4h8M8 10h4m-4 4h2"/></svg><span>Yangi vazifa</span></button>
         <div class="header-utility-group">
           <button type="button" id="btn-hero-toggle" class="header-util-btn hero-toggle-pill" data-action="toggle-hero" title="3D Choylashamiz vitrinasini ko‘rsatish yoki yig‘ish">
             <span>✦ 3D Vitrina</span>
@@ -600,11 +600,11 @@
     <div id="tab-games" class="tab-content" style="display:none">
       <div class="tab-header">
         <div>
-          <h2>🎮 Choyxona Arcade — Tanaffus Markazi</h2>
-          <p class="hint">Bir piyola choy ustida miyani chalg‘itish va jamoaviy rekordlar o‘rnatish uchun 12 ta klassik o‘yin</p>
+          <h2 class="arcade-heading"><svg class="arcade-heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M6 12h4m-2-2v4m7-3h.01m3 3h.01"/></svg> Choyxona Arcade — Tanaffus Markazi</h2>
+          <p class="hint">Klassik va yangi o‘yinlar. Rekordlaringiz shu qurilmada saqlanadi.</p>
         </div>
         <div class="header-actions">
-          <button type="button" class="btn-action btn-soft" data-action="toggle-games-menu">🙈 Menyudan yashirish</button>
+          <button type="button" class="btn-action btn-soft" data-action="toggle-games-menu">Menyudan yashirish</button>
         </div>
       </div>
       <div id="games-container" class="page-scroll-body"></div>
@@ -887,8 +887,8 @@
   <div id="custom-modal-view" style="display:none"></div>
 </div>
 
-<script src="games.js?v=4"></script>
+<script src="games.js?v=6"></script>
 <script src="app.js?v=48"></script>
-<script src="ui-bind.js?v=55"></script>
+<script src="ui-bind.js?v=56"></script>
 </body>
 </html>

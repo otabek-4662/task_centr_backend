@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<!-- daylight:early -->
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f9ff">
+
+
+<!-- /daylight:early -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, viewport-fit=cover">
+<title>Oyga qo‘nish</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #04040c;
+    overflow: hidden;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas { display: block; touch-action: none; }
+
+  /* ---------- touch controls ---------- */
+  #touch {
+    position: fixed; inset: auto 0 0 0; z-index: 40;
+    display: none;
+    justify-content: space-between; align-items: flex-end;
+    padding: 0 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+  }
+  #touch { display: flex; }
+  .tcluster { display: flex; gap: 12px; pointer-events: none; }
+  .tbtn {
+    pointer-events: auto;
+    width: 68px; height: 68px; border-radius: 50%;
+    border: 1px solid rgba(140,170,255,0.45);
+    background: radial-gradient(circle at 32% 28%, rgba(90,120,220,0.32), rgba(18,24,54,0.72));
+    backdrop-filter: blur(6px);
+    color: #cfe0ff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.14);
+    touch-action: none;
+    transition: transform .07s, background .07s;
+  }
+  .tbtn.on { background: radial-gradient(circle at 32% 28%, rgba(140,170,255,0.55), rgba(50,70,160,0.8)); transform: scale(0.93); }
+  .tbtn svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  #btnThrust {
+    width: 92px; height: 92px;
+    border-color: rgba(255,176,88,0.55);
+    background: radial-gradient(circle at 34% 30%, rgba(255,150,70,0.38), rgba(90,34,14,0.78));
+    color: #ffd9ae;
+    flex-direction: column; gap: 2px;
+    font-weight: 800; font-size: 10px; letter-spacing: 0.18em;
+  }
+  #btnThrust.on { background: radial-gradient(circle at 34% 30%, rgba(255,190,110,0.65), rgba(160,70,20,0.85)); }
+  #btnThrust svg { width: 34px; height: 34px; }
+</style>
+<!-- daylight:late -->
+
+<!-- /daylight:late -->
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="touch">
+  <div class="tcluster">
+    <div class="tbtn" id="btnLeft" role="button" aria-label="Chapga burilish">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </div>
+    <div class="tbtn" id="btnRight" role="button" aria-label="O‘ngga burilish">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </div>
+  </div>
+  <div class="tbtn" id="btnThrust" role="button" aria-label="Thrust">
+    <svg viewBox="0 0 24 24"><path d="M12 3c3 4.5 4 8.5 4 11l-1.6 3.4h-4.8L8 14c0-2.5 1-6.5 4-11z"/><path d="M10.4 19.4c.4 1.6 1.6 2.6 1.6 2.6s1.2-1 1.6-2.6"/></svg>
+    THRUST
+  </div>
+</div>
+
+
+
+
+
+
+<script src="score-bridge.js"></script>
+<script src="17-lunar-lander.js"></script>
+</body>
+</html>

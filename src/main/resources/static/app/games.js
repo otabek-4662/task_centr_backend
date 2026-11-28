@@ -147,6 +147,81 @@
 
   let currentGameInstance = null;
   let currentActiveId = null;
+  let importedSession = null;
+
+  // Vendored games from Arcade 100. The dedicated frame receives only its own record.
+  const importedGames = [
+    ['pong', 'Stol tennisi', '04-pong', 'pong_wins', 'G‘alaba', 'Raketkani sichqoncha yoki ↑ ↓ bilan suring.'],
+    ['simon', 'Ranglar ketma-ketligi', '11-simon-says', 'simon_best', 'Bosqich', 'Ranglarni bosing yoki 1–4 tugmalaridan foydalaning.'],
+    ['asteroids', 'Asteroidlar', '13-asteroids', 'asteroids_best', 'Rekord', 'Strelkalar bilan kema boshqaring, Space bilan oting. Ekranda ham tugmalar bor.'],
+    ['lunar', 'Oyga qo‘nish', '17-lunar-lander', 'lunar-best', 'Rekord', 'A/D bilan buriling, W bilan dvigatelni yoqing. Ekrandagi tugmalar ham ishlaydi.'],
+    ['reversi', 'Reversi', '35-reversi', 'reversiRecord', 'G‘alaba', 'Katakni bosing yoki Tab va Enter bilan tanlang.'],
+    ['golf', 'Mini golf', '49-mini-golf', 'mg_best', 'Eng kam zarba', 'To‘pni orqaga tortib qo‘yib yuboring. Klaviaturada ← → bilan yo‘nalish, ↑ ↓ bilan kuch, Space bilan zarba.'],
+    ['submarine', 'Suv osti kemasi', '54-submarine', 'sub_best', 'Rekord', 'Chuquroqqa tushish uchun sichqoncha tugmasi yoki Space’ni bosib turing.'],
+    ['towers', 'Minoralar mudofaasi', '71-tower-defense', 'td_best', 'Rekord', 'Minorani tanlab, xaritada joylashtiring. Klaviaturada 1–3, strelkalar va Enter ishlaydi.'],
+    ['pinball', 'Neon pinbol', '72-pinball', 'pinball_best', 'Rekord', 'Ekrandagi tugmalar yoki chap va o‘ng strelkalar bilan to‘pni qaytaring. Space to‘pni chiqaradi.'],
+    ['orbit', 'Orbita manevri', '81-orbit-dodge', 'orbit_best', 'Rekord', 'Orbitani bosish yoki Space bilan almashtiring. X himoya qalqonini yoqadi.']
+  ].map(([id, title, file, key, recordLabel, desc], index) => ({
+    id, title, file, key, recordLabel, desc, tag: index < 5 ? 'Retro' : 'Kengaytirilgan', icon: '🎮'
+  }));
+  const allGames = [...GAMES_CATALOG, ...importedGames];
+  const gameCount = document.getElementById('arcade-game-count');
+  if (gameCount) gameCount.textContent = allGames.length;
+
+  function importedRecord(game, record) {
+    try {
+      const value = JSON.parse(record);
+      if (game.id === 'reversi' && value && [value.w, value.l, value.d].every(validScore)) return value.w;
+      if (game.id === 'towers' && value && [value.score, value.wave].every(validScore)) return value.score;
+      if (!['reversi', 'towers'].includes(game.id) && validScore(value)) return value;
+    } catch {}
+    return null;
+  }
+
+  function validScore(value) {
+    return Number.isSafeInteger(value) && value >= 0;
+  }
+
+  function readImportedRecord(game) {
+    try { return localStorage.getItem('choy_arcade_' + game.id); }
+    catch { return null; }
+  }
+
+  window.addEventListener('message', event => {
+    const session = importedSession;
+    const data = event.data;
+    if (!session || event.origin !== 'null' || event.source !== session.frame.contentWindow ||
+        data?.type !== 'choy-arcade-record' || data.channel !== session.channel ||
+        typeof data.record !== 'string' || data.record.length > 200) return;
+    const score = importedRecord(session.game, data.record);
+    if (score === null) return;
+    try { localStorage.setItem('choy_arcade_' + session.game.id, data.record); } catch {}
+    const display = document.getElementById('game-hs-score');
+    if (display) display.textContent = score;
+  });
+
+  const eclipseGameGlyphs = {
+    g2048: 'M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z',
+    snake: 'M5 19h10a4 4 0 0 0 0-8H9a2 2 0 1 1 0-4h5m0-3 5 3-5 3z',
+    tetris: 'M4 5h5v5H4zm5 5h5v5H9zm5 0h5v5h-5zm-5 5h5v5H9z',
+    flappy: 'M5 10h14a7 7 0 0 1-14 0Zm4-3c-2-2 2-3 0-5m6 5c-2-2 2-3 0-5M5 19h14M2 12h2m16 0h2',
+    breakout: 'M5 5h5v4H5zm9 0h5v4h-5zM5 20h14m-7-7a1 1 0 1 0 .01 0Z',
+    mines: 'M12 16a4 4 0 1 0-.01 0h.01ZM12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2M18 6l-2 2m-8 8-2 2',
+    tictactoe: 'M9 3v18m6-18v18M3 9h18M3 15h18M4 4l3 3m0-3L4 7m14 10a1 1 0 1 0 .01 0Z',
+    memory: 'M8 6h12v15H8zM16 3H4v14m10-7 3 3-3 3-3-3z',
+    sudoku: 'M3 3h18v18H3zM3 12h18M12 3v18m-5-14h1m8 10h1',
+    whack: 'M8 9a4 4 0 0 1 8 0v7a4 4 0 0 1-8 0Zm4 0v11M8 6 6 4m10 2 2-2M4 10l4 2m-5 3h5m-4 5 4-2m8-6 4-2m-4 5h5m-5 3 4 2',
+    space: 'M12 3c4 3 5 7 4 12H8C7 10 8 6 12 3Zm-4 8-4 7 4-2m8-5 4 7-4-2m-4 2v3m0-13v.01',
+    math: 'm13 2-8 12h6l-1 8 9-12h-7z',
+  };
+
+  function gameIcon(game) {
+    return `<span class="arcade-emoji" aria-hidden="true">${game.icon}</span>
+      <svg class="arcade-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="${eclipseGameGlyphs[game.id] || (game.tag === 'Retro' ? eclipseGameGlyphs.g2048 : eclipseGameGlyphs.space)}"/>
+      </svg>`;
+  }
 
   // Render Lobby
   function renderLobby() {
@@ -158,26 +233,28 @@
       currentGameInstance = null;
     }
     currentActiveId = null;
+    importedSession = null;
+    leaveGameFullscreen();
 
     let html = `
       <div class="arcade-header-banner">
         <div>
-          <div style="font-size:18px;font-weight:800;margin-bottom:4px;">☕ Choyxona Arcade — 12 ta O‘yin</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:4px;">Choyxona Arcade — ${allGames.length} ta o‘yin</div>
           <div class="hint">Har bir o‘yin mobil va kompyuter uchun to‘liq moslashtirilgan. Rekordlar qurilmada saqlanadi.</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button type="button" class="btn-chip-action primary" data-action="toggle-games-menu">🙈 Menyudan yashirish</button>
+          <button type="button" class="btn-chip-action primary" data-action="toggle-games-menu">Menyudan yashirish</button>
         </div>
       </div>
       <div class="arcade-grid">
     `;
 
-    GAMES_CATALOG.forEach(g => {
-      const hs = getHs(g.id);
+    allGames.forEach(g => {
+      const hs = g.file ? importedRecord(g, readImportedRecord(g)) : getHs(g.id);
       html += `
         <div class="arcade-card">
           <div class="arcade-card-top">
-            <div class="arcade-icon">${g.icon}</div>
+            <div class="arcade-icon" data-game-icon="${g.id}">${gameIcon(g)}</div>
             <div class="arcade-info">
               <div class="arcade-title">${g.title}</div>
               <span class="arcade-tag">${g.tag}</span>
@@ -185,7 +262,7 @@
           </div>
           <div class="arcade-desc">${g.desc}</div>
           <div class="arcade-footer">
-            <div class="arcade-hs">🏆 Rekord: <strong>${hs}</strong></div>
+            <div class="arcade-hs">${g.recordLabel || 'Rekord'}: <strong>${hs ?? 'Hali yo‘q'}</strong></div>
             <button type="button" class="btn-chip-action primary" data-action="play-game" data-game="${g.id}">
               ▶ O‘ynash
             </button>
@@ -200,7 +277,7 @@
 
   // Stage Renderer
   function openStage(gameId) {
-    const gameMeta = GAMES_CATALOG.find(g => g.id === gameId);
+    const gameMeta = allGames.find(g => g.id === gameId);
     if (!gameMeta) return;
 
     const container = document.getElementById('games-container');
@@ -210,27 +287,31 @@
       currentGameInstance.destroy();
     }
     currentActiveId = gameId;
+    importedSession = null;
 
-    const hs = getHs(gameId);
+    const record = gameMeta.file ? readImportedRecord(gameMeta) : null;
+    const hs = gameMeta.file ? importedRecord(gameMeta, record) : getHs(gameId);
 
     container.innerHTML = `
-      <div class="game-stage-wrap">
+      <div class="game-stage-wrap${gameMeta.file ? ' game-stage-imported' : ''}">
         <div class="game-stage-header">
           <button type="button" class="btn-chip-action" data-action="close-game-stage">◀ O‘yinlar</button>
           <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:14.5px;">
-            <span>${gameMeta.icon}</span>
+            <span class="game-stage-icon" data-game-icon="${gameId}">${gameIcon(gameMeta)}</span>
             <span>${gameMeta.title}</span>
           </div>
           <div class="game-scores">
-            <div class="game-score-badge live">Hisob: <strong id="game-live-score">0</strong></div>
-            <div class="game-score-badge">🏆 <strong id="game-hs-score">${hs}</strong></div>
+            ${gameMeta.file ? '' : '<div class="game-score-badge live">Hisob: <strong id="game-live-score">0</strong></div>'}
+            <div class="game-score-badge">${gameMeta.recordLabel || 'Rekord'}: <strong id="game-hs-score">${hs ?? 'Hali yo‘q'}</strong></div>
           </div>
-          <button type="button" class="btn-chip-action" data-action="restart-game" title="Qaytadan">🔄</button>
+          <button type="button" class="btn-chip-action" data-action="restart-game">Qaytadan</button>
+          <button type="button" class="btn-chip-action" data-action="fullscreen-game" aria-pressed="false">To‘liq ekran</button>
         </div>
 
-        <div class="game-viewport" id="game-viewport"></div>
+        ${gameMeta.file ? `<p class="game-control-hint">${gameMeta.desc}</p>` : ''}
+        <div class="game-viewport" id="game-viewport" tabindex="-1"></div>
 
-        <div class="game-touch-controls" id="game-controls">
+        <div class="game-touch-controls" id="game-controls"${gameMeta.file ? ' hidden' : ''}>
           <div class="game-dpad">
             <button type="button" class="dpad-btn dpad-up" data-action="game-ctrl" data-dir="up">▲</button>
             <button type="button" class="dpad-btn dpad-left" data-action="game-ctrl" data-dir="left">◀</button>
@@ -246,14 +327,68 @@
         </div>
       </div>
     `;
+    updateFullscreenButton();
 
     // Instantiate game
     const viewport = document.getElementById('game-viewport');
+    if (gameMeta.file) {
+      currentGameInstance = null;
+      const channel = crypto.randomUUID();
+      const params = new URLSearchParams({ key: gameMeta.key, channel, record: record || '' });
+      const frame = document.createElement('iframe');
+      frame.title = gameMeta.title;
+      frame.setAttribute('sandbox', 'allow-scripts');
+      frame.referrerPolicy = 'no-referrer';
+      frame.src = '/app/arcade/' + gameMeta.file + '.html#' + params;
+      importedSession = { frame, channel, game: gameMeta };
+      viewport.appendChild(frame);
+      frame.focus();
+      return;
+    }
     currentGameInstance = createGameEngine(gameId, viewport);
     if (currentGameInstance && currentGameInstance.init) {
       currentGameInstance.init();
     }
+    if (!currentGameInstance?.onCtrl) document.getElementById('game-controls').hidden = true;
+    viewport.focus({ preventScroll: true });
   }
+
+  function isGameFullscreen(container) {
+    return document.fullscreenElement === container || container?.classList.contains('game-expanded');
+  }
+
+  function updateFullscreenButton() {
+    const container = document.getElementById('games-container');
+    const button = container?.querySelector('[data-action="fullscreen-game"]');
+    if (!button) return;
+    const active = isGameFullscreen(container);
+    button.setAttribute('aria-pressed', String(active));
+    button.textContent = active ? 'Ekrandan chiqish' : 'To‘liq ekran';
+  }
+
+  function leaveGameFullscreen() {
+    const container = document.getElementById('games-container');
+    if (document.fullscreenElement === container && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    container?.classList.remove('game-expanded');
+    updateFullscreenButton();
+  }
+
+  window.toggleGameFullscreen = async function () {
+    const container = document.getElementById('games-container');
+    if (!container || !currentActiveId) return;
+    if (isGameFullscreen(container)) {
+      leaveGameFullscreen();
+      return;
+    }
+    try {
+      await container.requestFullscreen();
+    } catch {
+      container.classList.add('game-expanded');
+    }
+    updateFullscreenButton();
+    importedSession?.frame.focus();
+  };
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
 
   function updateLiveScore(score) {
     const el = document.getElementById('game-live-score');
@@ -265,6 +400,24 @@
         if (hsEl) hsEl.textContent = score;
       }
     }
+  }
+
+  const arcadeCellSelector = '[data-action="game-cell"]';
+  const boardColumns = { mines: 8, tictactoe: 3, memory: 4, sudoku: 4, whack: 3, math: 2 };
+
+  function renderKeyboardBoard(viewport, html) {
+    const oldCells = [...viewport.querySelectorAll(arcadeCellSelector)];
+    const focused = oldCells.indexOf(document.activeElement);
+    const tabStop = oldCells.findIndex(cell => cell.tabIndex === 0);
+    viewport.innerHTML = html;
+    const cells = [...viewport.querySelectorAll(arcadeCellSelector)];
+    const index = Math.min(Math.max(tabStop, 0), cells.length - 1);
+    cells.forEach((cell, i) => {
+      if (cell.tagName !== 'BUTTON') cell.setAttribute('role', 'button');
+      if (!cell.textContent.trim()) cell.setAttribute('aria-label', 'Katak ' + (i + 1));
+      cell.tabIndex = i === index ? 0 : -1;
+    });
+    if (focused >= 0) cells[index]?.focus({ preventScroll: true });
   }
 
   // =========================================================================
@@ -994,7 +1147,7 @@
               </div>
             `;
           }
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         function clickCell(r, c) {
@@ -1175,7 +1328,7 @@
             html += `<div class="ttt-cell ${val ? val.toLowerCase() : ''}" data-action="game-cell" data-idx="${i}">${val || ''}</div>`;
           });
           html += '</div>';
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         return {
@@ -1234,7 +1387,7 @@
               </div>
             `;
           }
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         return {
@@ -1334,7 +1487,7 @@
               </div>
             `;
           }
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         return {
@@ -1395,7 +1548,7 @@
               </div>
             `;
           }
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         return {
@@ -1617,7 +1770,7 @@
               </div>
             `;
           }
-          viewport.innerHTML = html;
+          renderKeyboardBoard(viewport, html);
         }
 
         return {
@@ -1649,10 +1802,36 @@
 
   // Keyboard controls listener (Arrows + WASD + Space) — only when games tab is active & not in an input
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('games-container')?.classList.contains('game-expanded')) {
+      leaveGameFullscreen();
+      return;
+    }
     if (!currentGameInstance) return;
     const tabGames = document.getElementById('tab-games');
     if (!tabGames || tabGames.style.display === 'none') return;
     if (e.target && (e.target.matches('input, textarea, select') || e.target.isContentEditable)) return;
+    const columns = boardColumns[currentActiveId];
+    if (columns) {
+      const cells = [...tabGames.querySelectorAll(arcadeCellSelector)];
+      const index = cells.indexOf(e.target);
+      const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[e.key];
+      const next = cells[index + delta];
+      if (index >= 0 && delta && next) {
+        e.preventDefault();
+        cells.forEach(cell => { cell.tabIndex = cell === next ? 0 : -1; });
+        next.focus();
+      } else if (index >= 0 && e.target.tagName !== 'BUTTON' && ['Enter', ' '].includes(e.key)) {
+        e.preventDefault();
+        e.target.click();
+      } else if (currentActiveId === 'sudoku' && /^[0-4]$/.test(e.key)) {
+        e.preventDefault();
+        currentGameInstance.onNumSelect(e.key);
+      } else if (currentActiveId === 'mines' && e.code === 'KeyF') {
+        currentGameInstance.onToggleMode();
+      }
+      return;
+    }
+    if (!currentGameInstance.onCtrl || (e.target?.closest('button') && e.code === 'Space')) return;
 
     if (['ArrowUp', 'KeyW'].includes(e.code)) {
       e.preventDefault();
@@ -1674,7 +1853,7 @@
 
   // Public API attached to window
   window.ChoyGames = {
-    catalog: GAMES_CATALOG,
+    catalog: allGames,
     init: () => {
       if (!currentActiveId) renderLobby();
       else openStage(currentActiveId);
@@ -1693,6 +1872,9 @@
         currentGameInstance = null;
       }
       currentActiveId = null;
+      if (importedSession) importedSession.frame.remove();
+      importedSession = null;
+      leaveGameFullscreen();
     },
     handleCtrl: (dir) => {
       if (currentGameInstance && currentGameInstance.onCtrl) {

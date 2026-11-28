@@ -13,6 +13,10 @@
 
 /* The ordinary board and the Eclipse board share the same controls and task nodes. */
 .ec-heading, .ec-wordmark, .ec-col-menu { display: none; }
+.create-icon, .arcade-heading-icon { width: 18px; height: 18px; flex: none; }
+.header-new-task-btn { gap: 6px; }
+.arcade-heading { display: flex; align-items: center; gap: 8px; }
+.arcade-glyph { display: none; }
 .col-btn.ec-shift { display: none; }
 [data-theme="eclipse"] .col-btn.ec-shift { display: inline-flex; }
 [data-theme="eclipse"] .ec-menu-open .col-header-actions { flex-wrap: wrap; }
@@ -125,6 +129,28 @@
 [data-theme="eclipse"] .header-left { overflow: hidden; }
 [data-theme="eclipse"] .header-utility-group { background: transparent; border: none; gap: 5px; padding: 0; }
 [data-theme="eclipse"] .header-new-task-btn { border-radius: 18px; min-height: 37px; padding-inline: 15px; white-space: nowrap; }
+[data-theme="eclipse"] .header-new-task-btn .create-icon { color: #ffe4ad; }
+[data-theme="eclipse"] .top-header [data-action="open-ws-modal"] {
+  flex: 0 0 auto;
+  color: #d9baff;
+}
+[data-theme="eclipse"] .arcade-heading-icon { color: #f2b2ff; }
+[data-theme="eclipse"] .arcade-emoji { display: none; }
+[data-theme="eclipse"] .arcade-glyph { display: block; width: 24px; height: 24px; }
+[data-theme="eclipse"] .arcade-icon,
+[data-theme="eclipse"] .game-stage-icon {
+  --arcade-accent: #e7a3ff;
+  color: var(--arcade-accent);
+}
+[data-theme="eclipse"] .arcade-icon {
+  background: radial-gradient(ellipse at 25% 0%, color-mix(in srgb, var(--arcade-accent) 24%, #261334), #21102f 85%);
+  border-color: color-mix(in srgb, var(--arcade-accent) 38%, #311747);
+  box-shadow: inset 0 1px 1px #ffffff27, 0 4px 9px #10071e75;
+}
+[data-theme="eclipse"] [data-game-icon]:is([data-game-icon="snake"], [data-game-icon="memory"], [data-game-icon="space"]) { --arcade-accent: #9ce4ff; }
+[data-theme="eclipse"] [data-game-icon]:is([data-game-icon="flappy"], [data-game-icon="sudoku"], [data-game-icon="math"]) { --arcade-accent: #ffd38b; }
+[data-theme="eclipse"] [data-game-icon]:is([data-game-icon="breakout"], [data-game-icon="mines"], [data-game-icon="whack"]) { --arcade-accent: #ffa6d5; }
+[data-theme="eclipse"] .game-stage-icon .arcade-glyph { width: 20px; height: 20px; }
 [data-theme="eclipse"] .header-util-btn, [data-theme="eclipse"] .header-profile-pill, [data-theme="eclipse"] .top-header .icon-btn,
 [data-theme="eclipse"] .top-header select, [data-theme="eclipse"] .compact-select, [data-theme="eclipse"] #main-filters .btn-chip-action,
 [data-theme="eclipse"] #main-filters .chip, [data-theme="eclipse"] .search-bar {
@@ -290,6 +316,10 @@
   [data-theme="eclipse"] #main-filters .chip { min-height: 34px; padding-inline: 13px; }
   [data-theme="eclipse"] .search-bar input { font-size: 16px; }
   [data-theme="eclipse"] .search-bar { padding-inline: 7px; }
+}
+@media (max-width: 400px) {
+  [data-theme="eclipse"] .header-new-task-btn { min-width: 38px; }
+  [data-theme="eclipse"] .header-new-task-btn span { display: none; }
 }
 @media (max-height: 550px) {
   [data-theme="eclipse"] .ec-heading { height: 58px; }
