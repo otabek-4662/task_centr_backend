@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sprout Runner — Original Retro Platformer</title>
+  <style>
+    :root {
+      --ink: #1c1630;
+      --cream: #fff3c4;
+      --sun: #ffd166;
+      --leaf: #48b56a;
+      --sky1: #76d1ff;
+      --sky2: #ffe0a3;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(255, 241, 184, 0.28), transparent 28rem),
+        linear-gradient(135deg, #151b36 0%, #0a0f1e 65%, #050711 100%);
+      color: var(--cream);
+      font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+    .shell {
+      position: fixed;
+      inset: 0;
+      display: block;
+      padding: 0;
+      background: #86d7ff;
+    }
+    .cabinet {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      border: 0;
+      border-radius: 0;
+      background: #11152a;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #86d7ff;
+    }
+    .help {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 12px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      pointer-events: none;
+      color: rgba(255, 252, 222, 0.82);
+      text-shadow: 0 2px 0 rgba(0,0,0,.45);
+      font-size: clamp(11px, 1.45vw, 15px);
+      letter-spacing: .02em;
+    }
+    .help kbd {
+      padding: 2px 7px 3px;
+      border: 2px solid rgba(255, 244, 190, .6);
+      border-radius: 7px;
+      background: rgba(30, 23, 45, .64);
+      color: #fff7cc;
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,.28);
+    }
+    .touch {
+      display: flex;
+      position: absolute;
+      inset: auto 14px 18px 14px;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .touch-cluster { display: flex; gap: 12px; pointer-events: auto; }
+    .touch-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      border: 3px solid rgba(255, 246, 196, 0.82);
+      background: rgba(28, 22, 48, 0.5);
+      color: #fff9d6;
+      font-weight: 900;
+      font-size: 14px;
+      box-shadow: inset 0 -5px 0 rgba(0,0,0,.28), 0 8px 20px rgba(0,0,0,.25);
+      backdrop-filter: blur(4px);
+    }
+    .touch-btn:active, .touch-btn.down { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0,0,0,.28), 0 3px 10px rgba(0,0,0,.2); }
+    @media (pointer: coarse), (max-width: 720px) {
+      .help { display: none; }
+      .touch { display: flex; }
+      .cabinet { width: 100vw; height: 100vh; border-radius: 0; border: 0; }
+      .shell { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" aria-label="Sprout Runner game shell">
+    <section class="cabinet">
+      <canvas id="game" width="960" height="540" aria-label="Sprout Runner canvas game"></canvas>
+      <div class="help" aria-hidden="true">
+        <span><kbd>Enter</kbd> boshlash</span>
+        <span><kbd>A/D</kbd> yoki <kbd>←/→</kbd> yurish</span>
+        <span><kbd>W</kbd>/<kbd>↑</kbd>/<kbd>Space</kbd> sakrash</span>
+        <span><kbd>Shift</kbd> yugurish</span>
+        <span><kbd>P</kbd> tanaffus</span>
+        <span><kbd>R</kbd> qaytadan</span>
+      </div>
+      <div class="touch">
+        <div class="touch-cluster">
+          <button class="touch-btn" data-key="left" aria-label="Chapga">◀</button>
+          <button class="touch-btn" data-key="right" aria-label="O‘ngga">▶</button>
+        </div>
+        <div class="touch-cluster">
+          <button class="touch-btn" data-key="run">Yugur</button>
+          <button class="touch-btn" data-key="jump">Sakrash</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script src="../../score-bridge.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

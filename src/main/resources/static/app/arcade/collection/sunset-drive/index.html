@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- Il gioco non carica nulla da fuori: nessuna CDN, nessun font remoto,
+         nessuna telemetria. Solo la build site aggiunge le statistiche
+         senza cookie: vite.config.ts (cspForTarget) mette la loro origine
+         in connect-src e img-src di questo meta, e in nient'altro; private
+         e portal lo tengono così com'è. La politica lo mette per iscritto, e non concede
+         nessuna delle direttive "unsafe": per questo il CSS sta in un file
+         a parte e non in un blocco di stile in linea. Il loader di sprite
+         taglia le strip disegnando canvas su canvas, non con un <img src>,
+         quindi img-src non ha bisogno di data: né di blob:.
+         media-src 'self' serve dal binario J: la radio personale riproduce i
+         file di public/music/custom/ con un <audio> dentro un
+         MediaElementAudioSourceNode, e senza questa direttiva ricadrebbe su
+         default-src. Resta 'self': i brani personali sono file locali, mai
+         URL remoti (vedi docs/security-review.md). object-src 'none' e
+         base-uri 'self' chiudono due direttive che altrimenti ricadrebbero
+         implicitamente su default-src. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self'; script-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'"
+    />
+    <title>SHAFAQ RALLY</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" crossorigin src="./assets/index-BR-HUKKD.js"></script>
+  </head>
+  <body>
+    <canvas id="game" width="1280" height="720"></canvas>
+    <!-- Telefono in verticale (src/ui/portrait.ts): nascosta finché non serve. -->
+    <canvas id="portrait" width="720" height="1280"></canvas>
+    <div class="mouse-controls" aria-label="Sichqoncha bilan boshqarish">
+      <button type="button" data-key="ArrowLeft" aria-label="Chapga burilish">←</button>
+      <button type="button" data-key="ArrowRight" aria-label="O‘ngga burilish">→</button>
+      <button type="button" data-key="ArrowUp">Gaz</button>
+      <button type="button" data-key="ArrowDown">Tormoz</button>
+      <button type="button" data-key="ShiftLeft">Uzatma</button>
+    </div>
+    <script src="../../score-bridge.js"></script>
+    <script src="mouse-controls.js"></script>
+  </body>
+</html>
+

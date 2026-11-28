@@ -19,7 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/eclipse/cosmos.webp", "/eclipse/piyola.webp", "/eclipse/porcelain.webp",
             "/eclipse/fonts/rufina-bold.ttf", "/eclipse/fonts/barlow-semi-bold.ttf",
             "/arcade/score-bridge.js", "/arcade/LICENSE",
-+            "/arcade/04-pong.html", "/arcade/04-pong.js",
+            "/arcade/04-pong.html", "/arcade/04-pong.js",
             "/arcade/11-simon-says.html", "/arcade/11-simon-says.js",
             "/arcade/13-asteroids.html", "/arcade/13-asteroids.js",
             "/arcade/17-lunar-lander.html", "/arcade/17-lunar-lander.js",

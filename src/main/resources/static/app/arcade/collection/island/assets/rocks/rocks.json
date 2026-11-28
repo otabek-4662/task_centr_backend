@@ -1,0 +1,976 @@
+{
+ "version": 1,
+ "units": "metres, glTF Y-up, scale 1",
+ "material_note": "all kits share one palette (dark grey basalt, weathered planes, rust stains, grey-green lichen); albedo is de-lit; ORM = R ambient occlusion, G roughness, B metalness 0",
+ "kits": {
+  "cliff": {
+   "file": "cliff_kit.glb",
+   "material": "rock_cliff",
+   "textures": {
+    "albedo": "2048 sRGB KTX2",
+    "normal": "2048 OpenGL KTX2",
+    "orm": "2048 KTX2 (R AO, G roughness, B 0)"
+   },
+   "notes": "faces look toward +Z, width along X, base line at y = 0 with a skirt down to y = -4.5 to sink into sea bed / terrain; back (-Z) and top are open shells; the left/right ends bend back (-Z) and are lower than the middle, so a taller overlapping neighbour hides the cut edges"
+  },
+  "stack": {
+   "file": "stacks.glb",
+   "material": "rock_stack",
+   "textures": {
+    "albedo": "2048 sRGB KTX2",
+    "normal": "2048 OpenGL KTX2",
+    "orm": "2048 KTX2 (R AO, G roughness, B 0)"
+   },
+   "notes": "free-standing closed single-sided meshes, origin at the centre of the base footprint, y = 0 is the base (geometry continues ~1-1.7 m below it); sink each stack by its waterline_y (4.6-5 m at scale 1, times the scale) so the wave-cut notch sits at the sea surface; the notch is deepest on the +Z side (face it toward the open sea / swell); stack_b has a sea arch through its foot (about 4.5 m wide, open from the waterline to ~8 m); tops are rough and ledged for shrubs"
+  },
+  "boulder": {
+   "file": "boulders.glb",
+   "material": "rock_boulder",
+   "textures": {
+    "albedo": "2048 sRGB KTX2",
+    "normal": "2048 OpenGL KTX2",
+    "orm": "2048 KTX2 (R AO, G roughness, B 0)"
+   },
+   "notes": "closed single-sided meshes; origin at the centre of the footprint at the ground line: the part below y = 0 (the 'bury' fraction of the height) is meant to be inside the terrain / sand / water; granite_* use a lighter grey to rust-tan granite palette, basalt_* and pebbles_a / pebbles_b the cliff-kit basalt palette, pebbles_c the granite palette"
+  },
+  "shelf": {
+   "file": "shelves.glb",
+   "material": "rock_shelf",
+   "textures": {
+    "albedo": "2048 sRGB KTX2",
+    "normal": "2048 OpenGL KTX2",
+    "orm": "2048 KTX2 (R AO, G roughness, B 0)"
+   },
+   "notes": "low wave-cut basalt platforms, single-sided meshes open only at the bottom (z = floor, buried); origin at the centre of the footprint; y = 0 is the foot of the seaward wall; the seaward wall (with the wave-cut notch and the fallen blocks) faces +Z, the landward side (-Z) slopes down and is meant to be buried in the beach / terrain; sink each shelf so the sea surface sits at waterline_y (times the scale): the notch and the dark spray zone then sit at the water"
+  }
+ },
+ "pieces": {
+  "cliff_a": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_a_lod0",
+    "cliff_a_lod1",
+    "cliff_a_lod2"
+   ],
+   "tris": [
+    21810,
+    5800,
+    1150
+   ],
+   "bbox": {
+    "min": [
+     -5.094,
+     -4.5,
+     -3.761
+    ],
+    "max": [
+     4.983,
+     10.056,
+     1.738
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "tall fluted / runnelled face",
+   "type": "face",
+   "face_width": 10.08,
+   "top_height": 10.06,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "mountainside"
+  },
+  "cliff_b": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_b_lod0",
+    "cliff_b_lod1",
+    "cliff_b_lod2"
+   ],
+   "tris": [
+    22079,
+    5800,
+    1150
+   ],
+   "bbox": {
+    "min": [
+     -9.788,
+     -4.5,
+     -3.934
+    ],
+    "max": [
+     9.399,
+     6.13,
+     3.147
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "blocky jointed outcrop / crown with ragged skyline",
+   "type": "face",
+   "face_width": 19.19,
+   "top_height": 6.13,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "namaqualand_cliff_02"
+  },
+  "cliff_c": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_c_lod0",
+    "cliff_c_lod1",
+    "cliff_c_lod2"
+   ],
+   "tris": [
+    21699,
+    5800,
+    1149
+   ],
+   "bbox": {
+    "min": [
+     -7.583,
+     -4.5,
+     -3.314
+    ],
+    "max": [
+     7.774,
+     7.713,
+     1.577
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "jointed face with sea-cave slot (undercut notch at the base)",
+   "type": "notch",
+   "face_width": 15.36,
+   "top_height": 7.71,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_02"
+  },
+  "cliff_d": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_d_lod0",
+    "cliff_d_lod1",
+    "cliff_d_lod2"
+   ],
+   "tris": [
+    21870,
+    5800,
+    1149
+   ],
+   "bbox": {
+    "min": [
+     -5.189,
+     -4.5,
+     -4.705
+    ],
+    "max": [
+     4.579,
+     7.924,
+     2.475
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "headland nose / buttress (convex, wraps 150 deg, the tip is lower than the wings)",
+   "type": "nose",
+   "face_width": 9.77,
+   "top_height": 7.92,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_02"
+  },
+  "cliff_e": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_e_lod0",
+    "cliff_e_lod1",
+    "cliff_e_lod2"
+   ],
+   "tris": [
+    22014,
+    5799,
+    1149
+   ],
+   "bbox": {
+    "min": [
+     -9.273,
+     -4.5,
+     -2.029
+    ],
+    "max": [
+     9.213,
+     8.882,
+     4.48
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "concave gully / cove wall (skyline dips at the gully)",
+   "type": "gully",
+   "face_width": 18.49,
+   "top_height": 8.88,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_01"
+  },
+  "cliff_f": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_f_lod0",
+    "cliff_f_lod1",
+    "cliff_f_lod2"
+   ],
+   "tris": [
+    21933,
+    5799,
+    1150
+   ],
+   "bbox": {
+    "min": [
+     -7.24,
+     -4.5,
+     -7.589
+    ],
+    "max": [
+     7.309,
+     2.85,
+     2.451
+    ]
+   },
+   "scale": [
+    1,
+    3
+   ],
+   "use": "low flat-topped ledge / shelf block for the cliff foot",
+   "type": "ledge",
+   "face_width": 14.55,
+   "top_height": 2.85,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_04"
+  },
+  "cliff_g": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_g_lod0",
+    "cliff_g_lod1",
+    "cliff_g_lod2"
+   ],
+   "tris": [
+    21850,
+    5799,
+    1150
+   ],
+   "bbox": {
+    "min": [
+     -10.444,
+     -4.5,
+     -5.173
+    ],
+    "max": [
+     10.389,
+     9.493,
+     1.559
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "wave-cut undercut face",
+   "type": "undercut",
+   "face_width": 20.83,
+   "top_height": 9.49,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_01"
+  },
+  "cliff_h": {
+   "kit": "cliff",
+   "file": "cliff_kit.glb",
+   "nodes": [
+    "cliff_h_lod0",
+    "cliff_h_lod1",
+    "cliff_h_lod2"
+   ],
+   "tris": [
+    21645,
+    5800,
+    1149
+   ],
+   "bbox": {
+    "min": [
+     -12.115,
+     -4.5,
+     -3.924
+    ],
+    "max": [
+     11.913,
+     5.226,
+     6.317
+    ]
+   },
+   "scale": [
+    1,
+    5
+   ],
+   "use": "low bedded face with a deep wave-cut notch just above the waterline (crisper than cliff_g)",
+   "type": "undercut",
+   "face_width": 24.03,
+   "top_height": 5.23,
+   "base_y": 0.0,
+   "bottom_y": -4.5,
+   "face_dir": "+Z",
+   "source_scan": "coastal_cliff_04"
+  },
+  "stack_a": {
+   "kit": "stack",
+   "file": "stacks.glb",
+   "nodes": [
+    "stack_a_lod0",
+    "stack_a_lod1",
+    "stack_a_lod2"
+   ],
+   "tris": [
+    19499,
+    4899,
+    979
+   ],
+   "bbox": {
+    "min": [
+     -10.088,
+     -1.735,
+     -7.665
+    ],
+    "max": [
+     13.272,
+     32.514,
+     8.321
+    ]
+   },
+   "scale": [
+    0.6,
+    1.6
+   ],
+   "use": "jagged sea stack of tilted slabs (cs16 / p019): spire, angled broken tops, overhangs, small notch",
+   "type": "stack",
+   "height": 32.51,
+   "base_y": 0.0,
+   "footprint": [
+    23.4,
+    16.0
+   ],
+   "waterline_y": 4.6,
+   "deep_notch_side": "+Z"
+  },
+  "stack_b": {
+   "kit": "stack",
+   "file": "stacks.glb",
+   "nodes": [
+    "stack_b_lod0",
+    "stack_b_lod1",
+    "stack_b_lod2"
+   ],
+   "tris": [
+    19500,
+    4900,
+    980
+   ],
+   "bbox": {
+    "min": [
+     -11.119,
+     -1.016,
+     -8.133
+    ],
+    "max": [
+     10.424,
+     21.388,
+     7.849
+    ]
+   },
+   "scale": [
+    0.6,
+    1.6
+   ],
+   "use": "broad stack with a deep wave-cut notch at the waterline and a small sea arch through its foot; flat-ish ledged top for shrubs",
+   "type": "stack",
+   "height": 21.39,
+   "base_y": 0.0,
+   "footprint": [
+    21.5,
+    16.0
+   ],
+   "waterline_y": 5.0,
+   "deep_notch_side": "+Z"
+  },
+  "stack_c": {
+   "kit": "stack",
+   "file": "stacks.glb",
+   "nodes": [
+    "stack_c_lod0",
+    "stack_c_lod1",
+    "stack_c_lod2"
+   ],
+   "tris": [
+    19500,
+    4900,
+    980
+   ],
+   "bbox": {
+    "min": [
+     -8.93,
+     -1.184,
+     -6.41
+    ],
+    "max": [
+     8.425,
+     43.545,
+     6.579
+    ]
+   },
+   "scale": [
+    0.6,
+    1.6
+   ],
+   "use": "tall fluted karst / volcanic tower with a spire, a few ledges and a notch",
+   "type": "stack",
+   "height": 43.55,
+   "base_y": 0.0,
+   "footprint": [
+    17.4,
+    13.0
+   ],
+   "waterline_y": 4.6,
+   "deep_notch_side": "+Z"
+  },
+  "granite_a": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "granite_a_lod0",
+    "granite_a_lod1",
+    "granite_a_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -1.394,
+     -0.289,
+     -0.955
+    ],
+    "max": [
+     1.94,
+     1.02,
+     0.848
+    ]
+   },
+   "scale": [
+    0.6,
+    2.2
+   ],
+   "use": "low granite whaleback, half-buried (sandy shore, embedded outcrop in grass)",
+   "type": "boulder",
+   "height_above_ground": 1.02,
+   "depth_below_ground": 0.29,
+   "footprint": [
+    3.33,
+    1.8
+   ],
+   "bury": 0.22,
+   "source_scan": "namaqualand_boulder_05 (large-scale shape only)"
+  },
+  "granite_b": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "granite_b_lod0",
+    "granite_b_lod1",
+    "granite_b_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -1.69,
+     -0.443,
+     -2.188
+    ],
+    "max": [
+     1.563,
+     1.542,
+     2.047
+    ]
+   },
+   "scale": [
+    0.6,
+    1.8
+   ],
+   "use": "rounded jointed granite block with exfoliation steps",
+   "type": "boulder",
+   "height_above_ground": 1.54,
+   "depth_below_ground": 0.44,
+   "footprint": [
+    3.25,
+    4.24
+   ],
+   "bury": 0.22,
+   "source_scan": "namaqualand_boulder_03 (large-scale shape only)"
+  },
+  "granite_c": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "granite_c_lod0",
+    "granite_c_lod1",
+    "granite_c_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -1.505,
+     -0.7,
+     -2.671
+    ],
+    "max": [
+     1.297,
+     2.07,
+     2.449
+    ]
+   },
+   "scale": [
+    0.6,
+    1.6
+   ],
+   "use": "large granite loaf boulder with water-stain runnels",
+   "type": "boulder",
+   "height_above_ground": 2.07,
+   "depth_below_ground": 0.7,
+   "footprint": [
+    2.8,
+    5.12
+   ],
+   "bury": 0.25,
+   "source_scan": "namaqualand_boulder_06 (large-scale shape only)"
+  },
+  "granite_d": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "granite_d_lod0",
+    "granite_d_lod1",
+    "granite_d_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -2.907,
+     -1.137,
+     -2.92
+    ],
+    "max": [
+     3.086,
+     3.418,
+     2.901
+    ]
+   },
+   "scale": [
+    0.6,
+    1.5
+   ],
+   "use": "huge granite boulder with a joint line, exfoliation steps and water-stain runnels (Seychelles beach landmark)",
+   "type": "boulder",
+   "height_above_ground": 3.42,
+   "depth_below_ground": 1.14,
+   "footprint": [
+    5.99,
+    5.82
+   ],
+   "bury": 0.25,
+   "source_scan": "namaqualand_boulder_04 (large-scale shape only)"
+  },
+  "basalt_a": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "basalt_a_lod0",
+    "basalt_a_lod1"
+   ],
+   "tris": [
+    3000,
+    750
+   ],
+   "bbox": {
+    "min": [
+     -0.717,
+     -0.247,
+     -0.58
+    ],
+    "max": [
+     0.759,
+     0.719,
+     0.408
+    ]
+   },
+   "scale": [
+    0.6,
+    2.0
+   ],
+   "use": "angular fallen basalt block, small (scree, pool rim)",
+   "type": "block",
+   "height_above_ground": 0.72,
+   "depth_below_ground": 0.25,
+   "footprint": [
+    1.48,
+    0.99
+   ],
+   "bury": 0.25
+  },
+  "basalt_b": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "basalt_b_lod0",
+    "basalt_b_lod1"
+   ],
+   "tris": [
+    4500,
+    1100
+   ],
+   "bbox": {
+    "min": [
+     -1.108,
+     -0.306,
+     -0.915
+    ],
+    "max": [
+     1.085,
+     0.899,
+     0.96
+    ]
+   },
+   "scale": [
+    0.6,
+    2.0
+   ],
+   "use": "angular fallen basalt block, medium",
+   "type": "block",
+   "height_above_ground": 0.9,
+   "depth_below_ground": 0.31,
+   "footprint": [
+    2.19,
+    1.88
+   ],
+   "bury": 0.25
+  },
+  "basalt_c": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "basalt_c_lod0",
+    "basalt_c_lod1",
+    "basalt_c_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -1.355,
+     -0.473,
+     -1.617
+    ],
+    "max": [
+     1.143,
+     1.434,
+     1.696
+    ]
+   },
+   "scale": [
+    0.6,
+    1.8
+   ],
+   "use": "large angular basalt block (cliff foot)",
+   "type": "block",
+   "height_above_ground": 1.43,
+   "depth_below_ground": 0.47,
+   "footprint": [
+    2.5,
+    3.31
+   ],
+   "bury": 0.25
+  },
+  "basalt_d": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "basalt_d_lod0",
+    "basalt_d_lod1",
+    "basalt_d_lod2"
+   ],
+   "tris": [
+    6000,
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -2.579,
+     -0.526,
+     -2.42
+    ],
+    "max": [
+     2.663,
+     1.75,
+     2.019
+    ]
+   },
+   "scale": [
+    0.6,
+    1.6
+   ],
+   "use": "large tilted basalt slab block (cliff foot, washed by foam)",
+   "type": "block",
+   "height_above_ground": 1.75,
+   "depth_below_ground": 0.53,
+   "footprint": [
+    5.24,
+    4.44
+   ],
+   "bury": 0.22
+  },
+  "pebbles_a": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "pebbles_a_lod0",
+    "pebbles_a_lod1"
+   ],
+   "tris": [
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -0.478,
+     -0.04,
+     -0.382
+    ],
+    "max": [
+     0.474,
+     0.143,
+     0.382
+    ]
+   },
+   "scale": [
+    0.7,
+    2.5
+   ],
+   "use": "rounded basalt river cobbles (stream bed, waterfall pool edge)",
+   "type": "pebbles",
+   "height_above_ground": 0.14,
+   "depth_below_ground": 0.04,
+   "footprint": [
+    0.95,
+    0.76
+   ],
+   "bury": 0.3
+  },
+  "pebbles_b": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "pebbles_b_lod0",
+    "pebbles_b_lod1"
+   ],
+   "tris": [
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -0.383,
+     -0.079,
+     -0.445
+    ],
+    "max": [
+     0.383,
+     0.132,
+     0.444
+    ]
+   },
+   "scale": [
+    0.7,
+    2.5
+   ],
+   "use": "angular basalt rubble / scree stones (cliff foot, jungle floor)",
+   "type": "pebbles",
+   "height_above_ground": 0.13,
+   "depth_below_ground": 0.08,
+   "footprint": [
+    0.77,
+    0.89
+   ],
+   "bury": 0.3
+  },
+  "pebbles_c": {
+   "kit": "boulder",
+   "file": "boulders.glb",
+   "nodes": [
+    "pebbles_c_lod0",
+    "pebbles_c_lod1"
+   ],
+   "tris": [
+    1500,
+    400
+   ],
+   "bbox": {
+    "min": [
+     -0.457,
+     -0.079,
+     -0.461
+    ],
+    "max": [
+     0.465,
+     0.124,
+     0.461
+    ]
+   },
+   "scale": [
+    0.7,
+    2.5
+   ],
+   "use": "rounded granite beach stones (sandy shore, at the feet of granite boulders)",
+   "type": "pebbles",
+   "height_above_ground": 0.12,
+   "depth_below_ground": 0.08,
+   "footprint": [
+    0.92,
+    0.92
+   ],
+   "bury": 0.35
+  },
+  "shelf_a": {
+   "kit": "shelf",
+   "file": "shelves.glb",
+   "nodes": [
+    "shelf_a_lod0",
+    "shelf_a_lod1",
+    "shelf_a_lod2"
+   ],
+   "tris": [
+    14999,
+    3800,
+    949
+   ],
+   "bbox": {
+    "min": [
+     -14.745,
+     -1.584,
+     -7.594
+    ],
+    "max": [
+     14.848,
+     2.324,
+     9.961
+    ]
+   },
+   "scale": [
+    0.6,
+    1.5
+   ],
+   "use": "broad low wave-cut platform: jointed flat top with tide pools and potholes, surge channels, blocky seaward edge with fallen blocks (rocky shore under cliffs, beach ends)",
+   "type": "shelf",
+   "height_above_ground": 2.32,
+   "depth_below_ground": 1.58,
+   "footprint": [
+    29.59,
+    17.55
+   ],
+   "waterline_y": 0.45,
+   "face_dir": "+Z"
+  },
+  "shelf_b": {
+   "kit": "shelf",
+   "file": "shelves.glb",
+   "nodes": [
+    "shelf_b_lod0",
+    "shelf_b_lod1",
+    "shelf_b_lod2"
+   ],
+   "tris": [
+    14999,
+    3799,
+    950
+   ],
+   "bbox": {
+    "min": [
+     -11.116,
+     -1.641,
+     -6.299
+    ],
+    "max": [
+     9.838,
+     3.22,
+     9.299
+    ]
+   },
+   "scale": [
+    0.6,
+    1.5
+   ],
+   "use": "stepped wave-cut ledge: two jointed terraces rising inland, bedded risers, blocky seaward edge with a notch and fallen blocks (cove headland, rocky points)",
+   "type": "shelf",
+   "height_above_ground": 3.22,
+   "depth_below_ground": 1.64,
+   "footprint": [
+    20.95,
+    15.6
+   ],
+   "waterline_y": 0.5,
+   "face_dir": "+Z"
+  }
+ }
+}

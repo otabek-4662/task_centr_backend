@@ -1,0 +1,56 @@
+/* Foglio di stile esterno, non un blocco di stile in linea: la
+   Content-Security-Policy di index.html non concede 'unsafe-inline', e un
+   blocco in linea sarebbe bloccato sia in sviluppo sia nel bundle. */
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+canvas { position: absolute; }
+/* Dita sul gioco (lancio, punto 14): niente scorrimento, zoom, selezione o
+   menu del tocco lungo; i gesti li legge il gioco. */
+html, body, canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Safe area dei telefoni (notch, barra di iOS): le legge core/canvas.ts
+   per non mettere il gioco sotto. Con viewport-fit=cover il nero arriva
+   fino ai bordi. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+/* Il canvas nasce largo 1280 px prima del primo letterbox: su un telefono
+   la pagina si allargherebbe e il browser rimpicciolirebbe tutto. */
+canvas { max-width: 100vw; max-height: 100vh; }
+/* Telefono in verticale (src/ui/portrait.ts): sopra il gioco, nascosta
+   finché il gioco non la mostra; prende lei i tocchi. */
+#portrait {
+  display: none;
+  z-index: 1;
+  /* A tutta finestra: il disegno 9:16 al centro, il resto del colore del suo fondo. */
+  object-fit: contain;
+  background: #05050f;
+}
+
+.mouse-controls {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mouse-controls button {
+  color: #fff;
+  background: #20172edc;
+  border: 1px solid #a495b8;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+.mouse-controls button[aria-pressed="true"] { background: #6a3691; }
+@media (pointer: coarse) { .mouse-controls { display: none; } }
