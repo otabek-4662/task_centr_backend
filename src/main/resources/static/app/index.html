@@ -9,6 +9,8 @@
 <link rel="icon" href="piyola-3d.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="style.css?v=46" rel="stylesheet">
+<link href="/app/eclipse/theme.css?v=1" rel="stylesheet">
+<link href="/app/eclipse/scene.css?v=1" rel="stylesheet">
 </head>
 <body>
 
@@ -108,6 +110,7 @@
   <!-- Desktop Sidebar -->
   <aside class="sidebar" aria-label="Asosiy navigatsiya">
     <div class="sidebar-brand">
+      <div class="ec-wordmark" aria-label="Choylashamiz"><span class="ec-brand-bowl" aria-hidden="true"></span><strong aria-hidden="true">Choy<span>lasha</span><em>miz</em></strong></div>
       <div class="brand-badge"><img src="piyola-3d.png" alt="Choylashamiz" class="brand-piyola-icon"></div>
       <div class="brand-text">
         <strong>Choylashamiz</strong>
@@ -222,6 +225,16 @@
 
     <!-- TAB 1: KANBAN BOARD + 3D ANIMATED HERO -->
     <div id="tab-board" class="tab-content active">
+      <section class="ec-heading" aria-labelledby="ec-board-title">
+        <div class="ec-heading-copy">
+          <span class="ec-team-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="8" r="3"/><path d="M3 19v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5"/></svg></span>
+          <div><h1 id="ec-board-title">Jamoa <span>doskasi</span></h1><p id="ec-workspace-title"></p><i class="ec-filigree" aria-hidden="true"></i></div>
+        </div>
+        <div id="eclipse-piyola" role="button" tabindex="0" data-action="piyola-interact" aria-label="Vazifalar holatini ko‘rish">
+          <img class="ec-bowl-fallback" loading="lazy" alt="" data-src="/app/eclipse/piyola.webp">
+          <canvas aria-hidden="true"></canvas>
+        </div>
+      </section>
       <!-- Breathtaking 3D Animated Uzbek Hero Showcase (Collapsible for Power Users) -->
       <section id="hero-showcase" class="hero-showcase is-collapsed collapsed" aria-label="Choylashamiz 3D bosh sahifa vitrinasi">
         <div class="hero-inner">
@@ -351,24 +364,25 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="search-input" placeholder="Vazifa qidirish (nomi, kodi)..." aria-label="Qidirish">
         </div>
-        <div class="filter-chips" role="tablist" aria-label="Vazifa filtrlari">
-          <div class="chip active" data-filter="all" data-action="filter">Barchasi</div>
-          <div class="chip" data-filter="mine" data-action="filter">Menga</div>
-          <div class="chip" data-filter="frontend" data-action="filter">🎨 Frontend</div>
-          <div class="chip" data-filter="backend" data-action="filter">⚙️ Backend & DB</div>
-          <div class="chip" data-filter="today" data-action="filter">📅 Bugun</div>
-          <div class="chip" data-filter="overdue" data-action="filter">Muddati o‘tgan</div>
-          <div class="chip" data-filter="high" data-action="filter">Yuqori</div>
-          <div class="chip" data-filter="archived" data-action="filter">Arxiv</div>
+        <div class="filter-chips" role="group" aria-label="Vazifa filtrlari">
+          <button type="button" class="chip active" data-filter="all" data-action="filter" aria-pressed="true">Barchasi</button>
+          <button type="button" class="chip" data-filter="mine" data-action="filter" aria-pressed="false">Menga</button>
+          <button type="button" class="chip" data-filter="high" data-action="filter" aria-pressed="false">Yuqori</button>
+          <button type="button" class="chip" data-filter="today" data-action="filter" aria-pressed="false">Bugun</button>
         </div>
         <div class="board-toolbar-actions">
           <select id="filter-direction" class="compact-select" aria-label="Yo‘nalish bo‘yicha filtrlash">
             <option value="">Barcha yo‘nalishlar</option>
           </select>
-          <select id="filter-label" class="compact-select" aria-label="Teg bo‘yicha filtrlash">
-            <option value="">Barcha teglar</option>
-          </select>
+          <button type="button" class="btn-chip-action filter-more" data-action="more-filters" aria-expanded="false" aria-controls="extra-filters"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h5m4 0h9M3 12h11m4 0h3M3 18h3m4 0h11"/><circle cx="10" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg>Filtrlar</button>
           <button type="button" class="btn-chip-action" data-action="add-column">+ Ustun</button>
+        </div>
+        <div id="extra-filters" hidden>
+          <button type="button" class="chip" data-filter="frontend" data-action="filter" aria-pressed="false">Frontend</button>
+          <button type="button" class="chip" data-filter="backend" data-action="filter" aria-pressed="false">Backend va baza</button>
+          <button type="button" class="chip" data-filter="overdue" data-action="filter" aria-pressed="false">Muddati o‘tgan</button>
+          <button type="button" class="chip" data-filter="archived" data-action="filter" aria-pressed="false">Arxiv</button>
+          <select id="filter-label" class="compact-select" aria-label="Teg bo‘yicha filtrlash"><option value="">Barcha teglar</option></select>
         </div>
       </div>
 
@@ -874,7 +888,7 @@
 </div>
 
 <script src="games.js?v=4"></script>
-<script src="app.js?v=47"></script>
-<script src="ui-bind.js?v=54"></script>
+<script src="app.js?v=48"></script>
+<script src="ui-bind.js?v=55"></script>
 </body>
 </html>
