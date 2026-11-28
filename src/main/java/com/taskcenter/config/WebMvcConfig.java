@@ -14,7 +14,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     static final List<String> ROOT_ASSET_PATHS = List.of(
             "/style.css", "/app.js", "/games.js", "/ui-bind.js",
-            "/piyola-3d.png", "/choylashamiz-logo.png");
+            "/piyola-3d.png", "/choylashamiz-logo.png",
+            "/eclipse/theme.css", "/eclipse/scene.css", "/eclipse/scene.js",
+            "/eclipse/cosmos.webp", "/eclipse/piyola.webp", "/eclipse/porcelain.webp",
+            "/eclipse/fonts/rufina-bold.ttf", "/eclipse/fonts/barlow-semi-bold.ttf");
 
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
 

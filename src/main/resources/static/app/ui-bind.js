@@ -173,6 +173,12 @@
       case 'filter':
         call('setFilter', el);
         break;
+      case 'more-filters': {
+        const panel = document.getElementById('extra-filters');
+        panel.hidden = !panel.hidden;
+        el.setAttribute('aria-expanded', String(!panel.hidden));
+        break;
+      }
       case 'add-column':
         call('promptAddColumn');
         break;
@@ -231,6 +237,10 @@
   });
 
   document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('#eclipse-piyola, #sidebar-user, #header-profile-btn')) {
+      e.preventDefault();
+      e.target.click();
+    }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.tab-btn')) {
       e.preventDefault();
       call('switchTab', e.target.dataset.tab);
@@ -279,6 +289,10 @@
 
   document.addEventListener('change', function (e) {
     var t = e.target;
+    if (t.matches('[data-eclipse-option]')) {
+      call('setEclipseOption', t.dataset.eclipseOption, t.checked);
+      return;
+    }
     if (t.id === 'ws' || t.id === 'ws-desktop') call('selectWorkspace', t.value);
     else if (t.id === 'stats-ws') call('loadStats');
     else if (t.id === 'board-sprint-select' || t.id === 'filter-direction' || t.id === 'filter-label') {

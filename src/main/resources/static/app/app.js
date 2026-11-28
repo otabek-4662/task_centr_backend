@@ -5,95 +5,103 @@ try {
   if (tg.expand) tg.expand();
 } catch (e) {}
 
-// 3-Theme Architecture (light -> dark -> gold-ai -> light)
-function updateThemeUI(theme) {
-  const iconEl = document.getElementById('theme-btn-icon');
-  const btn = document.getElementById('btn-theme-toggle');
-  if (theme === 'gold-ai') {
-    if (iconEl) iconEl.textContent = '👑';
-    if (btn) btn.title = 'Mavzu: Royal Gold AI (Bosing: Oq rejimga)';
-  } else if (theme === 'dark') {
-    if (iconEl) iconEl.textContent = '🌙';
-    if (btn) btn.title = 'Mavzu: Qora Shisha (Bosing: Tilla AI rejimga)';
-  } else {
-    if (iconEl) iconEl.textContent = '☀️';
-    if (btn) btn.title = 'Mavzu: Oq Minimal (Bosing: Qora rejimga)';
+const appThemes = {
+  light: { label: 'Oq minimal', icon: '☀️' },
+  dark: { label: 'Qora shisha', icon: '🌙' },
+  'gold-ai': { label: 'Royal Gold AI', icon: '👑' },
+  eclipse: { label: 'ECLIPSE', icon: '✦' }
+};
+
+const eclipseOptions = {
+  scene: 'Kosmik sahnani ko‘rsatish',
+  bowl: 'Piyolani ko‘rsatish',
+  orbit: 'Orbital halqalarni aylantirish',
+  background: 'Fon va billurlar harakati',
+  motion: 'Barcha animatsiyalar'
+};
+
+function readPreference(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function applyAppTheme(name) {
+  const theme = Object.hasOwn(appThemes, name) ? name : (tg.colorScheme === 'dark' ? 'dark' : 'light');
+  const root = document.documentElement;
+  const previous = root.dataset.theme;
+  root.dataset.theme = theme;
+  arrangeBoardFilters();
+  if (previous && previous !== theme && !root.classList.contains('no-animations') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelector('.app-shell')?.animate?.([{ opacity: .85 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
+  }
+  if (theme === 'eclipse' && !document.getElementById('ec-renderer')) {
+    const fallback = document.querySelector('.ec-bowl-fallback');
+    if (fallback) fallback.src = fallback.dataset.src;
+    const script = document.createElement('script');
+    script.id = 'ec-renderer';
+    script.src = '/app/eclipse/scene.js?v=1';
+    script.onerror = () => script.remove();
+    document.head.appendChild(script);
+  }
+  const icon = document.getElementById('theme-btn-icon');
+  if (icon) icon.textContent = appThemes[theme].icon;
+  const button = document.getElementById('btn-theme-toggle');
+  if (button) button.title = 'Mavzuni almashtirish · ' + appThemes[theme].label;
+}
+
+function setEclipseOption(option, enabled, persist = true) {
+  if (!Object.hasOwn(eclipseOptions, option)) return;
+  const root = document.documentElement;
+  root.setAttribute('data-eclipse-' + option, enabled ? 'on' : 'off');
+  if (option === 'motion') root.classList.toggle('no-animations', !enabled);
+  if (persist) {
+    try {
+      if (option === 'motion') localStorage.setItem('tc_anim_disabled', enabled ? '0' : '1');
+      else localStorage.setItem('tc_eclipse_' + option, enabled ? 'on' : 'off');
+    } catch {}
   }
 }
 
-function applyAppTheme(themeName) {
-  let theme = themeName;
-  if (!['light', 'dark', 'gold-ai'].includes(theme)) {
-    theme = (tg && tg.colorScheme === 'dark') ? 'dark' : 'light';
-  }
-  document.documentElement.setAttribute('data-theme', theme);
-  updateThemeUI(theme);
-}
-
-(function initTheme() {
-  let savedTheme = null;
-  try { savedTheme = localStorage.getItem('tc_theme'); } catch (e) {}
-  applyAppTheme(savedTheme);
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    updateThemeUI(currentTheme);
-  });
-
-  try {
-    if (tg && tg.onEvent) {
-      tg.onEvent('themeChanged', () => {
-        if (!localStorage.getItem('tc_theme')) {
-          applyAppTheme((tg.colorScheme === 'dark') ? 'dark' : 'light');
-        }
-      });
-    }
-  } catch (e) {}
-})();
-
-// Animation preference initialization (Piyola and background animations toggle)
-(function initAnimationPreference() {
-  try {
-    if (localStorage.getItem('tc_anim_disabled') === '1') {
-      document.documentElement.classList.add('no-animations');
-    }
-  } catch (e) {}
-})();
-
-window.toggleTheme = function () {
-  const current = document.documentElement.getAttribute('data-theme') || 'light';
-  let next = 'light';
-  if (current === 'light') next = 'dark';
-  else if (current === 'dark') next = 'gold-ai';
-  else next = 'light';
-
-  try { localStorage.setItem('tc_theme', next); } catch (e) {}
-  applyAppTheme(next);
-
-  if (next === 'gold-ai') {
-    showToast("👑 Royal Gold AI (Executive Luxury)");
-  } else if (next === 'dark') {
-    showToast("🌙 Qora shisha rejim (Dark Glass)");
+Object.keys(eclipseOptions).forEach(option => {
+  const enabled = option === 'motion' ? readPreference('tc_anim_disabled') !== '1'
+    : readPreference('tc_eclipse_' + option) !== 'off';
+  setEclipseOption(option, enabled, false);
+});
+const compactBoard = matchMedia('(max-width: 760px)');
+function arrangeBoardFilters() {
+  const small = compactBoard.matches && document.documentElement.dataset.theme === 'eclipse';
+  const extra = document.getElementById('extra-filters');
+  const sprint = document.querySelector('.sprint-filter-wrap');
+  const direction = document.getElementById('filter-direction');
+  if (!extra || !sprint || !direction) return;
+  if (small) {
+    extra.append(sprint, direction);
   } else {
-    showToast("☀️ Oq rejim (Clean Minimal)");
+    document.querySelector('.header-left').insertBefore(sprint, document.getElementById('live-indicator'));
+    document.querySelector('.board-toolbar-actions').prepend(direction);
   }
-  haptic('impact', 'medium');
+}
+compactBoard.addEventListener('change', arrangeBoardFilters);
+applyAppTheme(readPreference('tc_theme'));
+document.addEventListener('visibilitychange', () => {
+  document.documentElement.toggleAttribute('data-ec-paused', document.hidden);
+});
+if (tg.onEvent) tg.onEvent('themeChanged', () => {
+  if (!readPreference('tc_theme')) applyAppTheme(null);
+});
+
+window.setTheme = function (name) {
+  if (!Object.hasOwn(appThemes, name)) return;
+  try { localStorage.setItem('tc_theme', name); } catch {}
+  applyAppTheme(name);
+  showToast(appThemes[name].label + ' mavzusi tanlandi');
+  haptic('impact', 'light');
   if (currentTab === 'profile') renderProfileTab();
 };
 
-window.setTheme = function (themeName) {
-  if (!['light', 'dark', 'gold-ai'].includes(themeName)) return;
-  try { localStorage.setItem('tc_theme', themeName); } catch (e) {}
-  applyAppTheme(themeName);
-  if (themeName === 'gold-ai') {
-    showToast("👑 Royal Gold AI (Executive Luxury)");
-  } else if (themeName === 'dark') {
-    showToast("🌙 Qora shisha rejim (Dark Glass)");
-  } else {
-    showToast("☀️ Oq rejim (Clean Minimal)");
-  }
-  haptic('impact', 'medium');
-  if (currentTab === 'profile') renderProfileTab();
+window.toggleTheme = function () {
+  const themes = Object.keys(appThemes);
+  const index = themes.indexOf(document.documentElement.dataset.theme);
+  window.setTheme(themes[(index + 1) % themes.length]);
 };
 
 const API = location.origin;
@@ -866,6 +874,7 @@ async function loadBoard(wsId) {
     renderFormPickers();
     renderBoard();
     hideLoader();
+    if (currentFilter === 'archived') loadArchivedCards();
   } catch (e) {
     if (version !== boardLoadVersion || wsId !== currentWsId) return;
     if (!hasCache) {
@@ -1007,6 +1016,7 @@ function renderFormPickers() {
 
 function updateHeroLiveStats() {
   const ws = allWorkspaces.find(w => w.id === currentWsId);
+  document.getElementById('ec-workspace-title').textContent = ws?.title || 'Ish maydoni';
   const wsTitleEl = document.getElementById('hero-ws-title');
   const wsDescEl = document.getElementById('hero-ws-desc');
   if (wsTitleEl && ws) {
@@ -1069,6 +1079,10 @@ window.escapeHtml = escapeHtmlText;
 window.escapeHtmlText = escapeHtmlText;
 
 window.toggleHeroShowcase = function () {
+  if (document.documentElement.dataset.theme === 'eclipse') {
+    setEclipseOption('scene', document.documentElement.dataset.eclipseScene === 'off');
+    return;
+  }
   const hero = document.getElementById('hero-showcase');
   const dock = document.getElementById('hero-mini-dock');
   if (!hero) return;
@@ -1120,14 +1134,15 @@ function renderBoard() {
   }
   const container = document.getElementById('board-container');
   if (!container) return;
-  container.innerHTML = '';
+  container.querySelectorAll('.list').forEach(list => window.Sortable?.get(list)?.destroy());
+  container.replaceChildren();
 
   const tasksByColumn = new Map();
   for (const task of tasksData) {
     if (!tasksByColumn.has(task.columnId)) tasksByColumn.set(task.columnId, []);
     tasksByColumn.get(task.columnId).push(task);
   }
-  colsData.forEach(c => {
+  colsData.forEach((c, columnIndex) => {
     const colTasks = tasksByColumn.get(c.id) || [];
 
     const sort = sortPrefs[c.id] || 'manual';
@@ -1145,17 +1160,21 @@ function renderBoard() {
     const colColor = c.isDone ? '#10b981' : getColColor(c.title || c.id);
     const colEl = document.createElement('div');
     colEl.className = 'col';
+    colEl.dataset.tone = eclipseColumnTone(c);
     colEl.style.setProperty('--col-color', colColor);
 
     colEl.innerHTML = `
       <div class="col-header">
-        <div class="col-header-left">
+        <button type="button" class="col-header-left" title="Ustunni sozlash">
           <span class="col-status-dot" style="background:${colColor}"></span>
           <span class="col-title-text"></span>
-          ${c.isDone ? '<span class="col-done-badge">✓ Done</span>' : ''}
+          ${c.isDone ? '<span class="col-done-badge">✓ Yakuniy</span>' : ''}
           <span class="col-count">0</span>
-        </div>
+        </button>
+        <button type="button" class="ec-col-menu" aria-expanded="false" aria-label="Ustun amallari">•••</button>
         <div class="col-header-actions">
+          <button type="button" class="col-btn ec-shift" data-shift="-1" aria-label="Ustunni chapga surish" title="Chapga surish" ${columnIndex === 0 ? 'disabled' : ''}>←</button>
+          <button type="button" class="col-btn ec-shift" data-shift="1" aria-label="Ustunni o‘ngga surish" title="O‘ngga surish" ${columnIndex === colsData.length - 1 ? 'disabled' : ''}>→</button>
           <button type="button" class="col-btn col-add-task-btn" data-action="new-task" data-col-id="${c.id}" title="Ushbu ustunga vazifa qo‘shish" aria-label="Vazifa qo‘shish">+</button>
           <button type="button" class="col-btn sort-btn rebal-btn" title="LexoRank tartibini muvozanatlash">⚖️</button>
           <button type="button" class="col-btn sort-btn col-sort-toggle" title="Saralash">⇅</button>
@@ -1173,6 +1192,14 @@ function renderBoard() {
     `;
 
     colEl.querySelector('.col-header-left').onclick = () => openColumnEditModal(c);
+    const menu = colEl.querySelector('.ec-col-menu');
+    colEl.querySelectorAll('.ec-shift').forEach(button => {
+      button.onclick = () => shiftBoardColumn(c.id, Number(button.dataset.shift));
+    });
+    menu.onclick = () => {
+      const open = colEl.classList.toggle('ec-menu-open');
+      menu.setAttribute('aria-expanded', String(open));
+    };
     colEl.querySelector('.col-title-text').textContent = c.title;
     const countEl = colEl.querySelector('.col-count');
     if (c.wipLimit && c.wipLimit > 0) {
@@ -1203,7 +1230,7 @@ function renderBoard() {
     listEl.dataset.col = c.id;
 
     if (colTasks.length === 0) {
-      listEl.innerHTML = `<div class="empty-placeholder"><span class="empty-icon">📋</span><span>Bo‘sh</span></div>`;
+      listEl.innerHTML = '<div class="empty-placeholder">Hozircha vazifa yo‘q</div>';
     } else {
       colTasks.forEach(t => listEl.appendChild(createCard(t)));
     }
@@ -1218,7 +1245,11 @@ function renderBoard() {
     if (window.Sortable) {
       Sortable.create(listEl, {
         group: 'board',
-        animation: 180,
+        draggable: '.card',
+        forceFallback: true,
+        fallbackTolerance: 4,
+        fallbackOnBody: false,
+        animation: document.documentElement.classList.contains('no-animations') || matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180,
         delay: 140,
         delayOnTouchOnly: true,
         ghostClass: 'sortable-ghost',
@@ -1245,8 +1276,9 @@ function renderBoard() {
     }
   });
 
-  const addColCard = document.createElement('div');
-  addColCard.className = 'col';
+  const addColCard = document.createElement('button');
+  addColCard.type = 'button';
+  addColCard.className = 'col add-column-card';
   addColCard.style = 'justify-content:center;align-items:center;cursor:pointer;opacity:0.75;background:transparent;border:2px dashed var(--line);min-height:180px;';
   addColCard.innerHTML = `<div style="font-weight:700;color:var(--btn-color);">+ Yangi ustun qo'shish</div>`;
   addColCard.onclick = () => promptAddColumn();
@@ -1255,11 +1287,50 @@ function renderBoard() {
   applyFilters();
 }
 
+let changingColumnOrder = false;
+async function shiftBoardColumn(id, direction) {
+  if (changingColumnOrder) return;
+  const workspaceId = currentWsId;
+  const ids = colsData.map(column => column.id);
+  const from = ids.indexOf(id);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= ids.length) return;
+  changingColumnOrder = true;
+  [ids[from], ids[to]] = [ids[to], ids[from]];
+  try {
+    await api(endpoints.columns(workspaceId) + '/reorder', { method: 'PATCH', body: JSON.stringify(ids) });
+    if (workspaceId === currentWsId) await loadBoard(workspaceId);
+  } catch {
+    // api() displays the server's permission or validation error.
+  } finally {
+    changingColumnOrder = false;
+  }
+}
+
+function eclipseColumnTone(column) {
+  if (column.isDone) return 'done';
+  const name = (column.title || '').toLowerCase().trim();
+  if (/^(to do|todo|rejada|reja|backlog)$/.test(name)) return 'plan';
+  if (/^(in progress|jarayonda|jarayon|doing)$/.test(name)) return 'active';
+  // A custom column keeps its hue through renaming and reordering.
+  const tones = ['violet', 'rose', 'azure'];
+  return tones[Array.from(String(column.id)).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % tones.length];
+}
+
 function createCard(t) {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.id = t.id;
   card.dataset.prio = t.priority || 'MEDIUM';
+  card.tabIndex = 0;
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', [t.publicId, t.title].filter(Boolean).join(' · '));
+  card.onkeydown = event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openSheet('view', t.id);
+    }
+  };
 
   let pressTimer = null;
   card.ontouchstart = () => {
@@ -1296,7 +1367,11 @@ function createCard(t) {
     </div>
   `;
 
-  card.querySelector('.task-key-badge').textContent = `${issueIcon} ${t.publicId || 'TASK'}`;
+  const taskKey = card.querySelector('.task-key-badge');
+  const issueMark = document.createElement('span');
+  issueMark.className = 'issue-mark';
+  issueMark.textContent = issueIcon + ' ';
+  taskKey.append(issueMark, t.publicId || 'Vazifa');
   if (t.storyPoints != null && t.storyPoints > 0) {
     const sp = document.createElement('span');
     sp.className = 'points-badge';
@@ -1386,10 +1461,40 @@ function createCard(t) {
   return card;
 }
 
+let archiveLoadVersion = 0;
+async function loadArchivedCards() {
+  const workspaceId = currentWsId;
+  const version = ++archiveLoadVersion;
+  const boardVersion = boardLoadVersion;
+  if (!workspaceId) return;
+  try {
+    for (let page = 0; ; page++) {
+      const result = await api(endpoints.tasks(workspaceId) + '?includeArchived=true&size=100&page=' + page);
+      if (version !== archiveLoadVersion || workspaceId !== currentWsId || boardVersion !== boardLoadVersion || currentFilter !== 'archived') return;
+      const batch = result?.data;
+      if (!Array.isArray(batch?.content)) return;
+      const known = new Set(tasksData.map(task => task.id));
+      const archived = batch.content.filter(task => task.isArchived && !known.has(task.id));
+      if (archived.length) {
+        tasksData.push(...archived);
+        renderBoard();
+      }
+      if (batch.last || !batch.content.length || page + 1 >= batch.totalPages) return;
+    }
+  } catch {
+    // Keep the available cards when a later page fails.
+  }
+}
+
 window.setFilter = function (el) {
-  document.querySelectorAll('#main-filters .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  document.querySelectorAll('#main-filters .chip').forEach(chip => {
+    const active = chip.dataset.filter === el.dataset.filter;
+    chip.classList.toggle('active', active);
+    chip.setAttribute('aria-pressed', String(active));
+  });
   currentFilter = el.dataset.filter;
+  archiveLoadVersion++;
+  if (currentFilter === 'archived') loadArchivedCards();
   haptic('selection');
   applyFilters();
 };
@@ -1603,6 +1708,7 @@ async function moveTask(taskId, targetColId, prevRank = null, nextRank = null) {
     updateBoardCache();
     const col = colsData.find(c => c.id === targetColId);
     if (col && (col.isDone || /bajarildi|tugadi|done|ko'z tegmasin/i.test(col.title))) {
+      if (col.isDone) document.querySelector(`#board-container [data-id="${CSS.escape(taskId)}"]`)?.classList.add('ec-completed');
       celebrate();
     } else {
       showToast("Holat yangilandi");
@@ -1657,7 +1763,7 @@ async function quickAddTask(inputEl, colId) {
     const sprintSaved = await syncTaskSprint(workspaceId, res.data, sprintId);
     if (workspaceId !== currentWsId) return;
     if (res?.data) {
-      tasksData.push(res.data);
+      if (!tasksData.some(task => task.id === res.data.id)) tasksData.push(res.data);
       updateBoardCache();
     }
     inputEl.value = '';
@@ -2210,7 +2316,7 @@ window.addSubtask = async function () {
         issueType: 'TASK'
       })
     });
-    if (res?.data) tasksData.push(res.data);
+    if (res?.data && !tasksData.some(task => task.id === res.data.id)) tasksData.push(res.data);
     inp.value = '';
     showToast("Ostki vazifa yaratildi");
     loadSubtasks(currentTaskId);
@@ -3815,15 +3921,8 @@ window.loadWorkspaceSettingsTab = async function () {
     const animToggle = profCard.querySelector('#toggle-tea-animation');
     if (animToggle) {
       animToggle.onchange = (e) => {
-        if (e.target.checked) {
-          try { localStorage.removeItem('tc_anim_disabled'); } catch (e) {}
-          document.documentElement.classList.remove('no-animations');
-          showToast("🍵 Animatsiyalar yoqildi");
-        } else {
-          try { localStorage.setItem('tc_anim_disabled', '1'); } catch (e) {}
-          document.documentElement.classList.add('no-animations');
-          showToast("🍵 Animatsiyalar o'chirildi");
-        }
+        setEclipseOption('motion', e.target.checked);
+        showToast(e.target.checked ? 'Animatsiyalar yoqildi' : 'Animatsiyalar o‘chirildi');
       };
     }
 
@@ -3943,7 +4042,7 @@ window.renderProfileTab = async function () {
   // Calculate personal KPIs from tasksData
   const myTasks = (tasksData || []).filter(t => (t.assignees || []).some(a => a.id === currentUserId));
   const doneTasks = myTasks.filter(t => {
-    const col = (boardColumns || []).find(c => c.id === t.columnId);
+    const col = colsData.find(c => c.id === t.columnId);
     return col ? col.isDone : false;
   });
   const inProgressTasks = myTasks.filter(t => !doneTasks.includes(t));
@@ -4027,22 +4126,19 @@ window.renderProfileTab = async function () {
         <div class="profile-card-title">🎨 Dizayn va Ko‘rinish Sozlamalari</div>
       </div>
       <div>
-        <label class="sidebar-label" style="margin-bottom:8px;display:block;">Mavzuni tanlang (3 xil uslub)</label>
+        <div class="sidebar-label">Mavzuni tanlang</div>
         <div class="theme-cards-grid">
-          <div class="theme-card ${currentTheme === 'light' ? 'active' : ''}" data-action="set-theme" data-theme-val="light" role="button" tabindex="0">
-            <div class="theme-swatch light"></div>
-            <div class="theme-title">☀️ Oq Minimal</div>
-          </div>
-          <div class="theme-card ${currentTheme === 'dark' ? 'active' : ''}" data-action="set-theme" data-theme-val="dark" role="button" tabindex="0">
-            <div class="theme-swatch dark"></div>
-            <div class="theme-title">🌙 Qora Glass</div>
-          </div>
-          <div class="theme-card ${currentTheme === 'gold-ai' ? 'active' : ''}" data-action="set-theme" data-theme-val="gold-ai" role="button" tabindex="0">
-            <div class="theme-swatch gold-ai"></div>
-            <div class="theme-title">👑 Royal Gold AI</div>
-          </div>
+          ${Object.entries(appThemes).map(([name, theme]) => `
+            <button type="button" class="theme-card ${currentTheme === name ? 'active' : ''}" data-action="set-theme" data-theme-val="${name}" aria-pressed="${currentTheme === name}">
+              <span class="theme-swatch ${name}" aria-hidden="true"></span>
+              <span class="theme-title">${theme.label}</span>
+            </button>`).join('')}
         </div>
       </div>
+      ${currentTheme === 'eclipse' ? Object.entries(eclipseOptions).map(([key, label]) => `
+        <label class="ec-option"><span>${label}</span>
+          <input type="checkbox" data-eclipse-option="${key}" ${document.documentElement.getAttribute('data-eclipse-' + key) === 'on' ? 'checked' : ''}>
+        </label>`).join('') : `
       <div class="setting-toggle-row">
         <div>
           <strong style="font-size:13px;">✦ 3D Vitrina & Piyola</strong>
@@ -4058,7 +4154,7 @@ window.renderProfileTab = async function () {
         <button type="button" class="btn-chip-action ${isAnimDisabled ? '' : 'primary'}" data-action="toggle-tea-animation" style="height:32px;">
           ${isAnimDisabled ? 'O‘chirilgan' : 'Yoqilgan'}
         </button>
-      </div>
+      </div>`}
       <div class="setting-toggle-row">
         <div>
           <strong style="font-size:13px;">🎮 Choyxona Arcade menyusi</strong>
@@ -4142,16 +4238,9 @@ window.unlinkTelegramAccount = async function () {
 };
 
 window.toggleTeaAnimationPreference = function () {
-  const current = localStorage.getItem('tc_anim_disabled') === '1';
-  if (current) {
-    try { localStorage.removeItem('tc_anim_disabled'); } catch (e) {}
-    document.documentElement.classList.remove('no-animations');
-    showToast("🍵 Animatsiyalar yoqildi");
-  } else {
-    try { localStorage.setItem('tc_anim_disabled', '1'); } catch (e) {}
-    document.documentElement.classList.add('no-animations');
-    showToast("🍵 Animatsiyalar o‘chirildi");
-  }
+  const enabled = document.documentElement.dataset.eclipseMotion === 'off';
+  setEclipseOption('motion', enabled);
+  showToast(enabled ? 'Animatsiyalar yoqildi' : 'Animatsiyalar o‘chirildi');
   haptic('impact', 'light');
   if (currentTab === 'profile') renderProfileTab();
 };
