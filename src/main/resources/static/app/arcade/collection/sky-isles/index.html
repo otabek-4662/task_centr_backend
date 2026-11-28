@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#cdb4f0" />
+  <title>Sky Isles</title>
+  <meta name="description" content="A dreamlike floating-islands world. Explore pastel sky isles, ring the five wind chimes in the mural's order, and open the portal to the star isle." />
+  <style>
+    :root {
+      --mint: #a8e6cf;
+      --lavender: #cdb4f0;
+      --cream: #fff3d6;
+      --rose: #f2b8c6;
+      --ink: #5a4a7a;
+      --ink-soft: rgba(90, 74, 122, 0.72);
+      --glass: rgba(255, 248, 238, 0.72);
+      --glass-border: rgba(255, 255, 255, 0.65);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #e9d8f2;
+      font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    #scene {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+    /* ---------- loading ---------- */
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: linear-gradient(180deg, #ffe3c9 0%, #e3d2f5 52%, #c9eedd 100%);
+      transition: opacity 0.6s ease;
+      z-index: 40;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .loading-isle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50% 50% 46% 54%;
+      background: radial-gradient(circle at 34% 30%, #d9f7e8, var(--mint) 58%, #7ecfae);
+      box-shadow: 0 18px 34px rgba(90, 74, 122, 0.25);
+      animation: bob 1.8s ease-in-out infinite;
+    }
+    @keyframes bob { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
+    #loading p { font-size: 13px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ink-soft); }
+
+    /* ---------- title screen ---------- */
+    #title-screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: radial-gradient(ellipse at 50% 42%, rgba(255, 243, 214, 0.35), rgba(205, 180, 240, 0.28) 70%);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: opacity 0.7s ease;
+      z-index: 30;
+    }
+    #title-screen.hidden { opacity: 0; pointer-events: none; }
+    #title-screen h1 {
+      font-size: clamp(44px, 9vw, 92px);
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-indent: 0.3em;
+      color: #fdf6ea;
+      text-shadow:
+        0 2px 0 rgba(90, 74, 122, 0.35),
+        0 10px 34px rgba(90, 74, 122, 0.45);
+      user-select: none;
+    }
+    #title-screen .subtitle {
+      font-size: clamp(13px, 2.4vw, 17px);
+      letter-spacing: 0.34em;
+      text-indent: 0.34em;
+      text-transform: uppercase;
+      color: rgba(90, 74, 122, 0.85);
+      user-select: none;
+    }
+    #title-screen .oss {
+      margin-top: 18px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(90, 74, 122, 0.72);
+      text-align: center;
+      line-height: 1.7;
+    }
+    #title-screen .oss a { color: rgba(90, 74, 122, 0.95); text-decoration: underline; }
+    #title-screen .tap {
+      margin-top: 26px;
+      padding: 12px 30px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 26px rgba(90, 74, 122, 0.22);
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      animation: pulse 2.2s ease-in-out infinite;
+      user-select: none;
+    }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } }
+
+    /* ---------- HUD ---------- */
+    #hud {
+      position: absolute;
+      top: calc(14px + env(safe-area-inset-top));
+      left: calc(16px + env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      user-select: none;
+    }
+    #hud .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 6px 18px rgba(90, 74, 122, 0.16);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      width: max-content;
+    }
+    #chime-dots { display: inline-flex; gap: 5px; }
+    #chime-dots .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: rgba(90, 74, 122, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      transition: transform 0.3s ease, background 0.3s ease;
+    }
+    #chime-dots .dot.on { transform: scale(1.18); box-shadow: 0 0 10px currentColor; }
+    #hint {
+      position: absolute;
+      left: 50%;
+      bottom: calc(26px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      padding: 10px 22px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 22px rgba(90, 74, 122, 0.2);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      color: var(--ink);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      max-width: min(560px, 86vw);
+      text-align: center;
+      user-select: none;
+    }
+    #hint.show { opacity: 1; }
+
+    /* ---------- touch controls ---------- */
+    .touch-only { display: none; }
+    body.touch .touch-only { display: block; }
+    #joystick {
+      position: absolute;
+      left: calc(22px + env(safe-area-inset-left));
+      bottom: calc(26px + env(safe-area-inset-bottom));
+      width: 124px;
+      height: 124px;
+      border-radius: 50%;
+      background: rgba(255, 248, 238, 0.4);
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 24px rgba(90, 74, 122, 0.18), inset 0 0 24px rgba(255, 255, 255, 0.35);
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #joystick .nub {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 34% 30%, #ffffff, var(--lavender) 75%);
+      box-shadow: 0 4px 14px rgba(90, 74, 122, 0.3);
+      transform: translate(-50%, -50%);
+    }
+    #jump-btn {
+      position: absolute;
+      right: calc(24px + env(safe-area-inset-right));
+      bottom: calc(34px + env(safe-area-inset-bottom));
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 34% 30%, #ffffff, var(--mint) 78%);
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 8px 24px rgba(90, 74, 122, 0.24);
+      pointer-events: auto;
+      touch-action: none;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--ink);
+      user-select: none;
+    }
+    body.touch #jump-btn { display: flex; }
+    #jump-btn:active { transform: scale(0.94); }
+  </style>
+  <script type="module" crossorigin src="./assets/index-LopXtG6c.js"></script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="ui">
+    <div id="hud">
+      <div class="chip" id="chime-chip">
+        <span>Qo‘ng‘iroqlar</span>
+        <span id="chime-dots"></span>
+      </div>
+    </div>
+    <div id="hint"></div>
+    <div id="joystick" class="touch-only"><div class="nub"></div></div>
+    <button id="jump-btn" type="button">SAKRA</button>
+    <div id="title-screen">
+      <h1>SKY ISLES</h1>
+      <p class="subtitle">Bulutlar ustidagi orollar</p>
+      <div class="tap">Boshlash uchun bosing yoki Enter</div>
+      <div class="oss">
+        MIT License &middot; Copyright (c) 2026 Stanislav Sorokin (Bles Software)
+      </div>
+    </div>
+    <div id="loading">
+      <div class="loading-isle"></div>
+      <p>Orollar yuklanmoqda…</p>
+    </div>
+  </div>
+  <script src="../../score-bridge.js"></script>
+</body>
+</html>

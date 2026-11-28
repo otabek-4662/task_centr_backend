@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sandspiel</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <main>
+    <div class="tools">
+      <label>Material <select id="material"></select></label>
+      <label>O‘lcham <input id="size" type="range" min="2" max="36" value="12"></label>
+      <button id="pause" type="button" aria-pressed="false">To‘xtatish</button>
+      <button id="undo" type="button">Bekor qilish</button>
+      <button id="reset" type="button">Tozalash</button>
+    </div>
+    <div class="scene">
+      <canvas id="sandbox" width="300" height="300" tabindex="0" aria-label="Sandspiel chizish maydoni"></canvas>
+      <p id="status" role="status">Yuklanmoqda…</p>
+    </div>
+  </main>
+</body>
+</html>

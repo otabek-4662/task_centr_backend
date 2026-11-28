@@ -8,6 +8,7 @@ import com.taskcenter.security.TelegramWebAppAuthFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -22,10 +23,15 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Configuration
@@ -119,6 +125,48 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    @Bean
+    @org.springframework.core.annotation.Order(0)
+    public SecurityFilterChain arcadeCollectionFilterChain(HttpSecurity http) throws Exception {
+        Set<String> gamePaths;
+        try (var reader = new BufferedReader(new InputStreamReader(
+                new ClassPathResource("arcade-collection-paths.txt").getInputStream(), StandardCharsets.UTF_8))) {
+            gamePaths = reader.lines().map(path -> "/app/arcade/collection/" + path)
+                    .collect(Collectors.toUnmodifiableSet());
+        }
+
+        // Game frames have opaque origins. Only their explicitly listed static files
+        // need cross-origin access for modules, textures, fonts and WebAssembly.
+        var gameCors = new CorsConfiguration();
+        gameCors.setAllowedOrigins(List.of("null"));
+        gameCors.setAllowedMethods(List.of("GET", "HEAD"));
+        var gameCorsSource = new UrlBasedCorsConfigurationSource();
+        gameCorsSource.registerCorsConfiguration("/app/arcade/collection/**", gameCors);
+
+        http
+            .securityMatcher(request -> gamePaths.contains(
+                    request.getRequestURI().substring(request.getContextPath().length())))
+            .cors(cors -> cors.configurationSource(gameCorsSource))
+            .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                    "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; " +
+                    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+                    "font-src 'self'; media-src 'self'; connect-src 'self' blob:; worker-src blob:; " +
+                    "base-uri 'none'; form-action 'none'; " +
+                    "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org"
+                ))
+                .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                .frameOptions(frame -> frame.disable())
+            )
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers(HttpMethod.GET).permitAll()
+                .requestMatchers(HttpMethod.HEAD).permitAll()
+                .anyRequest().denyAll()
+            );
+        return http.build();
     }
 
     @Bean

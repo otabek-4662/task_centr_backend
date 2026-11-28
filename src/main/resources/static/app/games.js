@@ -164,7 +164,28 @@
   ].map(([id, title, file, key, recordLabel, desc], index) => ({
     id, title, file, key, recordLabel, desc, tag: index < 5 ? 'Retro' : 'Kengaytirilgan', icon: '🎮'
   }));
-  const allGames = [...GAMES_CATALOG, ...importedGames];
+  const collectionGames = [
+    { id: 'sunset-drive', title: 'Shafaq poygasi', icon: '🏎️', tag: 'Poyga', key: 'best',
+      recordLabel: 'Rekord', desc: 'Strelkalar yoki ekrandagi tugmalar bilan sohil bo‘ylab poyga qiling.' },
+    { id: 'packabunchas', title: 'Packabunchas', icon: '🛸', tag: 'Boshqotirma', key: 'best',
+      recordLabel: 'Eng ko‘p qutqarilgan', desc: 'Shakllarni kemaga sig‘diring. Sichqoncha yoki Tab, Enter, strelkalar va R ishlaydi.' },
+    { id: 'sprout-runner', title: 'Sprout Runner', icon: '🌱', tag: 'Platformer', key: 'best',
+      recordLabel: 'Rekord', desc: 'Tangalarni yig‘ing va to‘siqlardan sakrang. Klaviatura yoki ekrandagi tugmalardan foydalaning.' },
+    { id: 'island', title: 'Island', icon: '🏝️', tag: '3D sayohat', pointerLock: true,
+      desc: 'WASD bilan yuring va sichqoncha bilan atrofga qarang. Kompyuterda Chrome yoki Edge tavsiya etiladi.' },
+    { id: 'sandspiel', title: 'Sandspiel', icon: '🌊', tag: 'Erkin o‘yin',
+      desc: 'Material tanlang va sahnaga chizing. Strelkalar bilan kursorni suring, Space bilan chizing.' },
+    { id: 'rusted-cannon', title: 'Rusted Cannon', icon: '🎯', tag: 'Piksel-art ekshen', key: 'best',
+      recordLabel: 'Rekord', desc: 'Uchta missiyani yakunlang. WASD bilan yuring, Z bilan oting va X bilan sakrang. Ekrandagi tugmalar ham ishlaydi.' },
+    { id: 'sky-isles', title: 'Sky Isles', icon: '☁️', tag: '3D sarguzasht', key: 'best',
+      recordLabel: 'Eng ko‘p chalingan qo‘ng‘iroq', desc: 'Orollarni kezing va beshta qo‘ng‘iroqni tartib bilan chaling. WASD bilan yuring, Space bilan sakrang, sichqonchani tortib atrofga qarang.' },
+    { id: 'tidewater', title: 'Tidewater', icon: '🎣', tag: '3D baliq ovi', key: 'best',
+      saveKey: 'tidewater.save.v1', recordLabel: 'Eng og‘ir baliq', recordUnit: 'kg', pointerLock: true,
+      desc: 'WASD bilan yuring, R bilan qarmoqni oling va sichqoncha bilan baliq tuting. Kompyuterda WebGPU kerak. Birinchi yuklanish uzoqroq.' }
+  ].map(game => ({
+    ...game, file: 'collection/' + game.id + '/index', collection: true
+  }));
+  const allGames = [...GAMES_CATALOG, ...collectionGames, ...importedGames];
   const gameCount = document.getElementById('arcade-game-count');
   if (gameCount) gameCount.textContent = allGames.length;
 
@@ -182,6 +203,11 @@
     return Number.isSafeInteger(value) && value >= 0;
   }
 
+  function formatRecord(game, score) {
+    if (score == null) return 'Hali yo‘q';
+    return game.recordUnit === 'kg' ? String(score / 1000).replace('.', ',') + ' kg' : score;
+  }
+
   function readImportedRecord(game) {
     try { return localStorage.getItem('choy_arcade_' + game.id); }
     catch { return null; }
@@ -190,14 +216,23 @@
   window.addEventListener('message', event => {
     const session = importedSession;
     const data = event.data;
-    if (!session || event.origin !== 'null' || event.source !== session.frame.contentWindow ||
-        data?.type !== 'choy-arcade-record' || data.channel !== session.channel ||
-        typeof data.record !== 'string' || data.record.length > 200) return;
+    if (!session?.game.key || event.origin !== 'null' || event.source !== session.frame.contentWindow ||
+        data?.channel !== session.channel || typeof data.record !== 'string') return;
+    if (data.type === 'choy-arcade-save' && session.game.saveKey) {
+      if (data.record.length > 128000) return;
+      try {
+        const save = JSON.parse(data.record);
+        if (save?.v === 1 && Array.isArray(save.inventory)) localStorage.setItem('choy_arcade_save_' + session.game.id, data.record);
+      } catch {}
+      return;
+    }
+    if (data.type !== 'choy-arcade-record' || data.record.length > 200) return;
     const score = importedRecord(session.game, data.record);
     if (score === null) return;
+    if (session.game.collection && score <= (importedRecord(session.game, readImportedRecord(session.game)) ?? 0)) return;
     try { localStorage.setItem('choy_arcade_' + session.game.id, data.record); } catch {}
     const display = document.getElementById('game-hs-score');
-    if (display) display.textContent = score;
+    if (display) display.textContent = formatRecord(session.game, score);
   });
 
   const eclipseGameGlyphs = {
@@ -240,7 +275,7 @@
       <div class="arcade-header-banner">
         <div>
           <div style="font-size:18px;font-weight:800;margin-bottom:4px;">Choyxona Arcade — ${allGames.length} ta o‘yin</div>
-          <div class="hint">Har bir o‘yin mobil va kompyuter uchun to‘liq moslashtirilgan. Rekordlar qurilmada saqlanadi.</div>
+          <div class="hint">O‘yin boshqaruvi kartada ko‘rsatilgan. Rekordlar shu brauzerda saqlanadi.</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button type="button" class="btn-chip-action primary" data-action="toggle-games-menu">Menyudan yashirish</button>
@@ -262,7 +297,7 @@
           </div>
           <div class="arcade-desc">${g.desc}</div>
           <div class="arcade-footer">
-            <div class="arcade-hs">${g.recordLabel || 'Rekord'}: <strong>${hs ?? 'Hali yo‘q'}</strong></div>
+            <div class="arcade-hs">${g.file && !g.key ? 'Erkin o‘yin' : `${g.recordLabel || 'Rekord'}: <strong>${formatRecord(g, hs)}</strong>`}</div>
             <button type="button" class="btn-chip-action primary" data-action="play-game" data-game="${g.id}">
               ▶ O‘ynash
             </button>
@@ -302,7 +337,7 @@
           </div>
           <div class="game-scores">
             ${gameMeta.file ? '' : '<div class="game-score-badge live">Hisob: <strong id="game-live-score">0</strong></div>'}
-            <div class="game-score-badge">${gameMeta.recordLabel || 'Rekord'}: <strong id="game-hs-score">${hs ?? 'Hali yo‘q'}</strong></div>
+            ${gameMeta.file && !gameMeta.key ? '' : `<div class="game-score-badge">${gameMeta.recordLabel || 'Rekord'}: <strong id="game-hs-score">${formatRecord(gameMeta, hs)}</strong></div>`}
           </div>
           <button type="button" class="btn-chip-action" data-action="restart-game">Qaytadan</button>
           <button type="button" class="btn-chip-action" data-action="fullscreen-game" aria-pressed="false">To‘liq ekran</button>
@@ -334,10 +369,16 @@
     if (gameMeta.file) {
       currentGameInstance = null;
       const channel = crypto.randomUUID();
-      const params = new URLSearchParams({ key: gameMeta.key, channel, record: record || '' });
+      const params = new URLSearchParams({ key: gameMeta.key || '', channel, record: record || '' });
+      if (gameMeta.saveKey) {
+        params.set('saveKey', gameMeta.saveKey);
+        try {
+          params.set('save', localStorage.getItem('choy_arcade_save_' + gameMeta.id) || '');
+        } catch {}
+      }
       const frame = document.createElement('iframe');
       frame.title = gameMeta.title;
-      frame.setAttribute('sandbox', 'allow-scripts');
+      frame.setAttribute('sandbox', gameMeta.pointerLock ? 'allow-scripts allow-pointer-lock' : 'allow-scripts');
       frame.referrerPolicy = 'no-referrer';
       frame.src = '/app/arcade/' + gameMeta.file + '.html#' + params;
       importedSession = { frame, channel, game: gameMeta };
