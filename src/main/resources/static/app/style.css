@@ -2676,6 +2676,10 @@ input:checked + .toggle-slider:before {
   gap: 8px;
   margin-bottom: 12px;
 }
+[data-theme="eclipse"] .arcade-new-icon {
+  color: var(--gold);
+  text-shadow: 0 0 8px var(--btn-hover);
+}
 .arcade-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

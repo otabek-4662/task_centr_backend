@@ -314,7 +314,7 @@
       <div class="arcade-filters" role="group" aria-label="O‘yin filtrlari">
         ${Object.entries(gameFilters).map(([id, filter]) => `
           <button type="button" class="btn-chip-action${id === activeGameFilter ? ' primary' : ''}"
-            data-arcade-filter="${id}" aria-pressed="${id === activeGameFilter}">${filter.label}</button>
+            data-arcade-filter="${id}" aria-pressed="${id === activeGameFilter}">${id === 'new' ? '<span class="arcade-new-icon" aria-hidden="true">✦</span> ' : ''}${filter.label}</button>
         `).join('')}
       </div>
       <div class="arcade-grid">
