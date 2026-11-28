@@ -189,6 +189,14 @@
     ...game, file: 'collection/' + game.id + '/index', collection: true
   }));
   const allGames = [...GAMES_CATALOG, ...collectionGames, ...importedGames];
+  const gameFilters = {
+    all: { label: 'Barchasi', matches: () => true },
+    new: { label: 'Yangi', matches: ({ isNew }) => isNew },
+    heavy: { label: 'Og‘ir / 3D', matches: ({ game }) => game.tag.startsWith('3D ') },
+    retro: { label: 'Eski / Retro', matches: ({ game }) => /^(Retro|Klassik)/.test(game.tag) },
+    puzzle: { label: 'Boshqotirma', matches: ({ game }) => /^(Boshqotirma|Mantiq|Xotira)/.test(game.tag) },
+  };
+  let activeGameFilter = 'all';
   const gameCount = document.getElementById('arcade-game-count');
   if (gameCount) gameCount.textContent = allGames.length;
 
@@ -214,6 +222,14 @@
   function readImportedRecord(game) {
     try { return localStorage.getItem('choy_arcade_' + game.id); }
     catch { return null; }
+  }
+
+  function hasPlayedCollectionGame(game, score) {
+    if (score !== null) return true;
+    try {
+      return localStorage.getItem('choy_arcade_played_' + game.id) === '1' ||
+        Boolean(game.saveKey && localStorage.getItem('choy_arcade_save_' + game.id));
+    } catch { return false; }
   }
 
   window.addEventListener('message', event => {
@@ -279,6 +295,12 @@
     importedSession = null;
     leaveGameFullscreen();
 
+    const visibleGames = allGames.map(game => {
+      const hs = game.file ? importedRecord(game, readImportedRecord(game)) : getHs(game.id);
+      const isNew = game.collection && !hasPlayedCollectionGame(game, hs);
+      return { game, hs, isNew };
+    }).filter(gameFilters[activeGameFilter].matches);
+
     let html = `
       <div class="arcade-header-banner">
         <div>
@@ -289,11 +311,16 @@
           <button type="button" class="btn-chip-action primary" data-action="toggle-games-menu">Menyudan yashirish</button>
         </div>
       </div>
+      <div class="arcade-filters" role="group" aria-label="O‘yin filtrlari">
+        ${Object.entries(gameFilters).map(([id, filter]) => `
+          <button type="button" class="btn-chip-action${id === activeGameFilter ? ' primary' : ''}"
+            data-arcade-filter="${id}" aria-pressed="${id === activeGameFilter}">${filter.label}</button>
+        `).join('')}
+      </div>
       <div class="arcade-grid">
     `;
 
-    allGames.forEach(g => {
-      const hs = g.file ? importedRecord(g, readImportedRecord(g)) : getHs(g.id);
+    visibleGames.forEach(({ game: g, hs, isNew }) => {
       html += `
         <div class="arcade-card">
           <div class="arcade-card-top">
@@ -306,16 +333,29 @@
           <div class="arcade-desc">${g.desc}</div>
           <div class="arcade-footer">
             <div class="arcade-hs">${g.file && !g.key ? 'Erkin o‘yin' : `${g.recordLabel || 'Rekord'}: <strong>${formatRecord(g, hs)}</strong>`}</div>
-            <button type="button" class="btn-chip-action primary" data-action="play-game" data-game="${g.id}">
-              ▶ O‘ynash
-            </button>
+            <div class="arcade-play">
+              ${isNew ? '<span class="arcade-tag">Yangi</span>' : ''}
+              <button type="button" class="btn-chip-action primary" data-action="play-game" data-game="${g.id}">
+                ▶ O‘ynash
+              </button>
+            </div>
           </div>
         </div>
       `;
     });
 
+    if (!visibleGames.length) html += '<p class="hint">Bu filtrda o‘yin yo‘q.</p>';
     html += `</div>`;
     container.innerHTML = html;
+    container.querySelectorAll('[data-arcade-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.arcadeFilter;
+        if (filter === activeGameFilter) return;
+        activeGameFilter = filter;
+        renderLobby();
+        container.querySelector(`[data-arcade-filter="${filter}"]`)?.focus();
+      });
+    });
   }
 
   // Stage Renderer
@@ -394,6 +434,9 @@
       frame.src = '/app/arcade/' + gameMeta.file + '.html#' + params;
       importedSession = { frame, channel, game: gameMeta };
       viewport.appendChild(frame);
+      if (gameMeta.collection) {
+        try { localStorage.setItem('choy_arcade_played_' + gameId, '1'); } catch {}
+      }
       frame.focus();
       return;
     }

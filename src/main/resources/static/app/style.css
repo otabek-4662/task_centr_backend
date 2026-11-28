@@ -2670,6 +2670,12 @@ input:checked + .toggle-slider:before {
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
+.arcade-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
 .arcade-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2754,6 +2760,11 @@ input:checked + .toggle-slider:before {
   color: var(--gold);
   display: flex;
   align-items: center;
+  gap: 4px;
+}
+.arcade-play {
+  display: grid;
+  justify-items: end;
   gap: 4px;
 }
 
